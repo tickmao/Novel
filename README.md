@@ -109,7 +109,7 @@ http://www.legado.top/MyBookshelf/bookSource.json
 
 选择主题文件用爱阅书香打开即可。
 
-<img src="https://i.loli.net/2020/08/03/GKT4oR9WqMwBsSa.jpg" alt="IMG_1638.JPG" style="zoom:25%;" />
+![aiyue.png](https://i.loli.net/2020/08/03/QSl4HoqVC1j3Kse.png)
 
 
 
