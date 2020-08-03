@@ -22,24 +22,22 @@
 
 > **操作方法**
 
-- 请在 iOS Safari 中打开，电脑或微信中点击导入按钮无效。
+- 请长按复制书源地址在爱阅书香中点击同步，然后粘贴书源地址。
 
-- Safari 中点击导入会跳转到爱阅书香 app 中，如无法导入请长按复制书源地址在爱阅书香中点击同步，然后粘贴书源地址。
-
-|    书源作者     |                       地址                        |                             操作                             |
-| :-------------: | :-----------------------------------------------: | :----------------------------------------------------------: |
-| **BlackTouma**  | https://gitee.com/BlackTouma/iFreeTimeBookConfigs | [导入](ifreetime://configs/https://gitee.com/BlackTouma/iFreeTimeBookConfigs) |
-|    **纲吉**     |     https://gitee.com/gangxiaoji/bookConfigs      | [导入](ifreetime://configs/https://gitee.com/gangxiaoji/bookConfigs) |
-| **feifeiadmim** |      https://gitee.com/feifeiadmim/book_yuan      | [导入](ifreetime://configs/https://gitee.com/feifeiadmim/book_yuan) |
-|   **mm0809**    |          https://github.com/mm0809/BUUK           |  [导入](ifreetime://configs/https://github.com/mm0809/BUUK)  |
-|    **曙光**     | https://gitee.com/shu_guang_a/love_reading_books  | [导入](ifreetime://configs/https://gitee.com/shu_guang_a/love_reading_books) |
-|   **zxhzxhz**   |          https://zxhzxhz.tk/booksource/           |  [导入](ifreetime://configs/https://zxhzxhz.tk/booksource/)  |
-|  **Liquor030**  | https://gitee.com/Liquor030/iFreeTimeBookConfigs  | [导入](ifreetime://configs/https://gitee.com/Liquor030/iFreeTimeBookConfigs) |
-|     **Mxy**     |         https://gitee.com/mxyseo/iosread          | [导入](ifreetime://configs/https://gitee.com/mxyseo/iosread) |
-| **相逢应不识**  |   https://gitee.com/ift123/iFreeTimeBookConfigs   | [导入](ifreetime://configs/https://gitee.com/ift123/iFreeTimeBookConfigs) |
-|    **wxdjs**    |  https://gitee.com/wxdjs_sz/iFreeTimebookConfigs  | [导入](ifreetime://configs/https://gitee.com/wxdjs_sz/iFreeTimebookConfigs) |
-|   **abc 君**    |         https://gitee.com/weiniff/ibooks          | [导入](ifreetime://configs/https://gitee.com/weiniff/ibooks) |
-| **wangyingbo**  | https://gitee.com/wangyingbo/iFreeTimeBookConfigs | [导入](ifreetime://configs/https://gitee.com/wangyingbo/iFreeTimeBookConfigs) |
+|    书源作者     |                       地址                        |
+| :-------------: | :-----------------------------------------------: |
+| BlackTouma  | https://gitee.com/BlackTouma/iFreeTimeBookConfigs |
+|    纲吉     |     https://gitee.com/gangxiaoji/bookConfigs      |
+| feifeiadmim |      https://gitee.com/feifeiadmim/book_yuan      |
+|   mm0809   |          https://github.com/mm0809/BUUK           |
+|    曙光    | https://gitee.com/shu_guang_a/love_reading_books  |
+|   zxhzxhz   |          https://zxhzxhz.tk/booksource/           |
+|  Liquor030  | https://gitee.com/Liquor030/iFreeTimeBookConfigs  |
+|     Mxy     |         https://gitee.com/mxyseo/iosread          |
+| 相逢应不识  |   https://gitee.com/ift123/iFreeTimeBookConfigs   |
+|    wxdjs    |  https://gitee.com/wxdjs_sz/iFreeTimebookConfigs  |
+|   abc 君    |         https://gitee.com/weiniff/ibooks          |
+| wangyingbo  | https://gitee.com/wangyingbo/iFreeTimeBookConfigs |
 
 
 
