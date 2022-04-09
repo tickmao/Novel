@@ -121,7 +121,7 @@ http://www.legado.top/MyBookshelf/bookSource.json
 
 选择主题文件用爱阅书香打开即可。
 
-[![kLpXY.jpg](https://i.imgtg.com/2022/04/09/kLpXY.jpg)](https://imgtg.com/image/kLpXY)
+![_20220409160337.jpg](https://cdn5.maocdn.cn/img/2022/04/09/_20220409160337.jpg)
 
 ## 字体推荐
 
