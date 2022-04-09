@@ -8,8 +8,8 @@
 
 各平台较为推荐的软件，点击下载
 
-- IOS - [爱阅书香](https://itunes.apple.com/cn/app/id1137819437)
-- Andriod - [阅读](https://www.coolapk.com/apk/256030)
+- IOS - [爱阅书香](https://itunes.apple.com/cn/app/id1137819437)/[香色闺阁](https://itunes.apple.com/app/id1521205149)
+- Andriod - [阅读](https://www.legado.top/)
 
 ## 书源地址
 提供网络导入地址，仅需要填写对应的书源地址导入即可，维护简单。
@@ -39,7 +39,16 @@
 |   abc 君    |         https://gitee.com/weiniff/ibooks          |
 | wangyingbo  | https://gitee.com/wangyingbo/iFreeTimeBookConfigs |
 
+### 香色闺阁
 
+> **操作方法**
+
+- 请长按复制书源地址在香色闺阁站点中点击导入，然后粘贴书源地址导入即可。
+
+|    书源作者     |                       地址                        |
+| :-------------: | :-----------------------------------------------: |
+| AlphonsoEstrada优质书源  | https://alphonsoestrada.coding.net/p/test/d/xiangse/git/raw/master/sourceModelList.xbs |
+| AlphonsoEstrada普通书源  | https://alphonsoestrada.coding.net/p/test/d/xiangse/git/raw/master/sourceModelList2.xbs |   |
 
 ### 阅读
 
@@ -51,7 +60,11 @@
 
 - 输入下面的网络导入地址并点击 **[确定]** 按钮即可。
 
+> 「阅读」APP 精品书源:
 
+```
+https://yuedu.xiu2.xyz/
+```
 
 > 900+ 书源，书源来源网络:
 
@@ -102,7 +115,6 @@ http://www.legado.top/MyBookshelf/bookSource.json
 ```
 
 
-
 ## 界面设置
 
 - 爱阅书香
@@ -111,7 +123,13 @@ http://www.legado.top/MyBookshelf/bookSource.json
 
 ![aiyue.png](https://i.loli.net/2020/08/03/QSl4HoqVC1j3Kse.png)
 
+## 字体推荐
 
+选择字体文件用软件打开即可。
+
+[霞鹜文楷 / LXGW WenKai](https://github.com/lxgw/LxgwWenKai)
+
+![ziti.png](https://raw.githubusercontent.com/lxgw/LxgwWenKai/main/image/wenkai-1.png)
 
 ## 致谢
 
@@ -127,6 +145,6 @@ http://www.legado.top/MyBookshelf/bookSource.json
 
 ## Author
 
-Novel ©[Tickmao](https://www.tickmao.com/), Released under the MIT License.
+Novel ©[Tickmao](https://blog.tickmao.com/), Released under the MIT License.
 
-Blog @[Tickmao](https://www.tickmao.com/) · GitHub @[Tickmao](https://github.com/tickmao) · Twitter @[Tickmao](https://twitter.com/tickmao)
+Blog @[Tickmao](https://blog.tickmao.com/) · GitHub @[Tickmao](https://github.com/tickmao) · Twitter @[Tickmao](https://twitter.com/tickmao)
