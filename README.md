@@ -125,7 +125,7 @@ http://www.legado.top/MyBookshelf/bookSource.json
 
 ## 字体推荐
 
-选择字体文件用软件打开即可。
+选择字体文件下载后用导入软件打开即可。
 
 [霞鹜文楷 / LXGW WenKai](https://github.com/lxgw/LxgwWenKai)
 
@@ -133,7 +133,7 @@ http://www.legado.top/MyBookshelf/bookSource.json
 
 ## 致谢
 
-感谢阅读和爱阅书香作者制作优秀的软件，在此表示感谢。有条件并有喜欢的小说作者记得去支持下作者。
+感谢作者制作优秀的软件、书源和字体，在此表示感谢。有条件并有喜欢的小说作者记得去支持下作者。
 
 
 
