@@ -14,7 +14,10 @@
 ## 书源地址
 提供网络导入地址，仅需要填写对应的书源地址导入即可，维护简单。
 - 爱阅书香 http://icc.one/2020/01/23/bkSrcImport
-- 阅读  https://xiu2.github.io/yuedu/shuyuan
+- 阅读  http://yckceo.vip/ | http://yuedu.miaogongzi.net/gx.html
+
+源仓库域名经常和谐，上方网址为源仓库发布页，如地址无法访问，可通过下方链接找到最新地址。
+https://support.qq.com/products/145120#label=show
 
 ## 其他优质书源
 
@@ -129,18 +132,16 @@ http://www.legado.top/MyBookshelf/bookSource.json
 
 [霞鹜文楷 / LXGW WenKai](https://github.com/lxgw/LxgwWenKai)
 
-![ziti.png](https://raw.githubusercontent.com/lxgw/LxgwWenKai/main/image/wenkai-1.png)
+![ziti.png](https://raw.githubusercontent.com/lxgw/LxgwWenKai/main/documentation/wenkai-1.png)
 
 ## 致谢
 
 感谢作者制作优秀的软件、书源和字体，在此表示感谢。有条件并有喜欢的小说作者记得去支持下作者。
 
 
-
 ## 参与我们
 
 如果有任何想法或需求，可以在 [issue](https://github.com/tickmao/Novel/issues) 中告诉我们，欢迎各种小伙伴踊跃留言。
-
 
 
 ## Author
