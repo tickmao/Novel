@@ -9,7 +9,7 @@
 各平台较为推荐的软件，点击下载
 
 - IOS - [爱阅书香](https://itunes.apple.com/cn/app/id1137819437)/[香色闺阁](https://itunes.apple.com/app/id1521205149)
-- Andriod - [阅读](https://www.legado.top/)
+- Andriod - [阅读](https://yd.miaogongzi.cc/)
 
 ## 书源地址
 提供网络导入地址，仅需要填写对应的书源地址导入即可，维护简单。
