@@ -15,7 +15,7 @@
 提供网络导入地址，仅需要填写对应的书源地址导入即可，维护简单。
 - 爱阅书香 http://icc.one/2020/01/23/bkSrcImport
 - 香色闺阁 https://raw.githubusercontent.com/zqzess/MyWebStorage/main/xsreader/new/resources.txt
-- 阅读  http://yckceo.vip/ | http://yuedu.miaogongzi.net | https://www.5yd.cc/
+- 阅读  http://yckceo.vip/ | http://yuedu.miaogongzi.net
 
 源仓库域名经常和谐，上方网址为源仓库发布页，如地址无法访问，可通过下方链接找到最新地址。
 https://support.qq.com/products/145120#label=show
