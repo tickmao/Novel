@@ -13,8 +13,8 @@
 
 ## 书源地址
 提供网络导入地址，仅需要填写对应的书源地址导入即可，维护简单。
-- 爱阅书香 http://icc.one/2020/01/23/bkSrcImport
-- 香色闺阁 https://raw.githubusercontent.com/zqzess/MyWebStorage/main/xsreader/new/resources.txt
+- 爱阅书香 https://github.com/shidahuilang/shuyuan/raw/shuyuan/aiyueshuxiang.ibs
+- 香色闺阁 https://raw.githubusercontent.com/shidahuilang/shuyuan/shuyuan/xsreader/new/resources.txt
 - 阅读  http://yckceo.vip/ | http://yuedu.miaogongzi.net
 
 源仓库域名经常和谐，上方网址为源仓库发布页，如地址无法访问，可通过下方链接找到最新地址。
@@ -28,31 +28,11 @@ https://support.qq.com/products/145120#label=show
 
 - 请长按复制书源地址在爱阅书香中点击同步，然后粘贴书源地址。
 
-|    书源作者     |                       地址                        |
-| :-------------: | :-----------------------------------------------: |
-| BlackTouma  | https://gitee.com/BlackTouma/iFreeTimeBookConfigs |
-|    纲吉     |     https://gitee.com/gangxiaoji/bookConfigs      |
-| feifeiadmim |      https://gitee.com/feifeiadmim/book_yuan      |
-|   mm0809   |          https://github.com/mm0809/BUUK           |
-|    曙光    | https://gitee.com/shu_guang_a/love_reading_books  |
-|   zxhzxhz   |          https://zxhzxhz.tk/booksource/           |
-|  Liquor030  | https://gitee.com/Liquor030/iFreeTimeBookConfigs  |
-|     Mxy     |         https://gitee.com/mxyseo/iosread          |
-| 相逢应不识  |   https://gitee.com/ift123/iFreeTimeBookConfigs   |
-|    wxdjs    |  https://gitee.com/wxdjs_sz/iFreeTimebookConfigs  |
-|   abc 君    |         https://gitee.com/weiniff/ibooks          |
-| wangyingbo  | https://gitee.com/wangyingbo/iFreeTimeBookConfigs |
-
 ### 香色闺阁
 
 > **操作方法**
 
-- 请长按复制书源地址在香色闺阁站点中点击导入，然后粘贴书源地址导入即可或者下载[xbs](https://github.com/tickmao/Novel/blob/master/%E6%94%B6%E9%9B%86%E7%9A%84%E9%A6%99%E8%89%B2%E9%97%BA%E9%98%81%E4%B9%A6%E6%BA%90%EF%BC%881327%E4%B8%AA%E7%AB%99%E7%82%B9%EF%BC%89.xbs)格式文件导入到香色闺阁即可。
-
-|    书源作者     |                       地址                        |
-| :-------------: | :-----------------------------------------------: |
-| AlphonsoEstrada优质书源  | https://alphonsoestrada.coding.net/p/test/d/xiangse/git/raw/master/sourceModelList.xbs |
-| AlphonsoEstrada普通书源  | https://alphonsoestrada.coding.net/p/test/d/xiangse/git/raw/master/sourceModelList2.xbs |   |
+- 请长按复制书源地址在香色闺阁站点中点击导入，然后粘贴书源地址导入即可或者下载[xbs]格式文件导入到香色闺阁即可。
 
 ### 阅读
 
@@ -64,68 +44,29 @@ https://support.qq.com/products/145120#label=show
 
 - 输入下面的网络导入地址并点击 **[确定]** 按钮即可。
 
-> 「阅读」APP 精品书源:
+> 「阅读」APP 全量书源（7026）:
 
 ```
-https://yuedu.xiu2.xyz/
+https://jihulab.com/aoaostar/legado/-/raw/release/cache/3fc2c64c5489c491de6284dca2c2dfce7f551bc9.json
 ```
 
-> 900+ 书源，书源来源网络:
+> 「阅读」XIU2精品书源（31）:
 
 ```
-https://gitlab.com/GJTQQ/YueDu/raw/master/Share/915.json
+https://jihulab.com/aoaostar/legado/-/raw/release/cache/71e56d4f1d8f1bff61fdd3582ef7513600a9e108.json
 ```
 
-> 100 + 书源，书源来源网络:
+> 「阅读」一程的书源合集（90）:
 
 ```
-https://gitlab.com/GJTQQ/YueDu/raw/master/Share/WxSource.json
+https://jihulab.com/aoaostar/legado/-/raw/release/cache/1b8256c78b385543b5e8aa6a0d7693c76f8e60d4.json
 ```
 
-> N 个书源，书源来源网络:
+> 「阅读」破冰的书源合集（128）:
 
 ```
-https://raw.staticdn.net/CNAD666/MyData/master/novel/bookshelf/N个书源(长期更新).txt
+https://jihulab.com/aoaostar/legado/-/raw/release/cache/4dc410d1d0a674de21c5d869496efd60a7fcba7c.json
 ```
-
-> 普通 408 个
-
-```
-https://moonbegonia.github.io/Source/yuedu/general.json
-```
-
-> 有效书源 NOR18 1020 个
-
-```
-https://moonbegonia.github.io/Source/yuedu/fullNOR18.json
-```
-
-> 有效书源 1051 个
-
-```
-https://moonbegonia.github.io/Source/yuedu/full.json
-```
-
-> 总书源 1786 个
-
-```
-https://moonbegonia.github.io/Source/yuedu/fullSourceIncludeInvalid.json
-```
-
-> 集合书源
-
-```
-http://www.legado.top/MyBookshelf/bookSource.json
-```
-
-
-## 界面设置
-
-- 爱阅书香
-
-选择主题文件用爱阅书香打开即可。
-
-![_20220409160337.jpg](https://cdn5.maocdn.cn/img/2022/04/09/_20220409160337.jpg)
 
 ## 字体推荐
 
