@@ -1,0 +1,142 @@
+[
+  {
+    "enabled": false,
+    "name": "百度汉语",
+    "showRule": "@js:var jsoup = org.jsoup.Jsoup.parse(result)\njsoup.select(\"script,#word-header,#term-header,.more-button,.disactive,#download-wrapper,#upload-dialog,#right-panel,#success-dialog,.toast-wrap,div[style^=color],.baike-feedback,#cishumean-wrapper,#syn_ant_wrapper,#baike-wrapper\").remove()\njsoup.select(\"#content-panel\").html()",
+    "sortNumber": 0,
+    "urlRule": "https://dict.baidu.com/s?wd={{key}}"
+  },
+  {
+    "enabled": true,
+    "name": "百度百科",
+    "showRule": "class.body-wrapper@all",
+    "sortNumber": 0,
+    "urlRule": "https://baike.baidu.com/item/{{key}}"
+  },
+  {
+    "enabled": false,
+    "name": "bing词典",
+    "showRule": "//div[@class=\"hd_area\"]&&//div[@class=\"qdef\"]/ul&&//a[@id=\"crosstabid\"]&&//div[@id=\"crossid\"]&&//a[@id=\"homotabid\"]&&//div[@id=\"homoid\"]&&//a[@id=\"webtabid\"]&&//div[@class=\"def_fl\"]&&//div[@id=\"sen_bar\"]&&//div[@id=\"senDef\"]//span&&//div[@id=\"sentenceSeg\"]##更多释义|收起释义|更多例句筛选|收起例句筛选",
+    "sortNumber": 0,
+    "urlRule": "https://cn.bing.com/dict/search?q={{key}}&qs=ds&form=CM"
+  },
+  {
+    "enabled": false,
+    "name": "汉典",
+    "showRule": "@js:var jsoup = org.jsoup.Jsoup.parse(result)\njsoup.select(\"div[class~=am-default contentslot|zi-b-container zib-title|div copyright]\").remove()\njsoup.select(\"[data-type-block~=词语解释|基本解释|详细解释|说文解字]\").html()",
+    "sortNumber": 0,
+    "urlRule": " https://www.zdic.net/hans/{{key}}"
+  },
+  {
+    "enabled": true,
+    "name": "萌娘百科",
+    "showRule": "class.mw-parser-output@all",
+    "sortNumber": 0,
+    "urlRule": "https://mzh.moegirl.org.cn/{{key}}"
+  },
+  {
+    "enabled": true,
+    "name": "维基镜像duhoc",
+    "showRule": "id.mw-content-text@all",
+    "sortNumber": 0,
+    "urlRule": "https://duhoc.cn/baike/?search={{key}}&title=Special%3A%E6%90%9C%E7%B4%A2&profile=default&fulltext=1"
+  },
+  {
+    "enabled": true,
+    "name": "维基镜像how",
+    "showRule": "id.mw-content-text@all",
+    "sortNumber": 0,
+    "urlRule": "https://www.how.com.vn/wiki/?lang=zh&title=Special%3A%E6%90%9C%E7%B4%A2&search={{key}}"
+  },
+  {
+    "enabled": false,
+    "name": "海词英文",
+    "showRule": "tag.body@all",
+    "sortNumber": 1,
+    "urlRule": "https://apii.dict.cn/mini.php?q={{key}}"
+  },
+  {
+    "enabled": false,
+    "name": "新华字典",
+    "showRule": "class.shiyi_content res_c_center_content@html",
+    "sortNumber": 2,
+    "urlRule": "https://zidian.gushici.net/search/zi.php?zi={{key}}"
+  },
+  {
+    "enabled": false,
+    "name": "漢語字典",
+    "showRule": "class.card main-card@html",
+    "sortNumber": 3,
+    "urlRule": "https://www.hanyuguoxue.com/zidian/search?type=all&words={{key}}"
+  },
+  {
+    "enabled": false,
+    "name": "有道中英",
+    "showRule": "//h2[@class=\"wordbook-js\"]&&//div[@class=\"trans-container\"]&&//a[@class=\"tab-current\"][1]&&//div[@id=\"tPETrans\"]&&//div[@id=\"authTrans\"]&&//div[@id=\"examples\"]//a[1]/span/text()&&//div[@id=\"bilingual\"]&&//div[@id=\"eBaike\"]##在例句中比较|.*论文数据.*数据来源于.*|更多双语例句|详细内容|以上来源于.*",
+    "sortNumber": 5,
+    "urlRule": "http://dict.youdao.com/w/{{key}}/"
+  },
+  {
+    "enabled": false,
+    "name": "萌典国语",
+    "showRule": "@js:function renderToString(string,prefix){try{let trim=str=>String(str||'').replace(/`|~/g, \"\"),json=JSON.parse(string),searchKey=trim(json.t),href=`https://www.moedict.tw/${prefix||\"\"}${searchKey}`,searchBrowser=`<a href=\"${href}\">网页打开</a>`,html=[];for(item of json.h){html.push(`<h1>${searchKey}</h1>`),item.p&&html.push(`<span>[ ${item.p.replace(/（.*?）/,\"\")} ]</span>`);if(item.d==null)continue;for(define of item.d){html.push(\"<li>\"),define.f&&html.push(`<span class=\"def\">${trim(define.f)}</span>`),Object.values(define).filter(v=>v instanceof Array).forEach(array=>array.forEach(ele=>html.push(`<div>${trim(ele)}</div>`))),html.push(\"</li>\")}}return html.join(\"\\n\")+searchBrowser}catch(e){return `${string}\\n${e}`}};renderToString(result,\"\")",
+    "sortNumber": 5,
+    "urlRule": "https://www.moedict.tw/a/{{key}}.json"
+  },
+  {
+    "enabled": false,
+    "name": "有道中日",
+    "showRule": "//div[@class=\"trans-container\"]&&//div[@id=\"webTrans\"]&&//div[@id=\"examples\"]&&//div[@id=\"eBaike\"]##youdao|基于1个网页.*|更多双语例句|详细内容|以上来源于.*",
+    "sortNumber": 6,
+    "urlRule": "http://dict.youdao.com/w/jap/{{key}}/"
+  },
+  {
+    "enabled": false,
+    "name": "萌典两岸",
+    "showRule": "@js:function renderToString(string,prefix){try{let trim=str=>String(str||'').replace(/`|~/g, \"\"),json=JSON.parse(string),searchKey=trim(json.t),href=`https://www.moedict.tw/${prefix||\"\"}${searchKey}`,searchBrowser=`<a href=\"${href}\">网页打开</a>`,html=[];for(item of json.h){html.push(`<h1>${searchKey}</h1>`),item.p&&html.push(`<span>[ ${item.p.replace(/（.*?）/,\"\")} ]</span>`);if(item.d==null)continue;for(define of item.d){html.push(\"<li>\"),define.f&&html.push(`<span class=\"def\">${trim(define.f)}</span>`),Object.values(define).filter(v=>v instanceof Array).forEach(array=>array.forEach(ele=>html.push(`<div>${trim(ele)}</div>`))),html.push(\"</li>\")}}return html.join(\"\\n\")+searchBrowser}catch(e){return `${string}\\n${e}`}};renderToString(result,\"~\")",
+    "sortNumber": 6,
+    "urlRule": "https://www.moedict.tw/c/{{key}}.json"
+  },
+  {
+    "enabled": false,
+    "name": "有道中法",
+    "showRule": "id.results-contents@html##youdao|基于1个网页.*|更多双语例句|详细内容|以上来源于.*|相关文章",
+    "sortNumber": 7,
+    "urlRule": "http://dict.youdao.com/w/fr/{{key}}/"
+  },
+  {
+    "enabled": false,
+    "name": "萌典客语",
+    "showRule": "@js:function renderToString(string,prefix){try{let trim=str=>String(str||'').replace(/`|~/g, \"\"),json=JSON.parse(string),searchKey=trim(json.t),href=`https://www.moedict.tw/${prefix||\"\"}${searchKey}`,searchBrowser=`<a href=\"${href}\">网页打开</a>`,html=[];for(item of json.h){html.push(`<h1>${searchKey}</h1>`),item.p&&html.push(`<span>[ ${item.p.replace(/（.*?）/,\"\")} ]</span>`);if(item.d==null)continue;for(define of item.d){html.push(\"<li>\"),define.f&&html.push(`<span class=\"def\">${trim(define.f)}</span>`),Object.values(define).filter(v=>v instanceof Array).forEach(array=>array.forEach(ele=>html.push(`<div>${trim(ele)}</div>`))),html.push(\"</li>\")}}return html.join(\"\\n\")+searchBrowser}catch(e){return `${string}\\n${e}`}};renderToString(result,\":\")",
+    "sortNumber": 7,
+    "urlRule": "https://www.moedict.tw/h/{{key}}.json"
+  },
+  {
+    "enabled": false,
+    "name": "有道中韩",
+    "showRule": "//div[@class=\"trans-container\"]&&//div[@id=\"webTrans\"]&&//div[@id=\"examples\"]&&//div[@id=\"eBaike\"]##youdao|基于1个网页.*|更多双语例句|详细内容|以上来源于.*",
+    "sortNumber": 8,
+    "urlRule": "http://dict.youdao.com/w/ko/{{key}}/"
+  },
+  {
+    "enabled": false,
+    "name": "萌典臺语",
+    "showRule": "@js:function renderToString(string,prefix){try{let trim=str=>String(str||'').replace(/`|~/g, \"\"),json=JSON.parse(string),searchKey=trim(json.t),href=`https://www.moedict.tw/${prefix||\"\"}${searchKey}`,searchBrowser=`<a href=\"${href}\">网页打开</a>`,html=[];for(item of json.h){html.push(`<h1>${searchKey}</h1>`),item.p&&html.push(`<span>[ ${item.p.replace(/（.*?）/,\"\")} ]</span>`);if(item.d==null)continue;for(define of item.d){html.push(\"<li>\"),define.f&&html.push(`<span class=\"def\">${trim(define.f)}</span>`),Object.values(define).filter(v=>v instanceof Array).forEach(array=>array.forEach(ele=>html.push(`<div>${trim(ele)}</div>`))),html.push(\"</li>\")}}return html.join(\"\\n\")+searchBrowser}catch(e){return `${string}\\n${e}`}};renderToString(result,\"'\")",
+    "sortNumber": 8,
+    "urlRule": "https://www.moedict.tw/t/{{key}}.json"
+  },
+  {
+    "enabled": false,
+    "name": "漢典",
+    "showRule": "class.ciif noi zisong@html&&class.content definitions jnr@html&&class.content definitions xnr@html&&#gyjs@html&&#7BAD_2@html&&#7BAD_3@html&&#7BAD_5@html&&#wljs@html##百度百科",
+    "sortNumber": 9,
+    "urlRule": "https://www.zdic.net/hans/{{key}}"
+  },
+  {
+    "enabled": false,
+    "name": "海词",
+    "showRule": ".main@html##.*词典定义.*学习型词典[\\s\\S]*",
+    "sortNumber": 10,
+    "urlRule": "http://dict.cn/search?q={{key}}"
+  }
+]
