@@ -85,6 +85,10 @@ https://jihulab.com/aoaostar/legado/-/raw/release/cache/4dc410d1d0a674de21c5d869
 
 如果有任何想法或需求，可以在 [issue](https://github.com/tickmao/Novel/issues) 中告诉我们，欢迎各种小伙伴踊跃留言。
 
+## Star History
+
+[![Star History](https://starchart.cc/ncdai/chanhdai.com.svg?variant=adaptive)](https://starchart.cc/ncdai/chanhdai.com)
+
 
 ## Author
 
