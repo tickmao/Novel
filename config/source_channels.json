@@ -1,0 +1,119 @@
+{
+  "github_repos": [
+    {
+      "name": "XIU2/yuedu",
+      "description": "知名阅读书源仓库",
+      "priority": "high",
+      "file_patterns": ["书源", "shuyuan", "source", "legado"],
+      "max_files": 3
+    },
+    {
+      "name": "aoaostar/legado-book-source",
+      "description": "Legado书源收集",
+      "priority": "high",
+      "file_patterns": ["书源", "source", "legado"],
+      "max_files": 3
+    },
+    {
+      "name": "shidahuilang/shuyuan",
+      "description": "书源分享仓库",
+      "priority": "medium",
+      "file_patterns": ["书源", "shuyuan"],
+      "max_files": 2
+    },
+    {
+      "name": "vpei/Free-Novel-Source",
+      "description": "免费小说书源",
+      "priority": "medium",
+      "file_patterns": ["source", "novel"],
+      "max_files": 2
+    },
+    {
+      "name": "yeyulingfeng01/yuedu.github.io",
+      "description": "阅读书源网站",
+      "priority": "low",
+      "file_patterns": ["书源", "yuedu"],
+      "max_files": 1
+    },
+    {
+      "name": "CNAD666/MyAction",
+      "description": "自动化书源收集",
+      "priority": "low",
+      "file_patterns": ["书源", "source"],
+      "max_files": 1
+    }
+  ],
+  "source_websites": [
+    {
+      "url": "https://www.yckceo.com/yuedu/shuyuan/index.html",
+      "description": "YCKCEO书源分享",
+      "priority": "high",
+      "max_links": 5,
+      "link_patterns": ["*.json"]
+    },
+    {
+      "url": "https://legado.aoaostar.com/",
+      "description": "aoaostar书源站",
+      "priority": "high",
+      "max_links": 5,
+      "link_patterns": ["*.json"]
+    },
+    {
+      "url": "https://shuyuan.miaogongzi.net/",
+      "description": "喵公子书源网",
+      "priority": "medium",
+      "max_links": 3,
+      "link_patterns": ["*.json"]
+    }
+  ],
+  "large_files": [
+    {
+      "path": "sources/legado/yiove_new.json",
+      "description": "yiove大型书源文件",
+      "max_sample": 1000,
+      "priority": "high"
+    }
+  ],
+  "collection_rules": {
+    "request_delay": {
+      "github": 2,
+      "websites": 3,
+      "files": 0
+    },
+    "timeout": {
+      "github": 30,
+      "websites": 30,
+      "files": 60
+    },
+    "retry_count": 3,
+    "user_agent_rotation": true,
+    "respect_robots_txt": false
+  },
+  "quality_filters": {
+    "required_fields": [
+      "bookSourceName",
+      "bookSourceUrl",
+      "searchUrl",
+      "ruleContent"
+    ],
+    "url_validation": {
+      "schemes": ["http", "https"],
+      "exclude_domains": [
+        "localhost",
+        "127.0.0.1",
+        "example.com",
+        "test.com"
+      ]
+    },
+    "content_filters": {
+      "min_name_length": 2,
+      "max_name_length": 50,
+      "exclude_keywords": [
+        "测试",
+        "test",
+        "demo",
+        "example"
+      ]
+    }
+  }
+}

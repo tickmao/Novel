@@ -1,0 +1,221 @@
+name: 书源自动补充与维护
+
+on:
+  schedule:
+    # 每天凌晨2点UTC执行健康检查
+    - cron: '0 2 * * *'
+    # 每周日凌晨3点UTC执行完整补充
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      force_supplement:
+        description: '强制执行补充（忽略数量检查）'
+        required: false
+        default: 'false'
+        type: boolean
+      target_count:
+        description: '目标书源数量'
+        required: false
+        default: '1000'
+        type: string
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    outputs:
+      need_supplement: ${{ steps.health.outputs.need_supplement }}
+      health_status: ${{ steps.health.outputs.health_status }}
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置Python环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install aiohttp aiofiles
+
+    - name: 执行健康检查
+      id: health
+      run: |
+        cd scripts
+        python health_monitor.py --check-supplement --report ../reports/health_report.json
+
+        # 检查退出码决定是否需要补充
+        if [ $? -eq 1 ]; then
+          echo "need_supplement=true" >> $GITHUB_OUTPUT
+          echo "health_status=critical" >> $GITHUB_OUTPUT
+        else
+          echo "need_supplement=false" >> $GITHUB_OUTPUT
+          echo "health_status=good" >> $GITHUB_OUTPUT
+        fi
+
+    - name: 上传健康报告
+      uses: actions/upload-artifact@v3
+      with:
+        name: health-report
+        path: reports/health_report.json
+
+  auto-supplement:
+    runs-on: ubuntu-latest
+    needs: health-check
+    if: needs.health-check.outputs.need_supplement == 'true' || github.event.inputs.force_supplement == 'true' || github.event.schedule == '0 3 * * 0'
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 设置Python环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install aiohttp aiofiles
+
+    - name: 创建临时目录
+      run: |
+        mkdir -p temp reports
+
+    - name: 执行自动补充
+      run: |
+        cd scripts
+
+        # 设置参数
+        FORCE_FLAG=""
+        TARGET_COUNT="1000"
+
+        if [ "${{ github.event.inputs.force_supplement }}" = "true" ]; then
+          FORCE_FLAG="--force"
+        fi
+
+        if [ -n "${{ github.event.inputs.target_count }}" ]; then
+          TARGET_COUNT="${{ github.event.inputs.target_count }}"
+        fi
+
+        # 执行自动补充
+        python auto_supplement.py $FORCE_FLAG --target $TARGET_COUNT
+
+    - name: 验证补充结果
+      run: |
+        cd scripts
+        python validate.py --input ../sources/legado/full.json --report ../reports/post_supplement_validation.json
+
+    - name: 生成补充后健康报告
+      run: |
+        cd scripts
+        python health_monitor.py --report ../reports/post_supplement_health.json
+
+    - name: 提交更改
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+        # 检查是否有更改
+        if git diff --quiet sources/legado/full.json; then
+          echo "没有书源更改，跳过提交"
+        else
+          # 获取书源数量
+          SOURCE_COUNT=$(python -c "import json; print(len(json.load(open('sources/legado/full.json'))))")
+
+          # 提交更改
+          git add sources/legado/full.json
+          git commit -m "自动补充书源: 更新至 ${SOURCE_COUNT} 个书源
+
+          - 执行时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          - 触发原因: ${{ needs.health-check.outputs.health_status }}
+          - 目标数量: ${{ github.event.inputs.target_count || '1000' }}
+          - 强制执行: ${{ github.event.inputs.force_supplement || 'false' }}"
+
+          git push
+        fi
+
+    - name: 上传补充报告
+      uses: actions/upload-artifact@v3
+      with:
+        name: supplement-reports
+        path: |
+          reports/post_supplement_validation.json
+          reports/post_supplement_health.json
+
+  notify-results:
+    runs-on: ubuntu-latest
+    needs: [health-check, auto-supplement]
+    if: always()
+
+    steps:
+    - name: 下载报告
+      uses: actions/download-artifact@v3
+      with:
+        name: health-report
+        path: reports/
+
+    - name: 下载补充报告
+      if: needs.auto-supplement.result != 'skipped'
+      uses: actions/download-artifact@v3
+      with:
+        name: supplement-reports
+        path: reports/
+
+    - name: 生成通知消息
+      id: notification
+      run: |
+        echo "## 📊 书源维护报告" > notification.md
+        echo "" >> notification.md
+        echo "**执行时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> notification.md
+        echo "**健康状态**: ${{ needs.health-check.outputs.health_status }}" >> notification.md
+        echo "" >> notification.md
+
+        if [ "${{ needs.auto-supplement.result }}" = "success" ]; then
+          echo "✅ **自动补充**: 执行成功" >> notification.md
+        elif [ "${{ needs.auto-supplement.result }}" = "skipped" ]; then
+          echo "⏭️ **自动补充**: 跳过执行（书源充足）" >> notification.md
+        else
+          echo "❌ **自动补充**: 执行失败" >> notification.md
+        fi
+
+        echo "" >> notification.md
+        echo "详细报告请查看 Actions 运行日志和上传的报告文件。" >> notification.md
+
+    - name: 创建Issue（如果出现问题）
+      if: needs.auto-supplement.result == 'failure' || needs.health-check.outputs.health_status == 'critical'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const notification = fs.readFileSync('notification.md', 'utf8');
+
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🚨 书源维护系统异常 - ' + new Date().toISOString().split('T')[0],
+            body: notification + '\n\n**需要人工干预**: 请检查系统状态并采取必要措施。',
+            labels: ['bug', 'maintenance', 'urgent']
+          });
+
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [health-check, auto-supplement, notify-results]
+    if: always()
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 清理临时文件
+      run: |
+        # 清理超过7天的临时文件
+        find temp -type f -mtime +7 -delete 2>/dev/null || true
+        find reports -name "*.json" -mtime +30 -delete 2>/dev/null || true
+
+        # 清理备份文件（保留最近5个）
+        ls -t sources/legado/*.backup.json 2>/dev/null | tail -n +6 | xargs rm -f || true

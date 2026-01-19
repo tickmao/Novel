@@ -1,0 +1,62 @@
+{
+  "supplement": {
+    "target_sources": 1000,
+    "min_sources_trigger": 800,
+    "emergency_trigger": 700,
+    "min_score_threshold": 35,
+    "max_per_domain": 2
+  },
+  "recovery": {
+    "timeout": 15,
+    "max_retries": 3,
+    "concurrency": 10,
+    "retry_delays": [300, 1800, 7200],
+    "user_agents": [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
+    ]
+  },
+  "collection": {
+    "timeout": 30,
+    "concurrency": 5,
+    "max_sources_per_repo": 1000,
+    "max_sources_per_website": 500
+  },
+  "validation": {
+    "timeout": 10,
+    "concurrency": 20,
+    "max_respond_time": 10000
+  },
+  "health_monitor": {
+    "check_interval_hours": 24,
+    "history_retention_days": 30,
+    "thresholds": {
+      "source_count": {
+        "excellent": 1000,
+        "good": 900,
+        "warning": 800,
+        "critical": 700
+      },
+      "availability_rate": {
+        "excellent": 0.95,
+        "good": 0.90,
+        "warning": 0.80,
+        "critical": 0.70
+      },
+      "average_score": {
+        "excellent": 50,
+        "good": 45,
+        "warning": 40,
+        "critical": 35
+      },
+      "domain_diversity": {
+        "excellent": 500,
+        "good": 400,
+        "warning": 300,
+        "critical": 200
+      }
+    }
+  }
+}

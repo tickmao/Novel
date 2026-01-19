@@ -1,0 +1,92 @@
+{
+  "basic_scoring": {
+    "basic_status": {
+      "max_score": 7,
+      "enabled_weight": 5,
+      "explore_weight": 2
+    },
+    "response_time": {
+      "max_score": 15,
+      "thresholds": [
+        {"max_time": 1000, "score": 15},
+        {"max_time": 3000, "score": 12},
+        {"max_time": 5000, "score": 8},
+        {"max_time": 10000, "score": 4}
+      ]
+    },
+    "rule_completeness": {
+      "max_score": 20,
+      "search_url_weight": 4,
+      "search_rule_weight": 4,
+      "toc_rule_weight": 4,
+      "content_rule_weight": 6,
+      "explore_url_weight": 2
+    },
+    "update_time": {
+      "max_score": 10,
+      "thresholds": [
+        {"max_days": 30, "score": 10},
+        {"max_days": 90, "score": 7},
+        {"max_days": 180, "score": 4},
+        {"max_days": 365, "score": 2}
+      ]
+    },
+    "weight": {
+      "max_score": 5,
+      "divisor": 100
+    }
+  },
+  "enhanced_scoring": {
+    "stability": {
+      "max_score": 15,
+      "availability_rate": {
+        "max_score": 10,
+        "thresholds": [
+          {"min_rate": 0.95, "score": 10},
+          {"min_rate": 0.90, "score": 8},
+          {"min_rate": 0.80, "score": 6},
+          {"min_rate": 0.70, "score": 4},
+          {"min_rate": 0.60, "score": 2}
+        ]
+      },
+      "consecutive_days": {
+        "max_score": 5,
+        "thresholds": [
+          {"min_days": 30, "score": 5},
+          {"min_days": 14, "score": 4},
+          {"min_days": 7, "score": 3},
+          {"min_days": 3, "score": 2},
+          {"min_days": 1, "score": 1}
+        ]
+      }
+    },
+    "content_quality": {
+      "max_score": 10,
+      "book_count_weight": 4,
+      "update_frequency_weight": 3,
+      "content_completeness_weight": 3
+    },
+    "user_feedback": {
+      "max_score": 5,
+      "user_rating_weight": 3,
+      "usage_frequency_weight": 2
+    }
+  },
+  "dynamic_weights": {
+    "new_source": 0.5,
+    "stable_source": 1.0,
+    "premium_source": 1.5,
+    "trusted_source": 2.0,
+    "existing_bonus": 5
+  },
+  "filtering": {
+    "min_score": 35,
+    "max_per_domain": 2,
+    "quality_tiers": {
+      "premium": 70,
+      "good": 50,
+      "acceptable": 35,
+      "poor": 0
+    }
+  }
+}
