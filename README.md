@@ -7,7 +7,7 @@
 | 平台 | App | 书源数量 |
 |------|-----|---------|
 | Android / iOS | [阅读 (Legado)](https://gedoor.github.io/) | 414 |
-| iOS | [香色闺阁](https://apps.apple.com/app/id1521205149) | 1327 |
+| iOS | [香色闺阁](https://apps.apple.com/app/id1521205149) | 9175 |
 | iOS | [爱阅书香](https://apps.apple.com/app/id1137819437) | 待更新 |
 
 ## 书源导入
@@ -35,7 +35,7 @@ https://cdn.jsdelivr.net/gh/tickmao/Novel@master/rules/legado/tts.json
 
 打开 App -> 站点 -> 导入 -> 粘贴链接
 
-**全量书源 (1327 个站点)**
+**全量书源 (9175 个站点)**
 ```
 https://cdn.jsdelivr.net/gh/tickmao/Novel@master/sources/xsreader/full.xbs
 ```
