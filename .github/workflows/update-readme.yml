@@ -29,8 +29,26 @@ jobs:
 
     - name: 统计书源数量并更新站点和README
       run: |
+        # 检查文件结构
+        echo "当前目录结构:"
+        ls -la
+        echo "scripts目录内容:"
+        ls -la scripts/
+
+        # 确保脚本有执行权限
+        chmod +x scripts/update_sources.py
+
+        # 检查Python版本
+        python3 --version
+
+        # 运行脚本
         cd scripts
-        python3 update_sources.py --base-dir ..
+        echo "运行更新脚本..."
+        python3 update_sources.py --base-dir .. || {
+          echo "脚本执行失败，错误信息:"
+          python3 update_sources.py --base-dir .. 2>&1
+          exit 1
+        }
 
     - name: 检查是否有更改
       id: check_changes
@@ -51,25 +69,25 @@ jobs:
 
         # 获取当前书源数量
         LEGADO_COUNT=$(python3 -c "
-        import json
-        from pathlib import Path
-        try:
-            with open('sources/legado/full.json', 'r', encoding='utf-8') as f:
-                sources = json.load(f)
-                print(len(sources))
-        except:
-            print('0')
-        ")
+import json
+import os
+try:
+    with open('sources/legado/full.json', 'r', encoding='utf-8') as f:
+        sources = json.load(f)
+        print(len(sources))
+except Exception as e:
+    print('0')
+")
 
         XSREADER_COUNT=$(python3 -c "
-        import os
-        try:
-            file_size = os.path.getsize('sources/xsreader/full.xbs')
-            estimated_count = file_size // (9 * 1024)
-            print(estimated_count)
-        except:
-            print('0')
-        ")
+import os
+try:
+    file_size = os.path.getsize('sources/xsreader/full.xbs')
+    estimated_count = file_size // (9 * 1024)
+    print(estimated_count)
+except Exception as e:
+    print('0')
+")
 
         # 提交更改
         git add README.md docs/index.html STATS.md 2>/dev/null || git add README.md docs/index.html
