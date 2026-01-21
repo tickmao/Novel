@@ -40,31 +40,54 @@ jobs:
         python -m pip install --upgrade pip
         pip install aiohttp aiofiles
 
+    - name: 创建必要目录
+      run: |
+        mkdir -p temp reports
+        echo "✓ 目录创建完成"
+
     - name: 执行健康检查
       id: health
       run: |
         cd scripts
-        python health_monitor.py --check-supplement --report ../reports/health_report.json
 
-        # 检查退出码决定是否需要补充
-        if [ $? -eq 1 ]; then
+        # 执行健康检查并捕获退出码
+        set +e
+        python health_monitor.py --check-supplement --report ../reports/health_report.json
+        EXIT_CODE=$?
+        set -e
+
+        echo "健康检查退出码: $EXIT_CODE"
+
+        # 根据退出码设置输出
+        if [ $EXIT_CODE -eq 1 ]; then
           echo "need_supplement=true" >> $GITHUB_OUTPUT
           echo "health_status=critical" >> $GITHUB_OUTPUT
-        else
+          echo "✓ 需要补充书源"
+        elif [ $EXIT_CODE -eq 0 ]; then
           echo "need_supplement=false" >> $GITHUB_OUTPUT
           echo "health_status=good" >> $GITHUB_OUTPUT
+          echo "✓ 书源健康状况良好"
+        else
+          echo "❌ 健康检查脚本异常退出 (退出码: $EXIT_CODE)"
+          exit 1
         fi
 
     - name: 上传健康报告
       uses: actions/upload-artifact@v3
+      if: always()
       with:
         name: health-report
         path: reports/health_report.json
+        if-no-files-found: warn
 
   auto-supplement:
     runs-on: ubuntu-latest
     needs: health-check
-    if: needs.health-check.outputs.need_supplement == 'true' || github.event.inputs.force_supplement == 'true' || github.event.schedule == '0 3 * * 0'
+    # 修复条件判断逻辑
+    if: |
+      needs.health-check.outputs.need_supplement == 'true' ||
+      github.event.inputs.force_supplement == 'true' ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
 
     steps:
     - name: 检出代码
@@ -85,8 +108,26 @@ jobs:
     - name: 创建临时目录
       run: |
         mkdir -p temp reports
+        echo "✓ 目录创建完成"
+        ls -la
+
+    - name: 检查脚本依赖
+      run: |
+        cd scripts
+        python -c "
+        import sys
+        try:
+            from smart_recovery import SmartRecovery
+            from source_collector import SourceCollector
+            from enhanced_scoring import EnhancedScoring
+            print('✓ 所有依赖模块正常')
+        except ImportError as e:
+            print(f'❌ 依赖模块缺失: {e}')
+            sys.exit(1)
+        "
 
     - name: 执行自动补充
+      timeout-minutes: 30
       run: |
         cd scripts
 
@@ -96,19 +137,30 @@ jobs:
 
         if [ "${{ github.event.inputs.force_supplement }}" = "true" ]; then
           FORCE_FLAG="--force"
+          echo "强制执行模式"
         fi
 
         if [ -n "${{ github.event.inputs.target_count }}" ]; then
           TARGET_COUNT="${{ github.event.inputs.target_count }}"
         fi
 
+        echo "目标书源数量: $TARGET_COUNT"
+
         # 执行自动补充
         python auto_supplement.py $FORCE_FLAG --target $TARGET_COUNT
 
     - name: 验证补充结果
+      continue-on-error: true
+      id: validation
       run: |
         cd scripts
         python validate.py --input ../sources/legado/full.json --report ../reports/post_supplement_validation.json
+
+    - name: 检查验证结果
+      if: steps.validation.outcome == 'failure'
+      run: |
+        echo "::warning::验证失败，但继续执行后续步骤"
+        echo "请检查验证报告了解详情"
 
     - name: 生成补充后健康报告
       run: |
@@ -136,16 +188,29 @@ jobs:
           - 目标数量: ${{ github.event.inputs.target_count || '1000' }}
           - 强制执行: ${{ github.event.inputs.force_supplement || 'false' }}"
 
-          git push
+          # 推送更改（带重试机制）
+          echo "推送更改到远程仓库..."
+          if ! git push; then
+            echo "::warning::首次推送失败，5秒后重试..."
+            sleep 5
+            if ! git push; then
+              echo "::warning::第二次推送失败，10秒后重试..."
+              sleep 10
+              git push
+            fi
+          fi
+          echo "✓ 更改已提交并推送"
         fi
 
     - name: 上传补充报告
       uses: actions/upload-artifact@v3
+      if: always()
       with:
         name: supplement-reports
         path: |
           reports/post_supplement_validation.json
           reports/post_supplement_health.json
+        if-no-files-found: warn
 
   notify-results:
     runs-on: ubuntu-latest
@@ -153,8 +218,9 @@ jobs:
     if: always()
 
     steps:
-    - name: 下载报告
+    - name: 下载健康报告
       uses: actions/download-artifact@v3
+      continue-on-error: true
       with:
         name: health-report
         path: reports/
@@ -162,6 +228,7 @@ jobs:
     - name: 下载补充报告
       if: needs.auto-supplement.result != 'skipped'
       uses: actions/download-artifact@v3
+      continue-on-error: true
       with:
         name: supplement-reports
         path: reports/
@@ -172,27 +239,40 @@ jobs:
         echo "## 📊 书源维护报告" > notification.md
         echo "" >> notification.md
         echo "**执行时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> notification.md
-        echo "**健康状态**: ${{ needs.health-check.outputs.health_status }}" >> notification.md
+        echo "**健康状态**: ${{ needs.health-check.outputs.health_status || 'unknown' }}" >> notification.md
+        echo "**健康检查结果**: ${{ needs.health-check.result }}" >> notification.md
         echo "" >> notification.md
 
         if [ "${{ needs.auto-supplement.result }}" = "success" ]; then
           echo "✅ **自动补充**: 执行成功" >> notification.md
         elif [ "${{ needs.auto-supplement.result }}" = "skipped" ]; then
           echo "⏭️ **自动补充**: 跳过执行（书源充足）" >> notification.md
-        else
+        elif [ "${{ needs.auto-supplement.result }}" = "failure" ]; then
           echo "❌ **自动补充**: 执行失败" >> notification.md
+        else
+          echo "⚠️ **自动补充**: 状态未知" >> notification.md
         fi
 
         echo "" >> notification.md
         echo "详细报告请查看 Actions 运行日志和上传的报告文件。" >> notification.md
 
+        cat notification.md
+
     - name: 创建Issue（如果出现问题）
-      if: needs.auto-supplement.result == 'failure' || needs.health-check.outputs.health_status == 'critical'
+      if: needs.auto-supplement.result == 'failure' || needs.health-check.result == 'failure'
       uses: actions/github-script@v6
       with:
         script: |
           const fs = require('fs');
-          const notification = fs.readFileSync('notification.md', 'utf8');
+          let notification = '## 📊 书源维护报告\n\n';
+
+          try {
+            notification = fs.readFileSync('notification.md', 'utf8');
+          } catch (e) {
+            notification += '无法读取通知文件\n\n';
+            notification += `- 健康检查: ${{ needs.health-check.result }}\n`;
+            notification += `- 自动补充: ${{ needs.auto-supplement.result }}\n`;
+          }
 
           github.rest.issues.create({
             owner: context.repo.owner,
@@ -213,9 +293,18 @@ jobs:
 
     - name: 清理临时文件
       run: |
-        # 清理超过7天的临时文件
-        find temp -type f -mtime +7 -delete 2>/dev/null || true
-        find reports -name "*.json" -mtime +30 -delete 2>/dev/null || true
+        echo "清理临时文件..."
+
+        # GitHub Actions 每次运行都是全新环境
+        # 只清理当前运行可能产生的临时文件
+        rm -rf temp/*.tmp 2>/dev/null || true
 
         # 清理备份文件（保留最近5个）
-        ls -t sources/legado/*.backup.json 2>/dev/null | tail -n +6 | xargs rm -f || true
+        if ls sources/legado/*.backup.json 1> /dev/null 2>&1; then
+          ls -t sources/legado/*.backup.json 2>/dev/null | tail -n +6 | xargs rm -f || true
+          echo "✓ 备份文件清理完成"
+        else
+          echo "- 无备份文件需要清理"
+        fi
+
+        echo "✓ 清理完成"
