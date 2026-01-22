@@ -211,9 +211,90 @@ jobs:
           reports/post_supplement_health.json
         if-no-files-found: warn
 
+  update-display:
+    runs-on: ubuntu-latest
+    needs: auto-supplement
+    # 条件：自动补充成功执行
+    if: needs.auto-supplement.result == 'success'
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        # 拉取最新代码（包含补充后的书源）
+        ref: ${{ github.ref }}
+
+    - name: 拉取最新更改
+      run: |
+        git pull origin ${{ github.ref_name }}
+
+    - name: 设置Python环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: 统计书源数量并更新站点和README
+      run: |
+        cd scripts
+        python update_sources.py --base-dir ..
+
+    - name: 检查是否有更改
+      id: check_changes
+      run: |
+        if git diff --quiet README.md docs/index.html; then
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          echo "没有检测到文件更改"
+        else
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "检测到文件更改"
+        fi
+
+    - name: 提交更改
+      if: steps.check_changes.outputs.has_changes == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+        # 获取当前书源数量
+        LEGADO_COUNT=$(python3 -c "import json; print(len(json.load(open('sources/legado/full.json'))))")
+
+        XSREADER_COUNT=$(python3 -c "import os; print(os.path.getsize('sources/xsreader/full.xbs') // (9 * 1024))")
+
+        # 提交更改
+        git add README.md docs/index.html STATS.md 2>/dev/null || git add README.md docs/index.html
+        git commit -m "docs: 自动更新书源数量和站点数据
+
+        - 阅读书源: ${LEGADO_COUNT} 个
+        - 香色闺阁: ${XSREADER_COUNT} 个
+        - 更新时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+        - 触发原因: 书源补充完成后自动更新"
+
+        # 推送更改（带重试机制）
+        echo "推送更改到远程仓库..."
+        if ! git push; then
+          echo "::warning::首次推送失败，5秒后重试..."
+          sleep 5
+          if ! git push; then
+            echo "::warning::第二次推送失败，10秒后重试..."
+            sleep 10
+            git push
+          fi
+        fi
+        echo "✓ 更改已提交并推送"
+
+    - name: 输出更新结果
+      if: always()
+      run: |
+        if [ "${{ steps.check_changes.outputs.has_changes }}" = "true" ]; then
+          echo "✅ 书源数量和站点数据已更新"
+        else
+          echo "ℹ️ 数据无变化，跳过更新"
+        fi
+
   notify-results:
     runs-on: ubuntu-latest
-    needs: [health-check, auto-supplement]
+    needs: [health-check, auto-supplement, update-display]
     if: always()
 
     steps:
@@ -283,7 +364,7 @@ jobs:
 
   cleanup:
     runs-on: ubuntu-latest
-    needs: [health-check, auto-supplement, notify-results]
+    needs: [health-check, auto-supplement, update-display, notify-results]
     if: always()
 
     steps:
