@@ -83,11 +83,10 @@ jobs:
   auto-supplement:
     runs-on: ubuntu-latest
     needs: health-check
-    # 修复条件判断逻辑
+    # 条件：健康检查需要补充 或 手动强制执行
     if: |
       needs.health-check.outputs.need_supplement == 'true' ||
-      github.event.inputs.force_supplement == 'true' ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 0')
+      github.event.inputs.force_supplement == 'true'
 
     steps:
     - name: 检出代码
