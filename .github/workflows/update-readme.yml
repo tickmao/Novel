@@ -68,29 +68,20 @@ jobs:
         git config --local user.name "GitHub Action"
 
         # 获取当前书源数量
-        LEGADO_COUNT=$(python3 -c "
-import json
-import os
-try:
-    with open('sources/legado/full.json', 'r', encoding='utf-8') as f:
-        sources = json.load(f)
-        print(len(sources))
-except Exception as e:
-    print('0')
-")
-
-        XSREADER_COUNT=$(python3 -c "
-import os
-try:
-    file_size = os.path.getsize('sources/xsreader/full.xbs')
-    estimated_count = file_size // (9 * 1024)
-    print(estimated_count)
-except Exception as e:
-    print('0')
-")
+        cd scripts
+        LEGADO_COUNT=$(python3 -c "import json; f=open('../sources/legado/full.json','r',encoding='utf-8'); print(len(json.load(f)))" 2>/dev/null || echo "0")
+        XSREADER_COUNT=$(python3 -c "import os; print(os.path.getsize('../sources/xsreader/full.xbs')//(9*1024))" 2>/dev/null || echo "0")
+        cd ..
 
         # 提交更改
         git add README.md docs/index.html STATS.md 2>/dev/null || git add README.md docs/index.html
+
+        # 检查是否有文件被添加
+        if git diff --cached --quiet; then
+          echo "::notice::没有文件需要提交"
+          exit 0
+        fi
+
         git commit -m "docs: 自动更新书源数量和站点数据
 
         - 阅读书源: ${LEGADO_COUNT} 个
@@ -98,7 +89,21 @@ except Exception as e:
         - 更新时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
         - 自动化更新: 站点首页 + README"
 
-        git push
+        # 推送更改（带重试机制）
+        for i in 1 2 3; do
+          if git push; then
+            echo "::notice::推送成功"
+            break
+          else
+            if [ $i -lt 3 ]; then
+              echo "::warning::推送失败，等待 $((i*5)) 秒后重试..."
+              sleep $((i*5))
+            else
+              echo "::error::推送失败，已重试3次"
+              exit 1
+            fi
+          fi
+        done
 
     - name: 生成更新报告
       if: steps.check_changes.outputs.has_changes == 'true'
