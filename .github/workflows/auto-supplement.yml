@@ -294,8 +294,8 @@ jobs:
 
   notify-results:
     runs-on: ubuntu-latest
-    needs: [health-check, auto-supplement, update-display]
-    if: always()
+    needs: health-check
+    if: ${{ !cancelled() }}
 
     steps:
     - name: 下载健康报告
@@ -306,7 +306,7 @@ jobs:
         path: reports/
 
     - name: 下载补充报告
-      if: needs.auto-supplement.result != 'skipped'
+      if: needs.auto-supplement.result != 'skipped' && needs.auto-supplement.result != ''
       uses: actions/download-artifact@v3
       continue-on-error: true
       with:
@@ -364,8 +364,7 @@ jobs:
 
   cleanup:
     runs-on: ubuntu-latest
-    needs: [health-check, auto-supplement, update-display, notify-results]
-    if: always()
+    if: ${{ !cancelled() }}
 
     steps:
     - name: 检出代码
