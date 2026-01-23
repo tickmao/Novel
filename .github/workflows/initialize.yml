@@ -67,10 +67,14 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
+          # 更新 README 和站点数据
+          python3 scripts/update_sources.py --base-dir .
+
           git add sources/legado/main/full.json
           git add sources/legado/main/backups/
           git add sources/legado/pool/candidates.json
           git add sources/legado/pool/invalid.json
+          git add README.md docs/index.html STATS.md 2>/dev/null || true
 
           git commit -m "feat: 初始化书源系统 - 从 16,724 个筛选出 ${{ github.event.inputs.target || '1000' }} 个高质量书源" || echo "No changes to commit"
 

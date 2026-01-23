@@ -24,10 +24,14 @@ class SourceUpdater:
 
     def count_legado_sources(self) -> int:
         """统计阅读书源数量"""
-        legado_file = self.sources_dir / "legado/full.json"
+        # Novel 2.0: 使用新的三层架构路径
+        legado_file = self.sources_dir / "legado/main/full.json"
 
         if not legado_file.exists():
-            return 0
+            # 兼容旧路径
+            legado_file = self.sources_dir / "legado/full.json"
+            if not legado_file.exists():
+                return 0
 
         try:
             with open(legado_file, 'r', encoding='utf-8') as f:

@@ -69,7 +69,7 @@ jobs:
 
         # 获取当前书源数量
         cd scripts
-        LEGADO_COUNT=$(python3 -c "import json; f=open('../sources/legado/full.json','r',encoding='utf-8'); print(len(json.load(f)))" 2>/dev/null || echo "0")
+        LEGADO_COUNT=$(python3 -c "import json; f=open('../sources/legado/main/full.json','r',encoding='utf-8'); print(len(json.load(f)))" 2>/dev/null || python3 -c "import json; f=open('../sources/legado/full.json','r',encoding='utf-8'); print(len(json.load(f)))" 2>/dev/null || echo "0")
         XSREADER_COUNT=$(python3 -c "import os; print(os.path.getsize('../sources/xsreader/full.xbs')//(9*1024))" 2>/dev/null || echo "0")
         cd ..
 
