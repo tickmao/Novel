@@ -1,0 +1,114 @@
+name: Initialize Sources
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '目标书源数量'
+        required: false
+        default: '1000'
+      batch_size:
+        description: '验证批次大小'
+        required: false
+        default: '200'
+      concurrency:
+        description: '验证并发数'
+        required: false
+        default: '20'
+      timeout:
+        description: '验证超时时间（秒）'
+        required: false
+        default: '10'
+
+jobs:
+  initialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 小时超时
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+
+      - name: Run initialization
+        id: initialize
+        run: |
+          set +e
+          python3 scripts/initialize_sources.py \
+            --base-dir sources/legado \
+            --target ${{ github.event.inputs.target || '1000' }} \
+            --batch-size ${{ github.event.inputs.batch_size || '200' }} \
+            --concurrency ${{ github.event.inputs.concurrency || '20' }} \
+            --timeout ${{ github.event.inputs.timeout || '10' }}
+          EXIT_CODE=$?
+          set -e
+
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit $EXIT_CODE
+          fi
+
+      - name: Commit changes
+        if: steps.initialize.outputs.status == 'success'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add sources/legado/main/full.json
+          git add sources/legado/main/backups/
+          git add sources/legado/pool/candidates.json
+          git add sources/legado/pool/invalid.json
+
+          git commit -m "feat: 初始化书源系统 - 从 16,724 个筛选出 ${{ github.event.inputs.target || '1000' }} 个高质量书源" || echo "No changes to commit"
+
+      - name: Push changes
+        if: steps.initialize.outputs.status == 'success'
+        run: |
+          set +e
+          for i in 1 2 3; do
+            git push && break || {
+              echo "Push attempt $i failed, retrying in $((i * 5)) seconds..."
+              sleep $((i * 5))
+            }
+          done
+          set -e
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: initialization-logs
+          path: |
+            sources/legado/temp/checkpoints/
+          retention-days: 7
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '初始化流程失败',
+              body: `初始化流程在 ${new Date().toISOString()} 失败。\n\n请检查工作流日志：${context.payload.repository.html_url}/actions/runs/${context.runId}`,
+              labels: ['bug', 'automation']
+            })
+
+      - name: Cleanup
+        if: ${{ !cancelled() }}
+        run: |
+          rm -rf sources/legado/temp/checkpoints/*.json || true

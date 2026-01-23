@@ -1,0 +1,146 @@
+name: Update Candidates Pool
+
+on:
+  schedule:
+    - cron: '0 19 * * 0'  # 每周日凌晨 3 点（UTC+8）
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: '验证批次大小'
+        required: false
+        default: '200'
+      concurrency:
+        description: '验证并发数'
+        required: false
+        default: '20'
+      timeout:
+        description: '验证超时时间（秒）'
+        required: false
+        default: '10'
+
+jobs:
+  update-candidates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+
+      - name: Update candidates pool
+        id: update
+        run: |
+          set +e
+
+          # 读取原始书源
+          echo "读取原始书源..."
+          RAW_COUNT=$(python3 -c "import json; print(len(json.load(open('sources/legado/pool/raw.json'))))")
+          echo "原始书源数量: $RAW_COUNT"
+
+          # 快速过滤
+          echo "执行快速过滤..."
+          python3 -c "
+import json
+import sys
+sys.path.insert(0, 'scripts')
+from initialize_sources import InitializeSources
+
+initializer = InitializeSources()
+with open('sources/legado/pool/raw.json', 'r', encoding='utf-8') as f:
+    raw_sources = json.load(f)
+
+filtered = initializer.quick_filter(raw_sources)
+
+with open('sources/legado/temp/filtered.json', 'w', encoding='utf-8') as f:
+    json.dump(filtered, f, ensure_ascii=False, indent=2)
+
+print(f'过滤后: {len(filtered)} 个')
+"
+
+          # 分批验证
+          echo "执行分批验证..."
+          python3 scripts/batch_validator.py \
+            --input sources/legado/temp/filtered.json \
+            --output sources/legado/pool/candidates.json \
+            --invalid sources/legado/pool/invalid.json \
+            --batch-size ${{ github.event.inputs.batch_size || '200' }} \
+            --concurrency ${{ github.event.inputs.concurrency || '20' }} \
+            --timeout ${{ github.event.inputs.timeout || '10' }} \
+            --checkpoint-dir sources/legado/temp/checkpoints
+
+          EXIT_CODE=$?
+          set -e
+
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+
+            # 统计结果
+            CANDIDATES_COUNT=$(python3 -c "import json; print(len(json.load(open('sources/legado/pool/candidates.json'))))")
+            echo "candidates_count=$CANDIDATES_COUNT" >> $GITHUB_OUTPUT
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit $EXIT_CODE
+          fi
+
+      - name: Commit changes
+        if: steps.update.outputs.status == 'success'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add sources/legado/pool/candidates.json
+          git add sources/legado/pool/invalid.json
+
+          git commit -m "chore: 更新候选池 - 当前 ${{ steps.update.outputs.candidates_count }} 个候选书源" || echo "No changes to commit"
+
+      - name: Push changes
+        if: steps.update.outputs.status == 'success'
+        run: |
+          set +e
+          for i in 1 2 3; do
+            git push && break || {
+              echo "Push attempt $i failed, retrying in $((i * 5)) seconds..."
+              sleep $((i * 5))
+            }
+          done
+          set -e
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-candidates-logs
+          path: |
+            sources/legado/temp/checkpoints/
+          retention-days: 7
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '候选池更新失败',
+              body: `候选池更新在 ${new Date().toISOString()} 失败。\n\n请检查工作流日志：${context.payload.repository.html_url}/actions/runs/${context.runId}`,
+              labels: ['bug', 'automation']
+            })
+
+      - name: Cleanup
+        if: ${{ !cancelled() }}
+        run: |
+          rm -rf sources/legado/temp/filtered.json || true
+          rm -rf sources/legado/temp/checkpoints/*.json || true

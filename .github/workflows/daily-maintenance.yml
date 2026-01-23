@@ -1,0 +1,146 @@
+name: Daily Maintenance
+
+on:
+  schedule:
+    - cron: '0 18 * * *'  # 每天凌晨 2 点（UTC+8）
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: '验证批次大小'
+        required: false
+        default: '100'
+      concurrency:
+        description: '验证并发数'
+        required: false
+        default: '20'
+      timeout:
+        description: '验证超时时间（秒）'
+        required: false
+        default: '10'
+      dry_run:
+        description: '仅模拟，不实际更新'
+        required: false
+        default: 'false'
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+
+      - name: Run daily maintenance
+        id: maintenance
+        run: |
+          set +e
+          python3 scripts/daily_maintenance.py \
+            --base-dir sources/legado \
+            --batch-size ${{ github.event.inputs.batch_size || '100' }} \
+            --concurrency ${{ github.event.inputs.concurrency || '20' }} \
+            --timeout ${{ github.event.inputs.timeout || '10' }} \
+            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
+          EXIT_CODE=$?
+          set -e
+
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit $EXIT_CODE
+          fi
+
+      - name: Read health report
+        if: steps.maintenance.outputs.status == 'success'
+        id: health
+        run: |
+          if [ -f "sources/legado/main/metadata.json" ]; then
+            HEALTH_STATUS=$(python3 -c "import json; data = json.load(open('sources/legado/main/metadata.json')); print(data.get('last_report', {}).get('health_status', 'unknown'))")
+            TOTAL_SOURCES=$(python3 -c "import json; data = json.load(open('sources/legado/main/metadata.json')); print(data.get('last_report', {}).get('total_sources', 0))")
+            REPLACED_COUNT=$(python3 -c "import json; data = json.load(open('sources/legado/main/metadata.json')); print(data.get('last_report', {}).get('replaced_count', 0))")
+
+            echo "health_status=$HEALTH_STATUS" >> $GITHUB_OUTPUT
+            echo "total_sources=$TOTAL_SOURCES" >> $GITHUB_OUTPUT
+            echo "replaced_count=$REPLACED_COUNT" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit changes
+        if: steps.maintenance.outputs.status == 'success' && github.event.inputs.dry_run != 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add sources/legado/main/full.json
+          git add sources/legado/main/backups/
+          git add sources/legado/main/metadata.json
+
+          git commit -m "chore: 日常维护 - 替换 ${{ steps.health.outputs.replaced_count || '0' }} 个失效书源" || echo "No changes to commit"
+
+      - name: Push changes
+        if: steps.maintenance.outputs.status == 'success' && github.event.inputs.dry_run != 'true'
+        run: |
+          set +e
+          for i in 1 2 3; do
+            git push && break || {
+              echo "Push attempt $i failed, retrying in $((i * 5)) seconds..."
+              sleep $((i * 5))
+            }
+          done
+          set -e
+
+      - name: Create warning issue
+        if: steps.health.outputs.health_status == 'warning'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ 书源数量警告',
+              body: `书源数量偏少：${{ steps.health.outputs.total_sources }} < 900\n\n建议尽快补充书源。`,
+              labels: ['warning', 'automation']
+            })
+
+      - name: Create critical issue
+        if: steps.health.outputs.health_status == 'critical'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 书源数量严重不足',
+              body: `书源数量严重不足：${{ steps.health.outputs.total_sources }} < 800\n\n需要立即补充书源！`,
+              labels: ['critical', 'automation']
+            })
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '日常维护失败',
+              body: `日常维护在 ${new Date().toISOString()} 失败。\n\n请检查工作流日志：${context.payload.repository.html_url}/actions/runs/${context.runId}`,
+              labels: ['bug', 'automation']
+            })
+
+      - name: Cleanup
+        if: ${{ !cancelled() }}
+        run: |
+          rm -rf sources/legado/temp/checkpoints/*.json || true
