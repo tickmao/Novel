@@ -46,3 +46,9 @@ preview*.png
 
 # Temporary book sources
 yiove_new.json
+
+# Novel 2.0 - 三层架构数据文件
+sources/legado/pool/          # 原始数据池（182MB）
+sources/legado/temp/          # 临时文件和检查点
+sources/legado/main/backups/  # 版本化备份
+temp/                         # 临时目录
