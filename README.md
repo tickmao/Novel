@@ -6,7 +6,7 @@
 
 | 平台 | App | 书源数量 |
 |------|-----|---------|
-| Android / iOS | [阅读 (Legado)](https://gedoor.github.io/) | 0 |
+| Android / iOS | [阅读 (Legado)](https://gedoor.github.io/) | 414 |
 | iOS | [香色闺阁](https://apps.apple.com/app/id1521205149) | 1274 |
 | iOS | [爱阅书香](https://apps.apple.com/app/id1137819437) | 待更新 |
 
@@ -16,7 +16,7 @@
 
 打开 App -> 我的 -> 书源管理 -> 右上角菜单 -> 网络导入 -> 粘贴链接
 
-**全量书源 (0 个)**
+**全量书源 (414 个)**
 ```
 https://cdn.jsdelivr.net/gh/tickmao/Novel@master/sources/legado/full.json
 ```

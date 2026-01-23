@@ -1,11 +1,12 @@
-name: 书源自动补充与维护
+name: 书源自动补充与维护（已禁用）
 
 on:
-  schedule:
-    # 每天凌晨2点UTC执行健康检查
-    - cron: '0 2 * * *'
-    # 每周日凌晨3点UTC执行完整补充
-    - cron: '0 3 * * 0'
+  # 暂时禁用定时触发，防止数据被清空
+  # schedule:
+  #   # 每天凌晨2点UTC执行健康检查
+  #   - cron: '0 2 * * *'
+  #   # 每周日凌晨3点UTC执行完整补充
+  #   - cron: '0 3 * * 0'
   workflow_dispatch:
     inputs:
       force_supplement:
