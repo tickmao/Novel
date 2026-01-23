@@ -46,28 +46,14 @@ jobs:
 
           # 读取原始书源
           echo "读取原始书源..."
-          RAW_COUNT=$(python3 -c "import json; print(len(json.load(open('sources/legado/pool/raw.json'))))")
+          RAW_COUNT=$(python3 -c "import json; print(len(json.load(open('sources/legado/pool/raw.json'))))" 2>/dev/null || echo "0")
           echo "原始书源数量: $RAW_COUNT"
 
-          # 快速过滤
+          # 快速过滤（使用独立脚本）
           echo "执行快速过滤..."
-          python3 -c "
-import json
-import sys
-sys.path.insert(0, 'scripts')
-from initialize_sources import InitializeSources
-
-initializer = InitializeSources()
-with open('sources/legado/pool/raw.json', 'r', encoding='utf-8') as f:
-    raw_sources = json.load(f)
-
-filtered = initializer.quick_filter(raw_sources)
-
-with open('sources/legado/temp/filtered.json', 'w', encoding='utf-8') as f:
-    json.dump(filtered, f, ensure_ascii=False, indent=2)
-
-print(f'过滤后: {len(filtered)} 个')
-"
+          python3 scripts/quick_filter.py \
+            --input sources/legado/pool/raw.json \
+            --output sources/legado/temp/filtered.json
 
           # 分批验证
           echo "执行分批验证..."
@@ -87,7 +73,7 @@ print(f'过滤后: {len(filtered)} 个')
             echo "status=success" >> $GITHUB_OUTPUT
 
             # 统计结果
-            CANDIDATES_COUNT=$(python3 -c "import json; print(len(json.load(open('sources/legado/pool/candidates.json'))))")
+            CANDIDATES_COUNT=$(python3 -c "import json; print(len(json.load(open('sources/legado/pool/candidates.json'))))" 2>/dev/null || echo "0")
             echo "candidates_count=$CANDIDATES_COUNT" >> $GITHUB_OUTPUT
           else
             echo "status=failed" >> $GITHUB_OUTPUT
