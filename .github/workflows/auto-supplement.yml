@@ -73,7 +73,7 @@ jobs:
         fi
 
     - name: 上传健康报告
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: health-report
@@ -202,7 +202,7 @@ jobs:
         fi
 
     - name: 上传补充报告
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: supplement-reports
@@ -299,7 +299,7 @@ jobs:
 
     steps:
     - name: 下载健康报告
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       continue-on-error: true
       with:
         name: health-report
@@ -307,7 +307,7 @@ jobs:
 
     - name: 下载补充报告
       if: needs.auto-supplement.result != 'skipped'
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       continue-on-error: true
       with:
         name: supplement-reports
