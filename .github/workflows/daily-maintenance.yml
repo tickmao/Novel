@@ -86,9 +86,11 @@ jobs:
           # 更新 README 和站点数据
           python3 scripts/update_sources.py --base-dir .
 
+          # 核心文件必须存在
           git add sources/legado/main/full.json
-          git add sources/legado/main/backups/
-          git add sources/legado/main/metadata.json
+          # 可选文件容错
+          git add sources/legado/main/backups/ 2>/dev/null || true
+          git add sources/legado/main/metadata.json 2>/dev/null || true
           git add README.md docs/index.html STATS.md 2>/dev/null || true
 
           git commit -m "chore: 日常维护 - 替换 ${{ steps.health.outputs.replaced_count || '0' }} 个失效书源" || echo "No changes to commit"
