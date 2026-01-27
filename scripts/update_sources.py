@@ -102,14 +102,7 @@ class SourceUpdater:
                 content
             )
 
-            # 更新meta描述中的数量
-            content = re.sub(
-                r'聚合 \d+\+ 纯小说书源',
-                f'聚合 {total_sources}+ 纯小说书源',
-                content
-            )
-
-            # 更新Open Graph描述
+            # 更新meta描述和Open Graph描述中的数量
             content = re.sub(
                 r'聚合 \d+\+ 纯小说书源',
                 f'聚合 {total_sources}+ 纯小说书源',
