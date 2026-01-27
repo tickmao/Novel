@@ -116,6 +116,13 @@ class SourceUpdater:
                 content
             )
 
+            # 更新阅读书源数量（source-count）
+            content = re.sub(
+                r'<span class="source-count">\d+ 个纯小说书源</span>',
+                f'<span class="source-count">{total_sources} 个纯小说书源</span>',
+                content
+            )
+
             with open(self.index_file, 'w', encoding='utf-8') as f:
                 f.write(content)
 
