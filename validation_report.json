@@ -1,25 +1,14 @@
 {
-  "timestamp": "2026-02-15T04:21:01.710693",
-  "total": 366,
-  "valid": 351,
-  "invalid": 15,
+  "timestamp": "2026-02-22T04:14:23.261198",
+  "total": 351,
+  "valid": 347,
+  "invalid": 4,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "http://www.qiuxiaoshuo.org": "HTTP 404",
-    "https://m.ypxxs.com#🎃": "HTTP 401",
-    "https://www.diyi69.com": "HTTP 404",
-    "https://m.ewentai.com#🎃": "HTTP 401",
-    "https://m.xsw.tw/": "超时",
-    "https://m.xuribook.com": "HTTP 401",
-    "https://m.39ben.com/": "HTTP 401",
-    "http://api.doufu.me": "HTTP 405",
-    "https://m.siyixs.com#🎃": "HTTP 401",
-    "https://m.dukangge.com#🎃": "HTTP 401",
-    "https://m.zhiyexs.com": "HTTP 401",
-    "https://www.bulasw.com#🎃": "HTTP 401",
-    "https://m.iyouman.com#♤Haxc": "超时",
-    "https://m.zymk.cn#🎃": "超时",
-    "https://novel.seseclub.com": "超时"
+    "http://book.sbkk8.com#🎃": "HTTP 444",
+    "http://3g.sbkk8.com#": "HTTP 444",
+    "http://m.xiaoshubao.net#": "Server disconnected",
+    "https://m.zztxt.net#🎃": "Cannot connect to host m.zztxt.net:443 ssl:default"
   }
 }
