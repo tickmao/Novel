@@ -70,8 +70,8 @@ jobs:
           echo "执行分批验证..."
           python3 scripts/batch_validator.py \
             --input sources/legado/temp/filtered.json \
-            --output sources/legado/pool/candidates.json \
-            --invalid sources/legado/pool/invalid.json \
+            --output-valid sources/legado/pool/candidates.json \
+            --output-invalid sources/legado/pool/invalid.json \
             --batch-size ${{ github.event.inputs.batch_size || '200' }} \
             --concurrency ${{ github.event.inputs.concurrency || '20' }} \
             --timeout ${{ github.event.inputs.timeout || '10' }} \
