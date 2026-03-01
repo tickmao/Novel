@@ -1,14 +1,16 @@
 {
-  "timestamp": "2026-02-22T04:14:23.261198",
-  "total": 351,
-  "valid": 347,
-  "invalid": 4,
+  "timestamp": "2026-03-01T04:21:09.237278",
+  "total": 347,
+  "valid": 341,
+  "invalid": 6,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "http://book.sbkk8.com#🎃": "HTTP 444",
-    "http://3g.sbkk8.com#": "HTTP 444",
-    "http://m.xiaoshubao.net#": "Server disconnected",
-    "https://m.zztxt.net#🎃": "Cannot connect to host m.zztxt.net:443 ssl:default"
+    "https://www.biquge55.net/#♤pb": "Cannot connect to host www.biquge55.net:443 ssl:de",
+    "http://www.18ys.net#🎃": "HTTP 404",
+    "http://www.trxs.org/##@": "超时",
+    "https://trxs.cc": "Cannot connect to host trxs.cc:443 ssl:default [Te",
+    "https://www.szyangxiao.com#鸡排饭": "超时",
+    "http://www.trxs.cc/": "Cannot connect to host www.trxs.cc:80 ssl:default "
   }
 }
