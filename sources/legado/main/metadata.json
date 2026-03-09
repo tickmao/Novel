@@ -1,5 +1,5 @@
 {
-  "last_validation_index": 0,
+  "last_validation_index": 100,
   "validation_history": {},
   "failure_counts": {
     "https://www.qfxs123.com/": 0,
@@ -44,7 +44,7 @@
     "http://20.langge.tk": 0,
     "https://www.xhwx6.com/##RosiaPng": 3,
     "https://www.xhwx6.com": 3,
-    "https://fqxs.52dns.cc/": 1,
+    "https://fqxs.52dns.cc/": 2,
     "http://www.xinshuge.net#": 3,
     "http://www.cxinbz.com/": 3,
     "http://www.xinshuge.net/": 3,
@@ -65,7 +65,7 @@
     "http://www.yiruan.info#": 3,
     "https://www.mayiwxw.com/#": 3,
     "https://m.dongmanmanhua.cn#无效": 0,
-    "https://fqxs.52dns.cc": 1,
+    "https://fqxs.52dns.cc": 2,
     "http://m.qudushu.com#🎃": 0,
     "https://app.shubl.com#🎃": 0,
     "https://app.shubl.com#": 0,
@@ -80,8 +80,8 @@
     "https://ukuzy.com/": 3,
     "https://www.bimidu.com#🎃": 0,
     "http://www.yetianlian.com/": 0,
-    "https://m.aofusw.com#🎃": 2,
-    "https://m.lanwen.org#🎃": 1,
+    "https://m.aofusw.com#🎃": 3,
+    "https://m.lanwen.org#🎃": 2,
     "https://web.popo.city#🎃": 0,
     "http://m.yetianlian.la#🎃": 0,
     "http://m.yetianlian.la": 0,
@@ -1016,7 +1016,7 @@
     "https://book.douban.com": 0,
     "http://www.cread.com": 0,
     "https://wenxue.iqiyi.com": 0,
-    "https://www.lohuasen.com": 1,
+    "https://www.lohuasen.com": 2,
     "http://m.iyoule.com": 0,
     "https://m.zhuishushenqi.com": 0,
     "https://mmzy.de/": 0,
@@ -1026,12 +1026,12 @@
     "https://444.1006sd.com": 0,
     "http://betam.newbeebook.com": 0,
     "http://www.exiaoshuo.com": 0,
-    "http://www.duqu.net": 1,
+    "http://www.duqu.net": 2,
     "http://www.kujiang.com": 0,
     "https://234.234516.xyz": 0,
     "https://3wx4.23uup.com": 0,
     "https://w9w.qwe97.com": 0,
-    "https://www.juxiaoshuo.net/": 1,
+    "https://www.juxiaoshuo.net/": 2,
     "https://www.powenxue15.com/": 0,
     "https://www.roushuwu7.com": 0,
     "http://m.jmshuwu.net": 0,
@@ -1408,9 +1408,9 @@
     "http://www.xpaoshuba.cc": 0,
     "http://www.99shuba.com": 0
   },
-  "last_maintenance": "2026-03-08T18:41:49.587427",
+  "last_maintenance": "2026-03-09T19:00:20.513132",
   "last_report": {
-    "timestamp": "2026-03-08T18:41:49.587386",
+    "timestamp": "2026-03-09T19:00:20.513091",
     "health_status": "good",
     "health_message": "良好",
     "total_sources": 1000,
@@ -1419,10 +1419,10 @@
     "validation_stats": {
       "batch_num": 1,
       "total": 100,
-      "valid": 83,
-      "invalid": 17,
-      "valid_rate": 0.83,
-      "avg_response_time": 1259.3975903614457
+      "valid": 93,
+      "invalid": 7,
+      "valid_rate": 0.93,
+      "avg_response_time": 931.6559139784946
     },
     "replaced_count": 1
   }
