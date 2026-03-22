@@ -16454,88 +16454,119 @@
     "score": 50.0
   },
   {
-    "bookSourceUrl": "http://m.chidwx.com",
-    "bookSourceName": "🍺 尺度文学",
-    "bookSourceGroup": "🍺特优",
+    "bookSourceUrl": "http://m.mmkuu.com",
+    "bookSourceName": "🎉 mmKuu小说",
+    "bookSourceGroup": "🎉精品",
     "bookSourceType": 0,
     "bookUrlPattern": "",
-    "customOrder": -38347,
+    "customOrder": -37778,
     "enabled": true,
     "enabledExplore": true,
     "enabledCookieJar": false,
-    "header": "{\n  \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko, By Black Prism) Chrome/99.0 Safari/537.36\"\n}",
+    "header": "{\n  \"User-Agent\": \"Mobile\"\n}",
     "loginUrl": "",
-    "bookSourceComment": "",
-    "lastUpdateTime": 0,
+    "bookSourceComment": "haxc",
+    "lastUpdateTime": 1604944500783,
     "respondTime": 180000,
     "weight": 0,
-    "ruleExplore": {},
-    "searchUrl": "/search.html,{\n  \"method\": \"POST\",\n  \"body\": \"searchkey={{key}}\"\n}",
+    "exploreUrl": "玄幻小说::/class/1_{{page}}.html\n仙侠小说::/class/2_{{page}}.html\n都市小说::/class/3_{{page}}.html\n历史军事::/class/4_{{page}}.html\n同人小说::/class/5_{{page}}.html\n网游小说::/class/6_{{page}}.html\n科幻小说::/class/7_{{page}}.html\n其他小说::/class/8_{{page}}.html",
+    "ruleExplore": {
+      "bookList": "class.newbook_list",
+      "name": "tag.a.1@text",
+      "author": "tag.a.2@text",
+      "intro": "class.newbook_intor@text",
+      "kind": "",
+      "lastChapter": "",
+      "bookUrl": "tag.a@href",
+      "coverUrl": "tag.img@src",
+      "wordCount": ""
+    },
+    "searchUrl": "/s.php,{\n\"method\":\"POST\",\n\"body\":\"search_key={{key}}\"\n}",
     "ruleSearch": {
-      "bookList": "class.list@tag.li",
-      "name": "class.bookname@tag.a@text",
-      "author": "class.data.0@tag.a@text",
-      "intro": "class.intro@text",
-      "kind": "tag.span@text",
-      "lastChapter": "class.data.1@tag.a@text",
+      "bookList": "class.searchresult@tag.p",
+      "name": "tag.a.0@text",
+      "author": "tag.a.1@text",
+      "intro": "",
+      "kind": "",
+      "lastChapter": "",
       "bookUrl": "tag.a.0@href",
-      "coverUrl": "tag.img@src"
+      "coverUrl": "tag.a.0@href##.*/(\\d+)/(\\d+)/##/http://image.mmkuu.com/$1/$2/$2s.jpg",
+      "wordCount": ""
     },
     "ruleBookInfo": {
-      "name": "class.name@text",
-      "author": "class.author@tag.a@text",
-      "intro": "class.intro.0@tag.p.0@textNodes",
-      "kind": "",
-      "lastChapter": "class.new@tag.a@text",
-      "coverUrl": "class.detail@tag.img@src",
-      "tocUrl": "class.now@tag.a@href",
-      "wordCount": "class.layui-bg-red@text"
+      "init": "",
+      "name": "class.info_t1@text##书名：",
+      "author": "class.info_t4@a@text",
+      "intro": "class.info_intro@text##简介：",
+      "kind": "class.info_t2@text##类别：",
+      "lastChapter": "class.info_t6@a@text",
+      "coverUrl": "class.info_novel_img@img@src",
+      "tocUrl": "",
+      "wordCount": ""
     },
     "ruleToc": {
-      "chapterList": "class.read@tag.li",
+      "chapterList": "class.info_newest.-1@ul@li",
       "chapterName": "tag.a@text",
       "chapterUrl": "tag.a@href",
-      "nextTocUrl": "text.下一页@href"
+      "updateTime": "",
+      "nextTocUrl": "option@value"
     },
     "ruleContent": {
-      "content": "class.content@tag.p!-1@text",
-      "imageStyle": "0"
+      "content": "id.novelcontent@html",
+      "nextContentUrl": "id.pb_next@href",
+      "webJs": "",
+      "sourceRegex": ""
     },
-    "tag": "🍺 尺度文学",
+    "tag": "🎉 mmKuu小说",
     "searchRule": {
-      "bookList": "class.list@tag.li",
-      "name": "class.bookname@tag.a@text",
-      "author": "class.data.0@tag.a@text",
-      "intro": "class.intro@text",
-      "kind": "tag.span@text",
-      "lastChapter": "class.data.1@tag.a@text",
-      "bookUrl": "tag.a.0@href",
-      "coverUrl": "tag.img@src"
-    },
-    "exploreRule": {},
-    "bookInfoRule": {
-      "name": "class.name@text",
-      "author": "class.author@tag.a@text",
-      "intro": "class.intro.0@tag.p.0@textNodes",
+      "bookList": "class.searchresult@tag.p",
+      "name": "tag.a.0@text",
+      "author": "tag.a.1@text",
+      "intro": "",
       "kind": "",
-      "lastChapter": "class.new@tag.a@text",
-      "coverUrl": "class.detail@tag.img@src",
-      "tocUrl": "class.now@tag.a@href",
-      "wordCount": "class.layui-bg-red@text"
+      "lastChapter": "",
+      "bookUrl": "tag.a.0@href",
+      "coverUrl": "tag.a.0@href##.*/(\\d+)/(\\d+)/##/http://image.mmkuu.com/$1/$2/$2s.jpg",
+      "wordCount": ""
+    },
+    "exploreRule": {
+      "bookList": "class.newbook_list",
+      "name": "tag.a.1@text",
+      "author": "tag.a.2@text",
+      "intro": "class.newbook_intor@text",
+      "kind": "",
+      "lastChapter": "",
+      "bookUrl": "tag.a@href",
+      "coverUrl": "tag.img@src",
+      "wordCount": ""
+    },
+    "bookInfoRule": {
+      "init": "",
+      "name": "class.info_t1@text##书名：",
+      "author": "class.info_t4@a@text",
+      "intro": "class.info_intro@text##简介：",
+      "kind": "class.info_t2@text##类别：",
+      "lastChapter": "class.info_t6@a@text",
+      "coverUrl": "class.info_novel_img@img@src",
+      "tocUrl": "",
+      "wordCount": ""
     },
     "tocRule": {
-      "chapterList": "class.read@tag.li",
+      "chapterList": "class.info_newest.-1@ul@li",
       "chapterName": "tag.a@text",
       "chapterUrl": "tag.a@href",
-      "nextTocUrl": "text.下一页@href"
+      "updateTime": "",
+      "nextTocUrl": "option@value"
     },
     "contentRule": {
-      "content": "class.content@tag.p!-1@text",
-      "imageStyle": "0"
+      "content": "id.novelcontent@html",
+      "nextContentUrl": "id.pb_next@href",
+      "webJs": "",
+      "sourceRegex": ""
     },
     "loginJs": "",
-    "key": "http://m.chidwx.com",
-    "_response_time": 408
+    "key": "http://m.mmkuu.com",
+    "_response_time": 319
   },
   {
     "bookSourceUrl": "http://ku.mumuceo.com/书旗小说APPby木木",
@@ -21774,68 +21805,81 @@
     "score": 50.0
   },
   {
-    "bookSourceUrl": "http://m.veryim.com",
-    "bookSourceName": "🎨 非常爱漫",
-    "bookSourceGroup": "🎨漫画",
+    "bookSourceUrl": "http://www.jilin555.com",
+    "bookSourceName": "🎉 吉林小说网",
+    "bookSourceGroup": "🎉精品",
     "bookSourceType": 0,
-    "bookUrlPattern": "",
-    "customOrder": -38125,
+    "customOrder": -37881,
     "enabled": true,
     "enabledExplore": true,
     "enabledCookieJar": false,
-    "loginUrl": "",
     "bookSourceComment": "",
-    "lastUpdateTime": 1604245043021,
+    "lastUpdateTime": 1604230396320,
     "respondTime": 180000,
     "weight": 0,
-    "exploreUrl": "更新::http://m.veryim.com/new/\n排行::http://m.veryim.com/paihang/\n日韩::http://m.veryim.com/rihan/{{page}}/",
-    "ruleExplore": {},
-    "searchUrl": "http://m.veryim.com/statics/search.aspx?key={{key}}&page={{page}}",
+    "exploreUrl": "玄幻小说::/xuanhuan/{{page}}.html&&仙侠小说::/xianxia/{{page}}.html&&都市小说::/dushi/{{page}}.html&&军史小说::/junshi/{{page}}.html&&网游小说::/wangyou/{{page}}.html&&科幻小说::/kehuan/{{page}}.html&&恐怖小说::/kongbu/{{page}}.html",
+    "ruleExplore": {
+      "bookList": ".tt",
+      "name": "h3@a@text",
+      "author": ".p1@a@text",
+      "intro": ".p2@text",
+      "bookUrl": "a@href",
+      "coverUrl": "img@src"
+    },
+    "searchUrl": "/modules/article/search.php?searchkey={{key}}&page={{page}},{\"charset\":\"gbk\"}",
     "ruleSearch": {
-      "bookList": "id.listbody@tag.li||class.itemBox",
-      "name": "tag.a.1@text",
-      "lastChapter": "tag.p.0@text||tag.span@text",
-      "bookUrl": "tag.a@href",
-      "coverUrl": "tag.img@src"
+      "bookList": "tbody@tr!0",
+      "name": "tag.a.0@text",
+      "author": "class.odd.1@text",
+      "kind": "class.even.2@text",
+      "lastChapter": "class.even.0@text",
+      "bookUrl": "a@href",
+      "coverUrl": "a@href##\\/(\\d+)\\/(\\d+)\\/##/files/article/image/$1/$2/$2s.jpg###",
+      "wordCount": "class.even.1@text"
     },
     "ruleBookInfo": {
-      "author": "class.sub_r@tag.p.1@text",
-      "intro": "class.txtDesc@text",
-      "kind": "class.sub_r@tag.p.2@text"
+      "intro": ".jj@text"
     },
     "ruleToc": {
-      "chapterList": "-id.list@tag.li",
-      "chapterName": "tag.a@text",
-      "chapterUrl": "tag.a@href"
+      "chapterList": ".ml_list@li@a",
+      "chapterName": "text",
+      "chapterUrl": "href"
     },
     "ruleContent": {
-      "content": ":_S001_vMMQZsSqq66JHArA5uAkicN5b7qzfKNa5W3UMbXn/78wmLcah1HcxD9XJ6pz2K6lpwu4pkH6e8oa\ngP6owTpsHQnneca1nGQbGLowDwc3Lb+qKQWDUZdQCD2ZYLslzUzy6Gu/wUbueVUMfPKKDyEfXzMx\n11N6Cqyn73A/G4orHQVP6jx6ufCICPxJQSDoUdbyqisiSL5YCXyefyKjZDCbmg==\n"
+      "content": ".articlecontent@html"
     },
-    "tag": "🎨 非常爱漫",
+    "tag": "🎉 吉林小说网",
     "searchRule": {
-      "bookList": "id.listbody@tag.li||class.itemBox",
-      "name": "tag.a.1@text",
-      "lastChapter": "tag.p.0@text||tag.span@text",
-      "bookUrl": "tag.a@href",
-      "coverUrl": "tag.img@src"
+      "bookList": "tbody@tr!0",
+      "name": "tag.a.0@text",
+      "author": "class.odd.1@text",
+      "kind": "class.even.2@text",
+      "lastChapter": "class.even.0@text",
+      "bookUrl": "a@href",
+      "coverUrl": "a@href##\\/(\\d+)\\/(\\d+)\\/##/files/article/image/$1/$2/$2s.jpg###",
+      "wordCount": "class.even.1@text"
     },
-    "exploreRule": {},
+    "exploreRule": {
+      "bookList": ".tt",
+      "name": "h3@a@text",
+      "author": ".p1@a@text",
+      "intro": ".p2@text",
+      "bookUrl": "a@href",
+      "coverUrl": "img@src"
+    },
     "bookInfoRule": {
-      "author": "class.sub_r@tag.p.1@text",
-      "intro": "class.txtDesc@text",
-      "kind": "class.sub_r@tag.p.2@text"
+      "intro": ".jj@text"
     },
     "tocRule": {
-      "chapterList": "-id.list@tag.li",
-      "chapterName": "tag.a@text",
-      "chapterUrl": "tag.a@href"
+      "chapterList": ".ml_list@li@a",
+      "chapterName": "text",
+      "chapterUrl": "href"
     },
     "contentRule": {
-      "content": ":_S001_vMMQZsSqq66JHArA5uAkicN5b7qzfKNa5W3UMbXn/78wmLcah1HcxD9XJ6pz2K6lpwu4pkH6e8oa\ngP6owTpsHQnneca1nGQbGLowDwc3Lb+qKQWDUZdQCD2ZYLslzUzy6Gu/wUbueVUMfPKKDyEfXzMx\n11N6Cqyn73A/G4orHQVP6jx6ufCICPxJQSDoUdbyqisiSL5YCXyefyKjZDCbmg==\n"
+      "content": ".articlecontent@html"
     },
-    "loginJs": "",
-    "key": "http://m.veryim.com",
-    "_response_time": 501
+    "key": "http://www.jilin555.com",
+    "_response_time": 3939
   },
   {
     "bookSourceUrl": "https://m.27kk.net",
@@ -24063,7 +24107,7 @@
     },
     "loginJs": "http://m.shenqiwang.cn/index.php/page/user",
     "key": "http://app.app.quyuewang.cn",
-    "_response_time": 1321,
+    "_response_time": 1067,
     "score": 50.0
   },
   {
@@ -24178,7 +24222,7 @@
     },
     "loginJs": "",
     "key": "https://bookshelf.html5.qq.com",
-    "_response_time": 1397,
+    "_response_time": 1473,
     "score": 50.0
   },
   {
@@ -24242,7 +24286,7 @@
       "intro": "class.about-text@html##(^|[。！？]++”?+)##$1<br>"
     },
     "key": "http://www.linovel.net",
-    "_response_time": 2576,
+    "_response_time": 3613,
     "score": 50.0
   },
   {
@@ -24313,7 +24357,7 @@
     },
     "loginJs": "",
     "key": "http://m.tushuu.com",
-    "_response_time": 279
+    "_response_time": 213
   },
   {
     "bookSourceUrl": "http://www.mengbige.com",
@@ -24377,7 +24421,7 @@
       "coverUrl": "class.pic@tag.img.0@src"
     },
     "key": "http://www.mengbige.com",
-    "_response_time": 365,
+    "_response_time": 1288,
     "score": 50.0
   },
   {
@@ -24493,7 +24537,7 @@
     },
     "loginJs": "",
     "key": "http://m.35xs.cc/",
-    "_response_time": 2398,
+    "_response_time": 2563,
     "score": 50.0
   },
   {
@@ -24562,7 +24606,7 @@
       "tocUrl": "id.download@a@href"
     },
     "key": "http://www.zxcs.info",
-    "_response_time": 708,
+    "_response_time": 449,
     "score": 50.0
   },
   {
@@ -24732,7 +24776,7 @@
     },
     "loginJs": "",
     "key": "http://m.jingaishu.com/",
-    "_response_time": 581,
+    "_response_time": 285,
     "score": 50.0
   },
   {
@@ -24848,7 +24892,7 @@
     },
     "loginJs": "http://m.shenqiwang.cn/index.php/page/user",
     "key": "http://app.quyuedu.hzquyue.com",
-    "_response_time": 1069,
+    "_response_time": 918,
     "score": 50.0
   },
   {
@@ -24933,7 +24977,7 @@
     },
     "loginJs": "",
     "key": "http://m.2kxsw.com/",
-    "_response_time": 670,
+    "_response_time": 726,
     "score": 50.0
   },
   {
@@ -25215,7 +25259,7 @@
     },
     "loginJs": "",
     "key": "https://m.75zw.com",
-    "_response_time": 685
+    "_response_time": 280
   },
   {
     "bookSourceUrl": "https://www.yssm.org",
@@ -25278,123 +25322,72 @@
       "content": "id.chaptercontent@textNodes"
     },
     "key": "https://www.yssm.org",
-    "_response_time": 1415,
+    "_response_time": 220,
     "score": 50.0
   },
   {
-    "bookSourceUrl": "https://www.qishubook.com",
-    "bookSourceName": "📡 奇书网",
-    "bookSourceGroup": "📡发现",
+    "bookSourceUrl": "http://m.shu69.com",
+    "bookSourceName": "86书城",
+    "bookSourceGroup": "",
     "bookSourceType": 0,
-    "bookUrlPattern": "",
-    "customOrder": -19077,
+    "customOrder": 13277,
     "enabled": false,
     "enabledExplore": false,
     "enabledCookieJar": false,
-    "header": "{\n  \"User-Agent\": \"Mozilla/5.0 (Linux; Android 8.1.0; JKM-AL00b Build/HUAWEIJKM-AL00b; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/66.0.3359.126 MQQBrowser/6.2 TBS/044807 Mobile Safari/537.36\"\n}",
-    "loginUrl": "",
     "bookSourceComment": "",
-    "lastUpdateTime": 1601024526207,
+    "lastUpdateTime": 0,
     "respondTime": 180000,
     "weight": 0,
-    "exploreUrl": "玄幻小说::https://www.qishubook.com/fenlei/1_{{page}}/\n言情小说::https://www.qishubook.com/fenlei/2_{{page}}/\n仙侠小说::https://www.qishubook.com/fenlei/3_{{page}}/\n都市小说::https://www.qishubook.com/fenlei/4_{{page}}/\n历史小说::https://www.qishubook.com/fenlei/5_{{page}}/\n网游小说::https://www.qishubook.com/fenlei/6_{{page}}/\n竞技小说::https://www.qishubook.com/fenlei/7_{{page}}/\n科幻小说::https://www.qishubook.com/fenlei/8_{{page}}/\n完本小说::https://www.qishubook.com/quanben/{{page}}",
-    "ruleExplore": {
-      "bookList": "class.gx_cont@tag.li!0",
-      "name": "tag.a.0@text",
-      "author": "class.sp_4@text",
-      "intro": "",
-      "kind": "",
-      "lastChapter": "tag.a.1@text",
-      "bookUrl": "tag.a.0@href",
-      "coverUrl": "",
-      "wordCount": "class.sp_6@text"
-    },
-    "searchUrl": "https://www.qishubook.com/modules/article/search.php?searchkey={{key}}&submit=,{\"charset\":\"gbk\"}\n",
+    "ruleExplore": {},
+    "searchUrl": "http://m.shu69.com/search.aspx,{\n  \"method\": \"POST\",\n  \"body\": \"type=articlename&s={{key}}&submit=\"\n}",
     "ruleSearch": {
-      "bookList": "class.grid@tag.tr!0",
-      "name": "class.odd.0@tag.a@text",
-      "author": "class.odd.1@text",
-      "intro": "",
-      "kind": "class.odd.2@text",
-      "lastChapter": "class.even.0@tag.a@text",
-      "bookUrl": "class.odd.0@tag.a@href",
-      "coverUrl": "",
-      "wordCount": "class.even.1@text"
+      "bookList": "class.cover@children",
+      "name": "tag.a.1@text",
+      "author": "class.line@tag.a.2@text",
+      "kind": "class.line@tag.a.0@text##\\[|\\]",
+      "bookUrl": "class.line@tag.a.1@href"
     },
     "ruleBookInfo": {
-      "init": "",
-      "name": "id.info@tag.h1@text",
-      "author": "id.info@tag.p.0@text",
-      "intro": "id.intro@text",
-      "kind": "class.weizhi@tag.a.1@text",
-      "lastChapter": "id.info@tag.p.3@text##最新：",
-      "coverUrl": "id.fmimg@tag.img@src",
-      "tocUrl": "",
-      "wordCount": "id.info@tag.p.2@text"
+      "name": "class.block_txt2@tag.h2@text",
+      "author": "class.block_txt2@tag.p.2@tag.a.0@text",
+      "intro": "class.intro_info@text",
+      "tocUrl": "class.ablum_read.0@tag.a.1@href"
     },
     "ruleToc": {
-      "chapterList": "class.mu_contain@tag.li!0:1:2:3:4:5:6:7:8:9:10:11:12:13",
+      "chapterList": "class.chapter@tag.li",
       "chapterName": "tag.a@text",
       "chapterUrl": "tag.a@href",
-      "updateTime": "",
-      "nextTocUrl": ""
+      "nextTocUrl": "class.page.0@text.下一页.0@href"
     },
     "ruleContent": {
-      "content": "id.htmlContent@html##一秒记.*免费阅读！",
-      "nextContentUrl": "",
-      "webJs": "",
-      "sourceRegex": ""
+      "content": "id.nr@html##手机请访问|m.shu69.com"
     },
     "searchRule": {
-      "bookList": "class.grid@tag.tr!0",
-      "name": "class.odd.0@tag.a@text",
-      "author": "class.odd.1@text",
-      "intro": "",
-      "kind": "class.odd.2@text",
-      "lastChapter": "class.even.0@tag.a@text",
-      "bookUrl": "class.odd.0@tag.a@href",
-      "coverUrl": "",
-      "wordCount": "class.even.1@text"
+      "bookList": "class.cover@children",
+      "name": "tag.a.1@text",
+      "author": "class.line@tag.a.2@text",
+      "kind": "class.line@tag.a.0@text##\\[|\\]",
+      "bookUrl": "class.line@tag.a.1@href"
     },
-    "tag": "📡 奇书网",
+    "tag": "86书城",
     "tocRule": {
-      "chapterList": "class.mu_contain@tag.li!0:1:2:3:4:5:6:7:8:9:10:11:12:13",
+      "chapterList": "class.chapter@tag.li",
       "chapterName": "tag.a@text",
       "chapterUrl": "tag.a@href",
-      "updateTime": "",
-      "nextTocUrl": ""
+      "nextTocUrl": "class.page.0@text.下一页.0@href"
     },
     "contentRule": {
-      "content": "id.htmlContent@html##一秒记.*免费阅读！",
-      "nextContentUrl": "",
-      "webJs": "",
-      "sourceRegex": ""
+      "content": "id.nr@html##手机请访问|m.shu69.com"
     },
-    "exploreRule": {
-      "bookList": "class.gx_cont@tag.li!0",
-      "name": "tag.a.0@text",
-      "author": "class.sp_4@text",
-      "intro": "",
-      "kind": "",
-      "lastChapter": "tag.a.1@text",
-      "bookUrl": "tag.a.0@href",
-      "coverUrl": "",
-      "wordCount": "class.sp_6@text"
-    },
+    "exploreRule": {},
     "bookInfoRule": {
-      "init": "",
-      "name": "id.info@tag.h1@text",
-      "author": "id.info@tag.p.0@text",
-      "intro": "id.intro@text",
-      "kind": "class.weizhi@tag.a.1@text",
-      "lastChapter": "id.info@tag.p.3@text##最新：",
-      "coverUrl": "id.fmimg@tag.img@src",
-      "tocUrl": "",
-      "wordCount": "id.info@tag.p.2@text"
+      "name": "class.block_txt2@tag.h2@text",
+      "author": "class.block_txt2@tag.p.2@tag.a.0@text",
+      "intro": "class.intro_info@text",
+      "tocUrl": "class.ablum_read.0@tag.a.1@href"
     },
-    "loginJs": "",
-    "key": "https://www.qishubook.com",
-    "_response_time": 3932
+    "key": "http://m.shu69.com",
+    "_response_time": 370
   },
   {
     "bookSourceUrl": "http://m.3yzw.com/",
@@ -25578,125 +25571,74 @@
     },
     "loginJs": "",
     "key": "http://www.qqwmx.com/",
-    "_response_time": 522,
+    "_response_time": 418,
     "score": 50.0
   },
   {
-    "bookSourceUrl": "http://m.biquge.info#bookone",
-    "bookSourceName": "🍺 笔趣阁info",
-    "bookSourceGroup": "⛓️破防,🍺特优",
+    "bookSourceUrl": "http://www.d3zww.com",
+    "bookSourceName": "第三中文网",
+    "bookSourceGroup": "",
     "bookSourceType": 0,
-    "bookUrlPattern": "",
-    "customOrder": -38190,
-    "enabled": true,
-    "enabledExplore": true,
+    "customOrder": 12950,
+    "enabled": false,
+    "enabledExplore": false,
     "enabledCookieJar": false,
-    "header": "",
-    "loginUrl": "coolapk@芜恙;wordCount",
     "bookSourceComment": "",
-    "lastUpdateTime": 1603357436527,
+    "lastUpdateTime": 0,
     "respondTime": 180000,
     "weight": 0,
-    "exploreUrl": "",
-    "ruleExplore": {
-      "bookList": "",
-      "name": "",
-      "author": "",
-      "intro": "",
-      "kind": "",
-      "lastChapter": "",
-      "bookUrl": "",
-      "coverUrl": "",
-      "wordCount": ""
-    },
-    "searchUrl": "/modules/article/search.php,{\n  \"method\": \"POST\",\n  \"body\": \"q={{key}}\"\n}",
+    "ruleExplore": {},
+    "searchUrl": "http://www.d3zww.com/modules/article/search.php?action=login&searchkey={{key}},{\n  \"charset\": \"gbk\"\n}",
     "ruleSearch": {
-      "bookList": ".bookone\n<js>\nresult.toArray().slice(0, 3).map(el => {\n\tvar url = String(el.select('a:eq(0)').attr('href')).replace(/^\\//, baseUrl.match(/(.+?\\/\\/[^\\/]+\\/)/)[1]);\n\tvar J = org.jsoup.Jsoup.parse(java.ajax(url));\n\tvar o = selector => String(J.select(selector).text());\n\tvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\n\treturn {\n\t\tname: og('novel:book_name').replace(/(全文|小说|免费阅读|最新章节).*|[(（].*[）)]/g, ''),\n\t\tauthor: og('novel:author'),\n\t\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n\t\tlatest: og('novel:latest_chapter_name').replace(/^(正文|VIP章节|最新章节)?(\\s+|_)|[\\(（【].*[求更谢乐发推].*/g, '') + ' • ' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-'),\n\t\tintro: og('description').replace(/.*(观看小说|简介)[:：]|各位书友.*/g, '').replace(/\\s+/g, ''),\n\t\tcover: og('image'),\n\t\turl: url,\n\t};\n}); \n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "bookUrl": "url",
-      "coverUrl": "cover",
-      "wordCount": ""
+      "bookList": "class.toplist@tag.li||class.box",
+      "name": "class.s1.0@tag.a.0@text||id.info@tag.h1.0@text",
+      "author": "class.s3.0@text||class.options@tag.span.0@text",
+      "kind": "class.title@tag.a.1@text",
+      "lastChapter": "class.s2.0@tag.a.0@text||class.update@tag.a.0@text",
+      "bookUrl": "class.s1.0@tag.a.0@href",
+      "coverUrl": "class.pic@tag.img.0@src"
     },
     "ruleBookInfo": {
-      "init": "<js> \nvar J = org.jsoup.Jsoup.parse(result);\nvar o = selector => String(J.select(selector).text()) ;\nvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\nvar book = {\n\tname: og('novel:book_name').replace(/(全文|小说|免费阅读|最新章节).*|[(（].*[）)]/g, ''),\n\tauthor: og('novel:author'),\n\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n\tlatest: og('novel:latest_chapter_name').replace(/^(正文|VIP章节|最新章节)?(\\s+|_)|[\\(（【].*[求更谢乐发推].*/g, ''),\n\tintro: '　　最近更新:' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-') + '\\n' + og('description').replace(/.*(观看小说|简介)[:：]|各位书友.*/g, '').replace(/\\s+/g, '\\n'),\n\tcover: og('image'),\n\turl: og('novel:read_url').replace('m.','www.'),\n};\nbook;\n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "coverUrl": "cover",
-      "tocUrl": "url",
-      "wordCount": ""
+      "name": "id.info@tag.h1.0@text",
+      "author": "class.options@tag.span.0@text",
+      "intro": "class.bookinfo_intro@text##您要是觉得.*",
+      "coverUrl": "class.pic@tag.img.0@src"
     },
     "ruleToc": {
-      "chapterList": "#list dd a",
-      "chapterName": "text##^(正文|VIP章节|最新章节)?(\\s+|_)|[\\(（【].*[求更谢乐发推].*",
-      "chapterUrl": "href",
-      "updateTime": "",
-      "nextTocUrl": ""
+      "chapterList": "class.book_list@tag.li",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href"
     },
     "ruleContent": {
-      "content": "#content@textNodes",
-      "nextContentUrl": "",
-      "webJs": "",
-      "sourceRegex": "",
-      "replaceRegex": "##天才一秒记住.*"
+      "content": "id.htmlContent@textNodes"
     },
-    "tag": "🍺 笔趣阁info",
     "searchRule": {
-      "bookList": ".bookone\n<js>\nresult.toArray().slice(0, 3).map(el => {\n\tvar url = String(el.select('a:eq(0)').attr('href')).replace(/^\\//, baseUrl.match(/(.+?\\/\\/[^\\/]+\\/)/)[1]);\n\tvar J = org.jsoup.Jsoup.parse(java.ajax(url));\n\tvar o = selector => String(J.select(selector).text());\n\tvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\n\treturn {\n\t\tname: og('novel:book_name').replace(/(全文|小说|免费阅读|最新章节).*|[(（].*[）)]/g, ''),\n\t\tauthor: og('novel:author'),\n\t\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n\t\tlatest: og('novel:latest_chapter_name').replace(/^(正文|VIP章节|最新章节)?(\\s+|_)|[\\(（【].*[求更谢乐发推].*/g, '') + ' • ' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-'),\n\t\tintro: og('description').replace(/.*(观看小说|简介)[:：]|各位书友.*/g, '').replace(/\\s+/g, ''),\n\t\tcover: og('image'),\n\t\turl: url,\n\t};\n}); \n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "bookUrl": "url",
-      "coverUrl": "cover",
-      "wordCount": ""
+      "bookList": "class.toplist@tag.li||class.box",
+      "name": "class.s1.0@tag.a.0@text||id.info@tag.h1.0@text",
+      "author": "class.s3.0@text||class.options@tag.span.0@text",
+      "kind": "class.title@tag.a.1@text",
+      "lastChapter": "class.s2.0@tag.a.0@text||class.update@tag.a.0@text",
+      "bookUrl": "class.s1.0@tag.a.0@href",
+      "coverUrl": "class.pic@tag.img.0@src"
     },
-    "exploreRule": {
-      "bookList": "",
-      "name": "",
-      "author": "",
-      "intro": "",
-      "kind": "",
-      "lastChapter": "",
-      "bookUrl": "",
-      "coverUrl": "",
-      "wordCount": ""
-    },
-    "bookInfoRule": {
-      "init": "<js> \nvar J = org.jsoup.Jsoup.parse(result);\nvar o = selector => String(J.select(selector).text()) ;\nvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\nvar book = {\n\tname: og('novel:book_name').replace(/(全文|小说|免费阅读|最新章节).*|[(（].*[）)]/g, ''),\n\tauthor: og('novel:author'),\n\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n\tlatest: og('novel:latest_chapter_name').replace(/^(正文|VIP章节|最新章节)?(\\s+|_)|[\\(（【].*[求更谢乐发推].*/g, ''),\n\tintro: '　　最近更新:' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-') + '\\n' + og('description').replace(/.*(观看小说|简介)[:：]|各位书友.*/g, '').replace(/\\s+/g, '\\n'),\n\tcover: og('image'),\n\turl: og('novel:read_url').replace('m.','www.'),\n};\nbook;\n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "coverUrl": "cover",
-      "tocUrl": "url",
-      "wordCount": ""
-    },
+    "tag": "第三中文网",
     "tocRule": {
-      "chapterList": "#list dd a",
-      "chapterName": "text##^(正文|VIP章节|最新章节)?(\\s+|_)|[\\(（【].*[求更谢乐发推].*",
-      "chapterUrl": "href",
-      "updateTime": "",
-      "nextTocUrl": ""
+      "chapterList": "class.book_list@tag.li",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href"
     },
     "contentRule": {
-      "content": "#content@textNodes",
-      "nextContentUrl": "",
-      "webJs": "",
-      "sourceRegex": "",
-      "replaceRegex": "##天才一秒记住.*"
+      "content": "id.htmlContent@textNodes"
     },
-    "loginJs": "coolapk@芜恙;wordCount",
-    "key": "http://m.biquge.info#bookone",
-    "_response_time": 1095
+    "exploreRule": {},
+    "bookInfoRule": {
+      "name": "id.info@tag.h1.0@text",
+      "author": "class.options@tag.span.0@text",
+      "intro": "class.bookinfo_intro@text##您要是觉得.*",
+      "coverUrl": "class.pic@tag.img.0@src"
+    },
+    "key": "http://www.d3zww.com",
+    "_response_time": 527
   },
   {
     "bookSourceUrl": "http://www.yunlaige.com",
@@ -25759,7 +25701,7 @@
     },
     "loginJs": "",
     "key": "http://www.yunlaige.com",
-    "_response_time": 330,
+    "_response_time": 266,
     "score": 50.0
   },
   {
@@ -25837,7 +25779,7 @@
     },
     "loginJs": "",
     "key": "http://www.m-zu.com",
-    "_response_time": 891,
+    "_response_time": 399,
     "score": 50.0
   },
   {
@@ -25955,7 +25897,7 @@
     },
     "loginJs": "",
     "key": "https://www.53zw.net/",
-    "_response_time": 508,
+    "_response_time": 268,
     "score": 50.0
   },
   {
@@ -26022,7 +25964,7 @@
       "coverUrl": "id.fmimg@tag.img.0@src"
     },
     "key": "http://www.xs222.tw",
-    "_response_time": 298,
+    "_response_time": 236,
     "score": 50.0
   },
   {
@@ -26084,7 +26026,7 @@
       "coverUrl": "class.info@tag.img@src"
     },
     "key": "http://www.htqyy.com",
-    "_response_time": 1326,
+    "_response_time": 837,
     "score": 50.0
   },
   {
@@ -26186,91 +26128,74 @@
       "content": "class.date@tag.p@html"
     },
     "key": "http://www.44txt.com",
-    "_response_time": 2098,
+    "_response_time": 1612,
     "score": 50.0
   },
   {
-    "bookSourceUrl": "https://nuoha.com",
-    "bookSourceName": "📡 诺哈",
-    "bookSourceGroup": "📡发现,🍺特优",
+    "bookSourceUrl": "http://www.biqiuge.com",
+    "bookSourceName": "笔趣阁XI",
+    "bookSourceGroup": "",
     "bookSourceType": 0,
-    "customOrder": -38504,
-    "enabled": true,
-    "enabledExplore": true,
+    "customOrder": 13286,
+    "enabled": false,
+    "enabledExplore": false,
     "enabledCookieJar": false,
     "bookSourceComment": "",
-    "lastUpdateTime": 1604943466845,
+    "lastUpdateTime": 0,
     "respondTime": 180000,
     "weight": 0,
-    "exploreUrl": "玄幻::/book/channel/1/{{page}}.html\n奇幻::/book/channel/2/{{page}}.html\n武侠::/book/channel/3/{{page}}.html\n仙侠::/book/channel/4/{{page}}.html\n都市::/book/channel/5/{{page}}.html\n历史::/book/channel/6/{{page}}.html\n军事::/book/channel/7/{{page}}.html\n悬疑::/book/channel/8/{{page}}.html\n现实::/book/channel/9/{{page}}.html\n体育::/book/channel/10/{{page}}.html\n古言::/book/channel/11/{{page}}.html\n现言::/book/channel/12/{{page}}.html\n幻情::/book/channel/13/{{page}}.html\n青春::/book/channel/14/{{page}}.html\n游戏::/book/channel/15/{{page}}.html\n科幻::/book/channel/16/{{page}}.html\n短篇::/book/channel/17/{{page}}.html\n小说::/book/channel/18/{{page}}.html\n轻小说::/book/channel/19/{{page}}.html\n悬疑灵异::/book/channel/20/{{page}}.html\n公版::/book/channel/21/{{page}}.html\n亲子::/book/channel/22/{{page}}.html\n耽美::/book/channel/23/{{page}}.html\n外语::/book/channel/24/{{page}}.html\n纯爱::/book/channel/25/{{page}}.html\n古代言情::/book/channel/26/{{page}}.html\n保健养生::/book/channel/27/{{page}}.html\n现代言情::/book/channel/28/{{page}}.html\n其他::/book/channel/29/{{page}}.html\n成功励志::/book/channel/30/{{page}}.html\n浪漫青春::/book/channel/31/{{page}}.html\n仙侠奇缘::/book/channel/32/{{page}}.html\n职场::/book/channel/33/{{page}}.html\n宗教::/book/channel/34/{{page}}.html\n玄幻言情::/book/channel/35/{{page}}.html\n文学::/book/channel/36/{{page}}.html\n同人小说::/book/channel/37/{{page}}.html\n耽美小说::/book/channel/38/{{page}}.html\n管理::/book/channel/39/{{page}}.html\n青春文学::/book/channel/40/{{page}}.html\n亲子家教::/book/channel/41/{{page}}.html\n传记::/book/channel/42/{{page}}.html\n灵异::/book/channel/43/{{page}}.html\n游戏竞技::/book/channel/44/{{page}}.html\n同人::/book/channel/45/{{page}}.html\n教材教辅::/book/channel/46/{{page}}.html\n社会科学::/book/channel/47/{{page}}.html\n经济::/book/channel/48/{{page}}.html\n两性关系::/book/channel/49/{{page}}.html\n休闲爱好::/book/channel/50/{{page}}.html\n科幻空间::/book/channel/51/{{page}}.html\n心理学::/book/channel/52/{{page}}.html\n风水占卜::/book/channel/53/{{page}}.html\n竞技::/book/channel/54/{{page}}.html\n童书::/book/channel/55/{{page}}.html\n文化::/book/channel/56/{{page}}.html\n政治::/book/channel/57/{{page}}.html\n投资理财::/book/channel/58/{{page}}.html\n古籍::/book/channel/59/{{page}}.html\n哲学::/book/channel/60/{{page}}.html\n艺术::/book/channel/61/{{page}}.html\n旅游地图::/book/channel/62/{{page}}.html\n时尚美妆::/book/channel/63/{{page}}.html\n科普读物::/book/channel/64/{{page}}.html\n医学::/book/channel/65/{{page}}.html\n烹饪美食::/book/channel/67/{{page}}.html\n法律::/book/channel/68/{{page}}.html\n工业技术::/book/channel/69/{{page}}.html\n自然科学::/book/channel/70/{{page}}.html\n期刊杂志::/book/channel/71/{{page}}.html\n家庭家居::/book/channel/72/{{page}}.html\n二次元::/book/channel/73/{{page}}.html\nN次元::/book/channel/74/{{page}}.html\n建筑::/book/channel/75/{{page}}.html\n农业林业::/book/channel/76/{{page}}.html\n都市小说::/book/channel/77/{{page}}.html\n工具书::/book/channel/78/{{page}}.html\n体育运动::/book/channel/79/{{page}}.html\n考试::/book/channel/80/{{page}}.html\n历史小说::/book/channel/81/{{page}}.html\n都市言情::/book/channel/82/{{page}}.html\n科普::/book/channel/83/{{page}}.html\n励志::/book/channel/84/{{page}}.html\n休闲::/book/channel/85/{{page}}.html\n养生::/book/channel/86/{{page}}.html\n社科::/book/channel/87/{{page}}.html\n孕产育儿::/book/channel/88/{{page}}.html\n漫画::/book/channel/89/{{page}}.html\n计算机网络::/book/channel/90/{{page}}.html\n专栏::/book/channel/91/{{page}}.html\n心理::/book/channel/92/{{page}}.html\n两性::/book/channel/93/{{page}}.html\n杂志::/book/channel/94/{{page}}.html\n时尚::/book/channel/95/{{page}}.html\n农林::/book/channel/96/{{page}}.html\n投资::/book/channel/97/{{page}}.html\n风水::/book/channel/98/{{page}}.html\n美食::/book/channel/99/{{page}}.html\n自然::/book/channel/100/{{page}}.html\n家居::/book/channel/101/{{page}}.html\n工业::/book/channel/102/{{page}}.html\n旅游::/book/channel/103/{{page}}.html\n英文图书::/book/channel/104/{{page}}.html\n情感小说::/book/channel/105/{{page}}.html\n教育教辅::/book/channel/106/{{page}}.html\n计算机::/book/channel/107/{{page}}.html\n手工::/book/channel/108/{{page}}.html\n短篇小说::/book/channel/109/{{page}}.html\n悬疑小说::/book/channel/110/{{page}}.html\n情感::/book/channel/111/{{page}}.html\n手工DIY::/book/channel/112/{{page}}.html\n女生频道::/book/channel/113/{{page}}.html\n工具::/book/channel/114/{{page}}.html",
-    "ruleExplore": {
-      "bookList": "class.row-b4@li",
-      "name": "tag.a.1@text",
-      "author": "tag.a.2@text",
-      "intro": "tag.span.-2@text",
-      "kind": "tag.span.2@textNodes",
-      "lastChapter": "tag.span.-1@text##(\\d{4}-\\d{2})##•$1",
-      "bookUrl": "tag.a.0@href",
-      "coverUrl": "img@src"
-    },
-    "searchUrl": "https://s2.nuoha.com/server/book/search.do?pid=1&word={{key}}",
+    "ruleExplore": {},
+    "searchUrl": "http://zhannei.baidu.com/cse/search?s=17512219138159063592&entry=1&q={{key}}&p={{page-1}}",
     "ruleSearch": {
-      "bookList": "$.rlist",
-      "name": "$.name",
-      "author": "$.author##^\\d+\\n",
-      "intro": "$.intro",
-      "kind": "$.channel##^\\d+",
-      "lastChapter": "$.chapter##^\\d+\\n",
-      "bookUrl": "https://nuoha.com/book/view/{{$.id}}.html",
-      "coverUrl": "$.icon",
-      "wordCount": ""
+      "bookList": "class.result-item",
+      "name": "class.result-item-title result-game-item-title.0@tag.a.0@text",
+      "author": "class.result-game-item-info.0@tag.p.0@tag.span.1@text",
+      "kind": "class.result-game-item-info.0@tag.p.1@tag.span.1@text",
+      "lastChapter": "class.result-game-item-info.0@tag.p.3@tag.a.0@text",
+      "bookUrl": "class.result-item-title result-game-item-title.0@tag.a.0@href",
+      "coverUrl": "class.result-game-item-pic.0@tag.img.0@src"
     },
     "ruleBookInfo": {
-      "tocUrl": "class.row-c1@a@href"
+      "name": "id.info@tag.h1.0@text",
+      "author": "id.info@tag.p.0@text",
+      "intro": "id.intro@text",
+      "coverUrl": "id.fmimg@tag.img.0@src"
     },
     "ruleToc": {
-      "chapterList": "class.row-c2@li@a",
-      "chapterName": "text",
-      "chapterUrl": "href"
+      "chapterList": "id.list@tag.dd",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href"
     },
     "ruleContent": {
-      "content": "id.data@html"
+      "content": "id.content@textNodes"
     },
-    "tag": "📡 诺哈",
     "searchRule": {
-      "bookList": "$.rlist",
-      "name": "$.name",
-      "author": "$.author##^\\d+\\n",
-      "intro": "$.intro",
-      "kind": "$.channel##^\\d+",
-      "lastChapter": "$.chapter##^\\d+\\n",
-      "bookUrl": "https://nuoha.com/book/view/{{$.id}}.html",
-      "coverUrl": "$.icon",
-      "wordCount": ""
+      "bookList": "class.result-item",
+      "name": "class.result-item-title result-game-item-title.0@tag.a.0@text",
+      "author": "class.result-game-item-info.0@tag.p.0@tag.span.1@text",
+      "kind": "class.result-game-item-info.0@tag.p.1@tag.span.1@text",
+      "lastChapter": "class.result-game-item-info.0@tag.p.3@tag.a.0@text",
+      "bookUrl": "class.result-item-title result-game-item-title.0@tag.a.0@href",
+      "coverUrl": "class.result-game-item-pic.0@tag.img.0@src"
     },
-    "exploreRule": {
-      "bookList": "class.row-b4@li",
-      "name": "tag.a.1@text",
-      "author": "tag.a.2@text",
-      "intro": "tag.span.-2@text",
-      "kind": "tag.span.2@textNodes",
-      "lastChapter": "tag.span.-1@text##(\\d{4}-\\d{2})##•$1",
-      "bookUrl": "tag.a.0@href",
-      "coverUrl": "img@src"
-    },
-    "bookInfoRule": {
-      "tocUrl": "class.row-c1@a@href"
-    },
+    "tag": "笔趣阁XI",
     "tocRule": {
-      "chapterList": "class.row-c2@li@a",
-      "chapterName": "text",
-      "chapterUrl": "href"
+      "chapterList": "id.list@tag.dd",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href"
     },
     "contentRule": {
-      "content": "id.data@html"
+      "content": "id.content@textNodes"
     },
-    "key": "https://nuoha.com",
-    "_response_time": 1330
+    "exploreRule": {},
+    "bookInfoRule": {
+      "name": "id.info@tag.h1.0@text",
+      "author": "id.info@tag.p.0@text",
+      "intro": "id.intro@text",
+      "coverUrl": "id.fmimg@tag.img.0@src"
+    },
+    "key": "http://www.biqiuge.com",
+    "_response_time": 1703
   },
   {
     "bookSourceUrl": "http://m.ndlib.cn",
@@ -26334,7 +26259,7 @@
     },
     "loginJs": "\\\\目录列表规则处添加账号信息",
     "key": "http://m.ndlib.cn",
-    "_response_time": 2213,
+    "_response_time": 1845,
     "score": 50.0
   },
   {
@@ -26449,7 +26374,7 @@
     },
     "loginJs": "https://read.douban.com/app",
     "key": "https://read.douban.com",
-    "_response_time": 1791,
+    "_response_time": 1251,
     "score": 50.0
   },
   {
@@ -26528,7 +26453,7 @@
     },
     "loginJs": "",
     "key": "http://downnovel.com",
-    "_response_time": 947,
+    "_response_time": 350,
     "score": 50.0
   },
   {
@@ -26594,7 +26519,7 @@
       "name": ""
     },
     "key": "https://www.jiumodiary.com",
-    "_response_time": 1263,
+    "_response_time": 1070,
     "score": 50.0
   },
   {
@@ -26663,7 +26588,7 @@
     },
     "loginJs": "",
     "key": "http://www.booksky.cc/",
-    "_response_time": 4493,
+    "_response_time": 1849,
     "score": 50.0
   },
   {
@@ -26762,7 +26687,7 @@
       "wordCount": "class.tags de-header-line@span.1@text"
     },
     "key": "https://m.zongheng.com/",
-    "_response_time": 1714,
+    "_response_time": 1646,
     "score": 50.0
   },
   {
@@ -26867,7 +26792,7 @@
     },
     "loginJs": "https://passport.sfacg.com/Login.aspx",
     "key": "https://book.sfacg.com",
-    "_response_time": 1661,
+    "_response_time": 1627,
     "score": 50.0
   },
   {
@@ -26954,7 +26879,7 @@
       "tocUrl": "<js>\nvar id = baseUrl.match(/(\\d+)/)[1];\nvar ul = `${source.key}/userverify/book/${id}/list.html`\nvar result = java.get(ul,{}).header(\"location\");\nresult;\n</js>"
     },
     "key": "https://m.biquai.cc",
-    "_response_time": 189
+    "_response_time": 832
   },
   {
     "bookSourceUrl": "http://www.xsdha.com",
@@ -27025,7 +26950,7 @@
       "lastChapter": "class.info-main.0@class.dispc.1@tag.a.0@text"
     },
     "key": "http://www.xsdha.com",
-    "_response_time": 392
+    "_response_time": 549
   },
   {
     "bookSourceUrl": "http://ubook.qq.com",
@@ -27101,7 +27026,7 @@
       "imageStyle": "0"
     },
     "key": "http://ubook.qq.com",
-    "_response_time": 3660,
+    "_response_time": 3272,
     "score": 50.0
   },
   {
@@ -27206,7 +27131,7 @@
     },
     "loginJs": "https://m.sfacg.com/login",
     "key": "https://m.sfacg.com",
-    "_response_time": 2142,
+    "_response_time": 1156,
     "score": 50.0
   },
   {
@@ -27303,7 +27228,7 @@
       "tocUrl": ""
     },
     "key": "https://so.itingwa.com",
-    "_response_time": 2055,
+    "_response_time": 1851,
     "score": 50.0
   },
   {
@@ -27419,7 +27344,7 @@
     },
     "loginJs": "https://www.ciweimao.com/signup/login?redirect=https://www.ciweimao.com",
     "key": "https://www.ciweimao.com",
-    "_response_time": 1193,
+    "_response_time": 1798,
     "score": 50.0
   },
   {
@@ -27499,7 +27424,7 @@
     },
     "loginJs": "http://m.zhuishushenqi.com/login?source=/setting",
     "key": "http://www.zhuishushenqi.com",
-    "_response_time": 1006,
+    "_response_time": 721,
     "score": 50.0
   },
   {
@@ -27607,7 +27532,7 @@
     },
     "loginJs": "",
     "key": "https://music.taihe.com",
-    "_response_time": 1889,
+    "_response_time": 1251,
     "score": 50.0
   },
   {
@@ -27673,7 +27598,7 @@
       "tocUrl": "class.novel-header-r@tag.a@href"
     },
     "key": "http://m.xjxs.net",
-    "_response_time": 467,
+    "_response_time": 671,
     "score": 50.0
   },
   {
@@ -27746,7 +27671,7 @@
       "coverUrl": "id.fmimg@img@src"
     },
     "key": "http://www.biquge001.com/      ",
-    "_response_time": 484,
+    "_response_time": 330,
     "score": 50.0
   },
   {
@@ -27816,7 +27741,7 @@
       "tocUrl": "text.查看全部章节列表@href"
     },
     "key": "http://www.1001p.com",
-    "_response_time": 1366,
+    "_response_time": 1098,
     "score": 50.0
   },
   {
@@ -27887,7 +27812,7 @@
     },
     "loginJs": "",
     "key": "http://www.motie.com",
-    "_response_time": 2498,
+    "_response_time": 1816,
     "score": 50.0
   },
   {
@@ -27942,7 +27867,7 @@
     "exploreRule": {},
     "bookInfoRule": {},
     "key": "http://www.duanqingsi.com",
-    "_response_time": 623,
+    "_response_time": 539,
     "score": 50.0
   },
   {
@@ -28001,7 +27926,7 @@
       "tocUrl": "class.infolink@tag.li.1@tag.p.0@tag.a.0@href"
     },
     "key": "http://m.3wsw.com",
-    "_response_time": 516,
+    "_response_time": 324,
     "score": 50.0
   },
   {
@@ -28035,7 +27960,7 @@
     },
     "loginJs": "",
     "key": "http://m.ranwen52000.com",
-    "_response_time": 456
+    "_response_time": 403
   },
   {
     "bookSourceUrl": "http://www.73wx.com",
@@ -28099,7 +28024,7 @@
       "tocUrl": "class.newrap@tag.a.0@href"
     },
     "key": "http://www.73wx.com",
-    "_response_time": 730,
+    "_response_time": 834,
     "score": 50.0
   },
   {
@@ -28223,7 +28148,7 @@
       "intro": "class.descInfo@tag.p@text"
     },
     "key": "https://www.36xs.net",
-    "_response_time": 639,
+    "_response_time": 1708,
     "score": 50.0
   },
   {
@@ -28287,7 +28212,7 @@
       "imageStyle": "0"
     },
     "key": "http://b.faloo.com",
-    "_response_time": 532,
+    "_response_time": 526,
     "score": 50.0
   },
   {
@@ -28350,7 +28275,7 @@
       "content": "id.booktext@textNodes"
     },
     "key": "http://www.5217s.com/wap",
-    "_response_time": 10237,
+    "_response_time": 67,
     "score": 50.0
   },
   {
@@ -28458,7 +28383,7 @@
       "wordCount": "$.wordCount"
     },
     "key": "https://m.cread.com",
-    "_response_time": 2898,
+    "_response_time": 3651,
     "score": 50.0
   },
   {
@@ -28529,7 +28454,7 @@
     },
     "loginJs": "",
     "key": "http://www.ciweimao.com",
-    "_response_time": 1338,
+    "_response_time": 643,
     "score": 50.0
   },
   {
@@ -28592,7 +28517,7 @@
       "content": "id.ccontent@textNodes##丨"
     },
     "key": "http://www.5217s.com",
-    "_response_time": 10224,
+    "_response_time": 5067,
     "score": 50.0
   },
   {
@@ -28653,7 +28578,7 @@
       "intro": "tag.p.0@text##简介："
     },
     "key": "http://www.damoge.com",
-    "_response_time": 742,
+    "_response_time": 607,
     "score": 50.0
   },
   {
@@ -28719,7 +28644,7 @@
       "imageStyle": "0"
     },
     "key": "https://es.bookan.com.cn#",
-    "_response_time": 1834,
+    "_response_time": 1540,
     "score": 50.0
   },
   {
@@ -28777,7 +28702,7 @@
       "coverUrl": "id.j@tag.img@src"
     },
     "key": "http://www.shoujikanshu.cc",
-    "_response_time": 4461,
+    "_response_time": 5392,
     "score": 50.0
   },
   {
@@ -28827,7 +28752,7 @@
       "content": "id.jp_audio_0@src"
     },
     "key": "http://www.douyingequ.com",
-    "_response_time": 1805,
+    "_response_time": 2331,
     "score": 50.0
   },
   {
@@ -28892,7 +28817,7 @@
       "intro": "class.content intro@text"
     },
     "key": "https://www.zhuishushenqi.com",
-    "_response_time": 2224,
+    "_response_time": 2120,
     "score": 50.0
   },
   {
@@ -29012,7 +28937,7 @@
     },
     "loginJs": "",
     "key": "http://www.shu05.com#tbody tr!0",
-    "_response_time": 795,
+    "_response_time": 420,
     "score": 50.0
   },
   {
@@ -29118,7 +29043,7 @@
     "bookInfoRule": {},
     "loginJs": "https://bbs.fallenark.com/member.php?mod=register",
     "key": "https://bbs.fallenark.com",
-    "_response_time": 554
+    "_response_time": 908
   },
   {
     "bookSourceUrl": "http://api.jmlldsc.com/",
@@ -29220,7 +29145,7 @@
       "wordCount": "$.wordNum"
     },
     "key": "http://api.jmlldsc.com/",
-    "_response_time": 1149,
+    "_response_time": 1081,
     "score": 50.0
   },
   {
@@ -29300,7 +29225,7 @@
       "nextContentUrl": "id.pb_next@tag.a@href"
     },
     "key": "http://m.xcxsmi.com",
-    "_response_time": 276,
+    "_response_time": 440,
     "score": 50.0
   },
   {
@@ -29385,7 +29310,7 @@
     },
     "loginJs": "",
     "key": "http://m.bxwxc.com",
-    "_response_time": 408
+    "_response_time": 511
   },
   {
     "bookSourceUrl": "https://m.lwtxt.net",
@@ -29416,7 +29341,7 @@
       "content": ""
     },
     "key": "https://m.lwtxt.net",
-    "_response_time": 875
+    "_response_time": 587
   },
   {
     "bookSourceUrl": "http://shenma.cread.com",
@@ -29518,7 +29443,7 @@
     },
     "loginJs": "http://shenma.cread.com/user/login.aspx",
     "key": "http://shenma.cread.com",
-    "_response_time": 3669,
+    "_response_time": 3331,
     "score": 50.0
   },
   {
@@ -29626,7 +29551,7 @@
     },
     "loginJs": "",
     "key": "https://cn.ttkan.co",
-    "_response_time": 1240,
+    "_response_time": 648,
     "score": 50.0
   },
   {
@@ -29725,7 +29650,7 @@
     },
     "loginJs": "",
     "key": "http://www.biquge5200.com/",
-    "_response_time": 1861,
+    "_response_time": 1452,
     "score": 50.0
   },
   {
@@ -29811,7 +29736,7 @@
       "coverUrl": "img@data-original"
     },
     "key": "http://m.fushutxt.cc",
-    "_response_time": 440,
+    "_response_time": 383,
     "score": 50.0
   },
   {
@@ -30189,123 +30114,80 @@
       "coverUrl": ""
     },
     "key": "https://www.yingyuxiaoshuo.com",
-    "_response_time": 1410,
+    "_response_time": 845,
     "score": 50.0
   },
   {
-    "bookSourceUrl": "http://www.siluwu.com#grid tr!0",
-    "bookSourceName": "思路客③",
-    "bookSourceGroup": "🎊思路客",
+    "bookSourceUrl": "http://www.luoqiuw.com",
+    "bookSourceName": "落秋中文①™九天之狼",
+    "bookSourceGroup": "",
     "bookSourceType": 0,
     "bookUrlPattern": "",
-    "customOrder": -17385,
+    "customOrder": 12913,
     "enabled": false,
     "enabledExplore": false,
     "enabledCookieJar": false,
-    "header": "",
-    "loginUrl": "coolapk@芜恙;wordCount",
+    "header": "{\n  \"User-Agent\": \"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157 Safari/537.36\"\n}",
+    "loginUrl": "",
     "bookSourceComment": "",
     "lastUpdateTime": 0,
     "respondTime": 180000,
     "weight": 0,
-    "exploreUrl": "",
-    "ruleExplore": {
-      "bookList": "",
-      "name": "",
-      "author": "",
-      "intro": "",
-      "kind": "",
-      "lastChapter": "",
-      "bookUrl": "",
-      "coverUrl": "",
-      "wordCount": ""
-    },
-    "searchUrl": "/modules/article/search.php,{\n  \"method\": \"POST\",\n  \"body\": \"searchkey={{key}}\"\n}",
+    "ruleExplore": {},
+    "searchUrl": "http://www.luoqiuw.com/modules/article/search.php?searchkey={{key}}&ct=2097152&si=luoqiuw.com&sts=luoqiuw.com&page={{page}},{\n  \"charset\": \"gbk\"\n}",
     "ruleSearch": {
-      "bookList": ".grid tr!0\n<js>\nresult.toArray().slice(0, 3).map(el => {\n\tvar url = String(el.select('a:eq(0)').attr('href')).replace(/^\\//, baseUrl.match(/(.+?\\/\\/[^\\/]+\\/)/)[1]);\n\tvar J = org.jsoup.Jsoup.parse(java.ajax(url));\n\tvar o = selector => String(J.select(selector).text());\n\tvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\n\treturn {\n\t\tname: og('novel:book_name').replace(/(全文|免费阅读|最新章节).*|[(（].*[）)]/, ''),\n\t\tauthor: og('novel:author'),\n\t\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n\t\tlatest: og('novel:latest_chapter_name').replace(/[\\(（【].*[求更谢乐发推].*/, '') + ' • ' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-'),\n\t\tintro: og('description').replace(/.*(观看小说:|简介：)|各位书友.*/, '').replace(/\\s+/g, ''),\n\t\tcover: og('image'),\n\t\turl: url,\n\t};\n}); \n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "bookUrl": "url",
-      "coverUrl": "cover",
-      "wordCount": ""
+      "bookList": "id.content@tag.tr!0",
+      "name": "class.odd.0@text",
+      "author": "class.odd.1@text",
+      "kind": "class.odd.2@text&&class.even.1@text&&class.even.2@text",
+      "lastChapter": "class.even.0@text",
+      "bookUrl": "tag.a.0@href"
     },
     "ruleBookInfo": {
-      "init": "<js> \nvar J = org.jsoup.Jsoup.parse(result);\nvar o = selector => String(J.select(selector).text()) ;\nvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\nvar book = {\n\tname: og('novel:book_name').replace(/(全文|免费阅读|最新章节).*|[(（].*[）)]/, ''),\n\tauthor: og('novel:author'),\n\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n\tlatest: og('novel:latest_chapter_name').replace(/[\\(（【].*[求更谢乐发推].*/, '') + ' • ' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-'),\n\tintro: '　　最近更新:' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-') + '\\n' + og('description').replace(/.*(观看小说:|简介：)|各位书友.*/, '').replace(/\\s+/g, '\\n'),\n\tcover: og('image'),\n\turl: og('novel:read_url'),\n};\nbook;\n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "coverUrl": "cover",
-      "tocUrl": "url",
-      "wordCount": ""
+      "name": "//meta[@property=\"og:novel:book_name\"]/@content",
+      "author": "//meta[@property=\"og:novel:author\"]/@content",
+      "intro": "//meta[@property=\"og:description\"]/@content",
+      "kind": "//meta[@property=\"og:novel:category\"]/@content",
+      "lastChapter": "//meta[@property=\"og:novel:latest_chapter_name\"]/@content",
+      "coverUrl": "//meta[@property=\"og:image\"]/@content"
     },
     "ruleToc": {
-      "chapterList": "#list dd a",
-      "chapterName": "text##[\\(（【].*[求更谢乐发推].*",
-      "chapterUrl": "href",
-      "updateTime": "",
-      "nextTocUrl": ""
+      "chapterList": "id.list@tag.dd!0:1:2:3:4:5:6:7:8",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href"
     },
     "ruleContent": {
-      "content": "#content@html##.*关注公众号.*复制.*|思.路.客.*无弹窗.",
-      "nextContentUrl": "",
-      "webJs": "",
-      "sourceRegex": ""
+      "content": "id.content@textNodes##http://www.luoqiuw.*com"
     },
     "searchRule": {
-      "bookList": ".grid tr!0\n<js>\nresult.toArray().slice(0, 3).map(el => {\n\tvar url = String(el.select('a:eq(0)').attr('href')).replace(/^\\//, baseUrl.match(/(.+?\\/\\/[^\\/]+\\/)/)[1]);\n\tvar J = org.jsoup.Jsoup.parse(java.ajax(url));\n\tvar o = selector => String(J.select(selector).text());\n\tvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\n\treturn {\n\t\tname: og('novel:book_name').replace(/(全文|免费阅读|最新章节).*|[(（].*[）)]/, ''),\n\t\tauthor: og('novel:author'),\n\t\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n\t\tlatest: og('novel:latest_chapter_name').replace(/[\\(（【].*[求更谢乐发推].*/, '') + ' • ' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-'),\n\t\tintro: og('description').replace(/.*(观看小说:|简介：)|各位书友.*/, '').replace(/\\s+/g, ''),\n\t\tcover: og('image'),\n\t\turl: url,\n\t};\n}); \n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "bookUrl": "url",
-      "coverUrl": "cover",
-      "wordCount": ""
+      "bookList": "id.content@tag.tr!0",
+      "name": "class.odd.0@text",
+      "author": "class.odd.1@text",
+      "kind": "class.odd.2@text&&class.even.1@text&&class.even.2@text",
+      "lastChapter": "class.even.0@text",
+      "bookUrl": "tag.a.0@href"
     },
-    "tag": "思路客③",
+    "tag": "落秋中文①™九天之狼",
     "tocRule": {
-      "chapterList": "#list dd a",
-      "chapterName": "text##[\\(（【].*[求更谢乐发推].*",
-      "chapterUrl": "href",
-      "updateTime": "",
-      "nextTocUrl": ""
+      "chapterList": "id.list@tag.dd!0:1:2:3:4:5:6:7:8",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href"
     },
     "contentRule": {
-      "content": "#content@html##.*关注公众号.*复制.*|思.路.客.*无弹窗.",
-      "nextContentUrl": "",
-      "webJs": "",
-      "sourceRegex": ""
+      "content": "id.content@textNodes##http://www.luoqiuw.*com"
     },
-    "exploreRule": {
-      "bookList": "",
-      "name": "",
-      "author": "",
-      "intro": "",
-      "kind": "",
-      "lastChapter": "",
-      "bookUrl": "",
-      "coverUrl": "",
-      "wordCount": ""
-    },
+    "exploreRule": {},
     "bookInfoRule": {
-      "init": "<js> \nvar J = org.jsoup.Jsoup.parse(result);\nvar o = selector => String(J.select(selector).text()) ;\nvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\nvar book = {\n\tname: og('novel:book_name').replace(/(全文|免费阅读|最新章节).*|[(（].*[）)]/, ''),\n\tauthor: og('novel:author'),\n\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n\tlatest: og('novel:latest_chapter_name').replace(/[\\(（【].*[求更谢乐发推].*/, '') + ' • ' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-'),\n\tintro: '　　最近更新:' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-') + '\\n' + og('description').replace(/.*(观看小说:|简介：)|各位书友.*/, '').replace(/\\s+/g, '\\n'),\n\tcover: og('image'),\n\turl: og('novel:read_url'),\n};\nbook;\n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "coverUrl": "cover",
-      "tocUrl": "url",
-      "wordCount": ""
+      "name": "//meta[@property=\"og:novel:book_name\"]/@content",
+      "author": "//meta[@property=\"og:novel:author\"]/@content",
+      "intro": "//meta[@property=\"og:description\"]/@content",
+      "kind": "//meta[@property=\"og:novel:category\"]/@content",
+      "lastChapter": "//meta[@property=\"og:novel:latest_chapter_name\"]/@content",
+      "coverUrl": "//meta[@property=\"og:image\"]/@content"
     },
-    "loginJs": "coolapk@芜恙;wordCount",
-    "key": "http://www.siluwu.com#grid tr!0",
-    "_response_time": 1037
+    "loginJs": "",
+    "key": "http://www.luoqiuw.com",
+    "_response_time": 687
   },
   {
     "bookSourceUrl": "https://m.bxwx66.com",
@@ -30388,7 +30270,7 @@
     },
     "loginJs": "https://m.bxwx66.com/login.html?jumpurl=%2Fmark.html",
     "key": "https://m.bxwx66.com",
-    "_response_time": 455
+    "_response_time": 141
   },
   {
     "bookSourceUrl": "https://www.bxwx.co",
@@ -30622,7 +30504,7 @@
     },
     "loginJs": "",
     "key": "http://www.biquge.tv",
-    "_response_time": 943
+    "_response_time": 272
   },
   {
     "bookSourceUrl": "http://m.ishuse.com",
@@ -30706,124 +30588,77 @@
     },
     "loginJs": "",
     "key": "http://m.ishuse.com",
-    "_response_time": 457
+    "_response_time": 256
   },
   {
-    "bookSourceUrl": "http://www.siluke.la#tbody tr!0",
-    "bookSourceName": "思路客⑨",
-    "bookSourceGroup": "🎊思路客",
+    "bookSourceUrl": "http://www.biqugeu.com",
+    "bookSourceName": "笔趣阁㉝™",
+    "bookSourceGroup": "",
     "bookSourceType": 0,
-    "bookUrlPattern": "",
-    "customOrder": -17378,
+    "customOrder": 13462,
     "enabled": false,
     "enabledExplore": false,
     "enabledCookieJar": false,
-    "header": "",
-    "loginUrl": "coolapk@芜恙",
     "bookSourceComment": "",
     "lastUpdateTime": 0,
     "respondTime": 180000,
     "weight": 0,
-    "exploreUrl": "",
-    "ruleExplore": {
-      "bookList": "",
-      "name": "",
-      "author": "",
-      "intro": "",
-      "kind": "",
-      "lastChapter": "",
-      "bookUrl": "",
-      "coverUrl": "",
-      "wordCount": ""
-    },
-    "searchUrl": "/modules/article/search.php?searchkey={{key}},{\"charset\": \"gbk\"}",
+    "ruleExplore": {},
+    "searchUrl": "/searchbook.php?keyword={{key}}&page={{page}}",
     "ruleSearch": {
-      "bookList": "tbody tr!0\n<js>\nresult.toArray().slice(0, 3).map(el => {\n\tvar url = String(el.select('a:eq(0)').attr('href')).replace(/^\\//, baseUrl.match(/(.+?\\/\\/[^\\/]+\\/)/)[1]);\n\tvar J = org.jsoup.Jsoup.parse(java.ajax(url));\n\tvar o = selector => String(J.select(selector).text());\n\tvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\n\treturn {\n\t\tname: og('novel:book_name').replace(/(全文|免费阅读|最新章节).*|[(（].*[）)]/, ''),\n\t\tauthor: og('novel:author'),\n\t\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n    wordCount: o('.booktag').match(/.+字数：(.+)阅读.+/)[1],\n\t\tlatest: og('novel:latest_chapter_name').replace(/[\\(（【].*[求更谢乐发推].*/, '') + ' • ' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-'),\n\t\tintro: o('#bookIntro').replace(/.*(观看小说:|简介：)|各位书友.*/, '').replace(/\\s+/g, ''),\n\t\tcover: og('image'),\n\t\turl: url,\n\t};\n}); \n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "bookUrl": "url",
-      "coverUrl": "cover",
-      "wordCount": "wordCount"
+      "bookList": ".novelslist2 li!0",
+      "name": "@css:.s2@text",
+      "author": "@css:.s4@text",
+      "intro": "",
+      "kind": "@css:.s1@text&&.s7@text&&.s6@text##\\[|]",
+      "lastChapter": "@css:.s3@text",
+      "bookUrl": "@css:.s2 a@href",
+      "coverUrl": "@css:.s2 a@href@js:result.replace(/\\/\\d+_(\\d+)\\//, '/bookfiles/BookImages/$1.jpg')"
     },
     "ruleBookInfo": {
-      "init": "<js> \nvar J = org.jsoup.Jsoup.parse(result);\nvar o = selector => String(J.select(selector).text()) ;\nvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\nvar book = {\n\tname: og('novel:book_name').replace(/(全文|免费阅读|最新章节).*|[(（].*[）)]/, ''),\n\tauthor: og('novel:author'),\n\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n  wordCount: o('.booktag').match(/.+字数：(.+)阅读.+/)[1],\n\tlatest: og('novel:latest_chapter_name').replace(/[\\(（【].*[求更谢乐发推].*/, '') + ' • ' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-'),\n\tintro: '　　最近更新:' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-') + '\\n' + o('#bookIntro').replace(/.*(观看小说:|简介：)|各位书友.*/, '').replace(/\\s+/g, '\\n'),\n\tcover: og('image'),\n\turl: og('novel:read_url'),\n};\nbook;\n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "coverUrl": "cover",
-      "tocUrl": "url",
-      "wordCount": "wordCount"
+      "name": "##:book_name\"[^\"]*\"([^\"]*)##$1###",
+      "author": "##:author\"[^\"]*\"([^\"]*)##$1###",
+      "intro": "@css:#intro@text@js:result.replace(/.*简介：/, '').replace(/各位书友.*/, '').replace(/^\\s*/, '<br>')",
+      "lastChapter": "##_chapter_name\"[^\"]*\"([^\"]*)##$1###",
+      "coverUrl": "##:image\"[^\"]*\"([^\"]*)##$1###"
     },
     "ruleToc": {
-      "chapterList": "#list-chapterAll dd a",
-      "chapterName": "text##[\\(（【].*[求更谢乐发推].*",
-      "chapterUrl": "href",
-      "updateTime": "",
-      "nextTocUrl": ""
+      "chapterList": ":正文</dt[\\s\\S]*?/dl&&href=\"([^\"]*)\">([^<]*)",
+      "chapterName": "$2",
+      "chapterUrl": "$1"
     },
     "ruleContent": {
-      "content": "#html-Content@html",
-      "nextContentUrl": "text.下一页@href",
-      "webJs": "",
-      "sourceRegex": "",
-      "replaceRegex": "##\\s+求书请后台告知管理员.*|\\s+本章未完，点击下一页继续阅读\\s+>|\\s+『如果章节错误,点此举报』|.*siluke.*"
+      "content": "@css:#content@textNodes"
     },
     "searchRule": {
-      "bookList": "tbody tr!0\n<js>\nresult.toArray().slice(0, 3).map(el => {\n\tvar url = String(el.select('a:eq(0)').attr('href')).replace(/^\\//, baseUrl.match(/(.+?\\/\\/[^\\/]+\\/)/)[1]);\n\tvar J = org.jsoup.Jsoup.parse(java.ajax(url));\n\tvar o = selector => String(J.select(selector).text());\n\tvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\n\treturn {\n\t\tname: og('novel:book_name').replace(/(全文|免费阅读|最新章节).*|[(（].*[）)]/, ''),\n\t\tauthor: og('novel:author'),\n\t\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n    wordCount: o('.booktag').match(/.+字数：(.+)阅读.+/)[1],\n\t\tlatest: og('novel:latest_chapter_name').replace(/[\\(（【].*[求更谢乐发推].*/, '') + ' • ' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-'),\n\t\tintro: o('#bookIntro').replace(/.*(观看小说:|简介：)|各位书友.*/, '').replace(/\\s+/g, ''),\n\t\tcover: og('image'),\n\t\turl: url,\n\t};\n}); \n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "bookUrl": "url",
-      "coverUrl": "cover",
-      "wordCount": "wordCount"
+      "bookList": ".novelslist2 li!0",
+      "name": "@css:.s2@text",
+      "author": "@css:.s4@text",
+      "intro": "",
+      "kind": "@css:.s1@text&&.s7@text&&.s6@text##\\[|]",
+      "lastChapter": "@css:.s3@text",
+      "bookUrl": "@css:.s2 a@href",
+      "coverUrl": "@css:.s2 a@href@js:result.replace(/\\/\\d+_(\\d+)\\//, '/bookfiles/BookImages/$1.jpg')"
     },
-    "tag": "思路客⑨",
+    "tag": "笔趣阁㉝™",
     "tocRule": {
-      "chapterList": "#list-chapterAll dd a",
-      "chapterName": "text##[\\(（【].*[求更谢乐发推].*",
-      "chapterUrl": "href",
-      "updateTime": "",
-      "nextTocUrl": ""
+      "chapterList": ":正文</dt[\\s\\S]*?/dl&&href=\"([^\"]*)\">([^<]*)",
+      "chapterName": "$2",
+      "chapterUrl": "$1"
     },
     "contentRule": {
-      "content": "#html-Content@html",
-      "nextContentUrl": "text.下一页@href",
-      "webJs": "",
-      "sourceRegex": "",
-      "replaceRegex": "##\\s+求书请后台告知管理员.*|\\s+本章未完，点击下一页继续阅读\\s+>|\\s+『如果章节错误,点此举报』|.*siluke.*"
+      "content": "@css:#content@textNodes"
     },
-    "exploreRule": {
-      "bookList": "",
-      "name": "",
-      "author": "",
-      "intro": "",
-      "kind": "",
-      "lastChapter": "",
-      "bookUrl": "",
-      "coverUrl": "",
-      "wordCount": ""
-    },
+    "exploreRule": {},
     "bookInfoRule": {
-      "init": "<js> \nvar J = org.jsoup.Jsoup.parse(result);\nvar o = selector => String(J.select(selector).text()) ;\nvar og = selector => String(J.select('[property=\"og:' + selector + '\"]').attr('content'));\nvar book = {\n\tname: og('novel:book_name').replace(/(全文|免费阅读|最新章节).*|[(（].*[）)]/, ''),\n\tauthor: og('novel:author'),\n\tkind: og('novel:category') + ',' + og('novel:status').replace(/中|已/, ''),\n  wordCount: o('.booktag').match(/.+字数：(.+)阅读.+/)[1],\n\tlatest: og('novel:latest_chapter_name').replace(/[\\(（【].*[求更谢乐发推].*/, '') + ' • ' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-'),\n\tintro: '　　最近更新:' + og('novel:update_time').replace(/(T|\\s).*/, ' ').replace(/\\//g, '-') + '\\n' + o('#bookIntro').replace(/.*(观看小说:|简介：)|各位书友.*/, '').replace(/\\s+/g, '\\n'),\n\tcover: og('image'),\n\turl: og('novel:read_url'),\n};\nbook;\n</js>",
-      "name": "name",
-      "author": "author",
-      "intro": "intro",
-      "kind": "kind",
-      "lastChapter": "latest",
-      "coverUrl": "cover",
-      "tocUrl": "url",
-      "wordCount": "wordCount"
+      "name": "##:book_name\"[^\"]*\"([^\"]*)##$1###",
+      "author": "##:author\"[^\"]*\"([^\"]*)##$1###",
+      "intro": "@css:#intro@text@js:result.replace(/.*简介：/, '').replace(/各位书友.*/, '').replace(/^\\s*/, '<br>')",
+      "lastChapter": "##_chapter_name\"[^\"]*\"([^\"]*)##$1###",
+      "coverUrl": "##:image\"[^\"]*\"([^\"]*)##$1###"
     },
-    "loginJs": "coolapk@芜恙",
-    "key": "http://www.siluke.la#tbody tr!0",
-    "_response_time": 2255
+    "key": "http://www.biqugeu.com",
+    "_response_time": 501
   },
   {
     "bookSourceUrl": "https://www.biquge.tv",
@@ -30901,7 +30736,7 @@
     },
     "loginJs": "",
     "key": "https://www.biquge.tv",
-    "_response_time": 947
+    "_response_time": 1150
   },
   {
     "bookSourceUrl": "https://www.81zw.org",
@@ -30932,7 +30767,7 @@
     "exploreRule": {},
     "bookInfoRule": {},
     "key": "https://www.81zw.org",
-    "_response_time": 827
+    "_response_time": 967
   },
   {
     "bookSourceUrl": "https://www.81xs.cc",
@@ -31006,38 +30841,92 @@
       "content": "id.content@html##http.*html|天才一秒记住.*com|喜欢.*更新速度最快。|一秒记住.*弹窗免费阅读！"
     },
     "key": "https://www.81xs.cc",
-    "_response_time": 908
+    "_response_time": 979
   },
   {
-    "bookSourceUrl": "https://www.166xsk.com",
-    "bookSourceName": "笔趣阁_无弹窗书友最值得收藏的_166xsk.com",
-    "bookSourceGroup": "👍 备用",
+    "bookSourceUrl": "http://m.biquge.com",
+    "bookSourceName": "🎉 笔趣阁(移动版)[仅发现]",
+    "bookSourceGroup": "🎉精品",
     "bookSourceType": 0,
-    "customOrder": 0,
+    "customOrder": -37684,
     "enabled": true,
-    "enabledExplore": false,
+    "enabledExplore": true,
     "enabledCookieJar": false,
-    "bookSourceComment": "",
-    "lastUpdateTime": 0,
+    "bookSourceComment": "haxc",
+    "lastUpdateTime": 1605181330707,
     "respondTime": 180000,
     "weight": 0,
+    "exploreUrl": "玄幻小说::/fenlei1_{{page}}.html\n修真小说::/fenlei2_{{page}}.html\n都市小说::/fenlei3_{{page}}.html\n历史小说::/fenlei4_{{page}}.html\n网游小说::/fenlei5_{{page}}.html\n科幻小说::/fenlei6_{{page}}.html\n言情小说::/fenlei7_{{page}}.html\n排行::/top_{{page}}.php",
     "ruleExplore": {},
-    "ruleSearch": {},
-    "ruleBookInfo": {},
-    "ruleToc": {},
-    "ruleContent": {
-      "content": ""
+    "searchUrl": "https://m.biquge.com/SearchBook.php,{\n\"charset\": \"\",\n\"method\": \"POST\",\n\"body\": \"type=articlename&keyword={{key}}&submit=\"\n}",
+    "ruleSearch": {
+      "bookList": "class.bookbox",
+      "name": "h4@text",
+      "author": "class.author@text",
+      "intro": "class.intro_line@text##简介：",
+      "kind": "",
+      "lastChapter": "class.update@a@text",
+      "bookUrl": "tag.a.0@href",
+      "coverUrl": "img@src"
     },
-    "searchRule": {},
-    "tag": "笔趣阁_无弹窗书友最值得收藏的_166xsk.com",
-    "tocRule": {},
-    "contentRule": {
-      "content": ""
+    "ruleBookInfo": {
+      "name": "[property=\"og:novel:book_name\"]@content",
+      "author": "[property=\"og:novel:author\"]@content",
+      "intro": "[property=\"og:description\"]@content",
+      "kind": "[property=\"og:novel:category\"]@content",
+      "lastChapter": "[property=\"og:novel:latest_chapter_name\"]@content",
+      "coverUrl": "[property=\"og:image\"]@content",
+      "tocUrl": "class.margin_right.0@a@href",
+      "wordCount": "class.block_txt2@tag.p.5@text"
+    },
+    "ruleToc": {
+      "chapterList": "class.chapter@li@a",
+      "chapterName": "text",
+      "chapterUrl": "href",
+      "nextTocUrl": "text.下一页@href"
+    },
+    "ruleContent": {
+      "content": "id.nr1@textNodes",
+      "nextContentUrl": "text.下一页@href",
+      "replaceRegex": "##推荐都市大神.*",
+      "imageStyle": "full"
+    },
+    "tag": "🎉 笔趣阁(移动版)[仅发现]",
+    "searchRule": {
+      "bookList": "class.bookbox",
+      "name": "h4@text",
+      "author": "class.author@text",
+      "intro": "class.intro_line@text##简介：",
+      "kind": "",
+      "lastChapter": "class.update@a@text",
+      "bookUrl": "tag.a.0@href",
+      "coverUrl": "img@src"
     },
     "exploreRule": {},
-    "bookInfoRule": {},
-    "key": "https://www.166xsk.com",
-    "_response_time": 1163
+    "bookInfoRule": {
+      "name": "[property=\"og:novel:book_name\"]@content",
+      "author": "[property=\"og:novel:author\"]@content",
+      "intro": "[property=\"og:description\"]@content",
+      "kind": "[property=\"og:novel:category\"]@content",
+      "lastChapter": "[property=\"og:novel:latest_chapter_name\"]@content",
+      "coverUrl": "[property=\"og:image\"]@content",
+      "tocUrl": "class.margin_right.0@a@href",
+      "wordCount": "class.block_txt2@tag.p.5@text"
+    },
+    "tocRule": {
+      "chapterList": "class.chapter@li@a",
+      "chapterName": "text",
+      "chapterUrl": "href",
+      "nextTocUrl": "text.下一页@href"
+    },
+    "contentRule": {
+      "content": "id.nr1@textNodes",
+      "nextContentUrl": "text.下一页@href",
+      "replaceRegex": "##推荐都市大神.*",
+      "imageStyle": "full"
+    },
+    "key": "http://m.biquge.com",
+    "_response_time": 542
   },
   {
     "bookSourceUrl": "https://www.biqiuge.com",
@@ -31068,7 +30957,7 @@
       "content": ""
     },
     "key": "https://www.biqiuge.com",
-    "_response_time": 2427
+    "_response_time": 1266
   },
   {
     "bookSourceUrl": "https://www.finalbooks.work",
@@ -31155,7 +31044,7 @@
       "tocUrl": "text.查看全部章节@href"
     },
     "key": "https://www.finalbooks.work",
-    "_response_time": 388,
+    "_response_time": 705,
     "score": 50.0
   },
   {
@@ -31250,7 +31139,7 @@
     },
     "loginJs": "",
     "key": "http://www.du7.la",
-    "_response_time": 1748
+    "_response_time": 1560
   },
   {
     "bookSourceUrl": "https://www.douyinxs.com/",
@@ -31322,92 +31211,72 @@
       "coverUrl": "[property=og:image]@content"
     },
     "key": "https://www.douyinxs.com/",
-    "_response_time": 829,
+    "_response_time": 457,
     "score": 50.0
   },
   {
-    "bookSourceUrl": "http://m.djychina.com",
-    "bookSourceName": "🍺 笔趣阁中国",
-    "bookSourceGroup": "🍺特优",
+    "bookSourceUrl": "http://www.ttshuba.net",
+    "bookSourceName": "天天书吧(落寞尘世)",
+    "bookSourceGroup": "",
     "bookSourceType": 0,
-    "bookUrlPattern": "",
-    "customOrder": -38381,
-    "enabled": true,
-    "enabledExplore": true,
+    "customOrder": 12817,
+    "enabled": false,
+    "enabledExplore": false,
     "enabledCookieJar": false,
-    "header": "{\n  \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko, By Black Prism) Chrome/99.0 Safari/537.36\"\n}",
-    "loginUrl": "",
     "bookSourceComment": "",
     "lastUpdateTime": 0,
     "respondTime": 180000,
     "weight": 0,
     "ruleExplore": {},
-    "searchUrl": "/search.html,{\n  \"method\": \"POST\",\n  \"body\": \"searchkey={{key}}\"\n}",
+    "searchUrl": "http://www.ttshuba.net/modules/article/search.php,{\n  \"charset\": \"gbk\",\n  \"method\": \"POST\",\n  \"body\": \"searchkey={{key}}\"\n}",
     "ruleSearch": {
-      "bookList": "class.list@tag.li",
-      "name": "class.bookname@tag.a@text",
-      "author": "class.data.0@tag.a@text",
-      "intro": "class.intro@text",
-      "kind": "tag.span@text",
-      "lastChapter": "class.data.1@tag.a@text",
-      "bookUrl": "tag.a.0@href",
-      "coverUrl": "tag.img@src"
+      "bookList": "id.main@tag.tr!0",
+      "name": "tag.a.0@text",
+      "author": "tag.td.2@text",
+      "kind": "tag.td.4@text",
+      "lastChapter": "tag.td.1@text",
+      "bookUrl": "tag.a.0@href"
     },
     "ruleBookInfo": {
-      "name": "class.name@text",
-      "author": "class.author@tag.a@text",
-      "intro": "class.intro.0@tag.p.0@textNodes",
-      "kind": "",
-      "lastChapter": "class.new@tag.a@text",
-      "coverUrl": "class.detail@tag.img@src",
-      "tocUrl": "class.now@tag.a@href",
-      "wordCount": "class.layui-bg-red@text"
+      "name": "tag.h1@text",
+      "author": "tag.p.0@text##作 者.",
+      "intro": "tag.font.3@text",
+      "coverUrl": "tag.img@src"
     },
     "ruleToc": {
-      "chapterList": "class.read@tag.li",
+      "chapterList": "id.list@tag.dd",
       "chapterName": "tag.a@text",
-      "chapterUrl": "tag.a@href",
-      "nextTocUrl": "text.下一页@href"
+      "chapterUrl": "tag.a@href"
     },
     "ruleContent": {
-      "content": "class.content@tag.p!-1@text",
-      "imageStyle": "0"
+      "content": "class.zhangjieTXT@textNodes"
     },
-    "tag": "🍺 笔趣阁中国",
     "searchRule": {
-      "bookList": "class.list@tag.li",
-      "name": "class.bookname@tag.a@text",
-      "author": "class.data.0@tag.a@text",
-      "intro": "class.intro@text",
-      "kind": "tag.span@text",
-      "lastChapter": "class.data.1@tag.a@text",
-      "bookUrl": "tag.a.0@href",
-      "coverUrl": "tag.img@src"
+      "bookList": "id.main@tag.tr!0",
+      "name": "tag.a.0@text",
+      "author": "tag.td.2@text",
+      "kind": "tag.td.4@text",
+      "lastChapter": "tag.td.1@text",
+      "bookUrl": "tag.a.0@href"
+    },
+    "tag": "天天书吧(落寞尘世)",
+    "tocRule": {
+      "chapterList": "id.list@tag.dd",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href"
+    },
+    "contentRule": {
+      "content": "class.zhangjieTXT@textNodes"
     },
     "exploreRule": {},
     "bookInfoRule": {
-      "name": "class.name@text",
-      "author": "class.author@tag.a@text",
-      "intro": "class.intro.0@tag.p.0@textNodes",
-      "kind": "",
-      "lastChapter": "class.new@tag.a@text",
-      "coverUrl": "class.detail@tag.img@src",
-      "tocUrl": "class.now@tag.a@href",
-      "wordCount": "class.layui-bg-red@text"
+      "name": "tag.h1@text",
+      "author": "tag.p.0@text##作 者.",
+      "intro": "tag.font.3@text",
+      "coverUrl": "tag.img@src"
     },
-    "tocRule": {
-      "chapterList": "class.read@tag.li",
-      "chapterName": "tag.a@text",
-      "chapterUrl": "tag.a@href",
-      "nextTocUrl": "text.下一页@href"
-    },
-    "contentRule": {
-      "content": "class.content@tag.p!-1@text",
-      "imageStyle": "0"
-    },
-    "loginJs": "",
-    "key": "http://m.djychina.com",
-    "_response_time": 2181
+    "key": "http://www.ttshuba.net",
+    "_response_time": 939
   },
   {
     "bookSourceUrl": "http://www.bqg.tw",
@@ -31481,7 +31350,7 @@
       "content": "id.content@html##http.*html|天才一秒记住.*com|喜欢.*更新速度最快。|热门推荐:"
     },
     "key": "http://www.bqg.tw",
-    "_response_time": 956
+    "_response_time": 764
   },
   {
     "bookSourceUrl": "http://www.silukee.com#bookbox",
@@ -31596,178 +31465,138 @@
     },
     "loginJs": "coolapk@芜恙;wordCount",
     "key": "http://www.silukee.com#bookbox",
-    "_response_time": 553
+    "_response_time": 713
   },
   {
-    "bookSourceUrl": "https://www.ggdownxs.co",
-    "bookSourceName": "🍺 格格党②",
-    "bookSourceGroup": "🍺特优",
+    "bookSourceUrl": "http://10gujin.com",
+    "bookSourceName": "🎉 十古今",
+    "bookSourceGroup": "🎉精品",
     "bookSourceType": 0,
-    "customOrder": -38371,
+    "customOrder": -37642,
     "enabled": true,
     "enabledExplore": true,
     "enabledCookieJar": false,
     "bookSourceComment": "",
-    "lastUpdateTime": 1604168078940,
+    "lastUpdateTime": 1603021566600,
     "respondTime": 180000,
     "weight": 0,
-    "exploreUrl": "",
-    "ruleExplore": {
-      "bookList": "",
-      "name": "",
-      "author": "",
-      "kind": "",
-      "lastChapter": "",
-      "bookUrl": "",
-      "coverUrl": ""
-    },
-    "searchUrl": "https://www.ggdownxs.co/modules/article/search.php?searchkey={{key}}&page={{page}},{\"charset\":\"gbk\"}",
-    "ruleSearch": {
-      "bookList": "class.details@class.item-pic",
-      "name": "tag.h3@tag.a@text",
-      "author": "tag.p.0@tag.i.0@text",
-      "intro": "tag.p.2@text",
-      "kind": "tag.p.0@tag.i.1@text&&\ntag.p.1@tag.i.0@text",
-      "lastChapter": "tag.p.1@tag.a@text",
-      "bookUrl": "tag.h3@tag.a@href",
-      "coverUrl": "img@src"
-    },
-    "ruleBookInfo": {
-      "name": "class.kook-title@tag.h1@text",
-      "author": "class.kook-title@tag.em@text",
-      "intro": "class.book-intro@text",
-      "kind": "class.crumbs@tag.a.1@text&&\nclass.book-stats@text##状态：|更新时间：",
-      "lastChapter": "class.details.1@tag.li.0@tag.a@text",
-      "coverUrl": "class.book-img@img@src",
-      "tocUrl": "text.全文阅读@href",
-      "wordCount": ""
-    },
-    "ruleToc": {
-      "chapterList": "class.chapterlist@tag.dd",
-      "chapterName": "tag.dd@tag.a@text",
-      "chapterUrl": "tag.dd@tag.a@href"
-    },
-    "ruleContent": {
-      "content": "id.BookText@html##一秒记住.*无弹窗免费阅读！",
-      "imageStyle": "0"
-    },
-    "tag": "🍺 格格党②",
-    "searchRule": {
-      "bookList": "class.details@class.item-pic",
-      "name": "tag.h3@tag.a@text",
-      "author": "tag.p.0@tag.i.0@text",
-      "intro": "tag.p.2@text",
-      "kind": "tag.p.0@tag.i.1@text&&\ntag.p.1@tag.i.0@text",
-      "lastChapter": "tag.p.1@tag.a@text",
-      "bookUrl": "tag.h3@tag.a@href",
-      "coverUrl": "img@src"
-    },
-    "exploreRule": {
-      "bookList": "",
-      "name": "",
-      "author": "",
-      "kind": "",
-      "lastChapter": "",
-      "bookUrl": "",
-      "coverUrl": ""
-    },
-    "bookInfoRule": {
-      "name": "class.kook-title@tag.h1@text",
-      "author": "class.kook-title@tag.em@text",
-      "intro": "class.book-intro@text",
-      "kind": "class.crumbs@tag.a.1@text&&\nclass.book-stats@text##状态：|更新时间：",
-      "lastChapter": "class.details.1@tag.li.0@tag.a@text",
-      "coverUrl": "class.book-img@img@src",
-      "tocUrl": "text.全文阅读@href",
-      "wordCount": ""
-    },
-    "tocRule": {
-      "chapterList": "class.chapterlist@tag.dd",
-      "chapterName": "tag.dd@tag.a@text",
-      "chapterUrl": "tag.dd@tag.a@href"
-    },
-    "contentRule": {
-      "content": "id.BookText@html##一秒记住.*无弹窗免费阅读！",
-      "imageStyle": "0"
-    },
-    "key": "https://www.ggdownxs.co",
-    "_response_time": 2867
-  },
-  {
-    "bookSourceUrl": "https://www.zw34.net",
-    "bookSourceName": "🔖34中文~2",
-    "bookSourceGroup": "1005个",
-    "bookSourceType": 0,
-    "customOrder": 723,
-    "enabled": true,
-    "enabledExplore": true,
-    "enabledCookieJar": false,
-    "bookSourceComment": "",
-    "lastUpdateTime": 1679844794136,
-    "respondTime": 2272,
-    "weight": 0,
     "ruleExplore": {},
-    "searchUrl": "https://www.zw34.net/modules/article/search.php?searchkey={{key}}&submit=%CB%D1%CB%F7&page={{page}},{\n  \"charset\": \"gbk\"\n}",
+    "searchUrl": "http://10gujin.com/search/?searchtype=all&action=login&searchkey={{key}}",
     "ruleSearch": {
-      "bookList": "class.grid@tag.tr",
-      "name": "tag.td.0@tag.a@text",
+      "bookList": "tbody@tr!0",
+      "name": "tag.a.0@text",
       "author": "tag.td.2@text",
-      "kind": "tag.td.4@text&&\ntag.td.5@text",
-      "lastChapter": "tag.td.1@tag.a@text",
-      "bookUrl": "tag.td.0@tag.a@href",
-      "coverUrl": "tag.td.0@tag.a@href<js>\nvar id = result.match(/(\\d+)\\/?$/)[1];\nvar iid = parseInt(id/1000);\n'https://www.zw34.net/files/article/image/'+iid+'/'+id+'/'+id+'s.jpg';\n</js>",
-      "wordCount": "tag.td.3@text"
+      "kind": "class.even@text",
+      "lastChapter": "tag.a.1@text",
+      "bookUrl": "tag.a.0@href"
     },
     "ruleBookInfo": {
-      "init": "id.box-info",
-      "name": "id.info@tag.h1@text##/.*",
-      "author": "id.info@tag.h1@tag.small@tag.a@text",
-      "intro": "class.bookinfo_intro@text",
-      "kind": "class.nav-mbx@tag.a.2@text&&\nclass.update@text##最新.*（|）",
-      "lastChapter": "class.update@tag.a@text",
-      "coverUrl": "class.pic@img@src",
-      "wordCount": ""
+      "name": "class.bookTitle@text",
+      "author": "class.red.0@text",
+      "intro": "id.bookIntro@text",
+      "kind": "class.booktag@a!0@text"
     },
     "ruleToc": {
-      "chapterList": "class.chapterlist.1@tag.li",
-      "chapterName": "tag.a@text",
-      "chapterUrl": "tag.a@href"
+      "chapterList": "class.panel-chapterlist.-1@dd@a",
+      "chapterName": "text",
+      "chapterUrl": "href##javascript:go_page\\('([^']+)'##$1###"
     },
     "ruleContent": {
-      "content": "id.htmlContent@html##34中文网.*最新章节！"
+      "content": "id.BookText@html",
+      "nextContentUrl": "id.linkNext@href##javascript:go_page\\('([^']+)'##$1###"
     },
+    "tag": "🎉 十古今",
     "searchRule": {
-      "bookList": "class.grid@tag.tr",
-      "name": "tag.td.0@tag.a@text",
+      "bookList": "tbody@tr!0",
+      "name": "tag.a.0@text",
       "author": "tag.td.2@text",
-      "kind": "tag.td.4@text&&\ntag.td.5@text",
-      "lastChapter": "tag.td.1@tag.a@text",
-      "bookUrl": "tag.td.0@tag.a@href",
-      "coverUrl": "tag.td.0@tag.a@href<js>\nvar id = result.match(/(\\d+)\\/?$/)[1];\nvar iid = parseInt(id/1000);\n'https://www.zw34.net/files/article/image/'+iid+'/'+id+'/'+id+'s.jpg';\n</js>",
-      "wordCount": "tag.td.3@text"
-    },
-    "tag": "🔖34中文~2",
-    "tocRule": {
-      "chapterList": "class.chapterlist.1@tag.li",
-      "chapterName": "tag.a@text",
-      "chapterUrl": "tag.a@href"
-    },
-    "contentRule": {
-      "content": "id.htmlContent@html##34中文网.*最新章节！"
+      "kind": "class.even@text",
+      "lastChapter": "tag.a.1@text",
+      "bookUrl": "tag.a.0@href"
     },
     "exploreRule": {},
     "bookInfoRule": {
-      "init": "id.box-info",
-      "name": "id.info@tag.h1@text##/.*",
-      "author": "id.info@tag.h1@tag.small@tag.a@text",
-      "intro": "class.bookinfo_intro@text",
-      "kind": "class.nav-mbx@tag.a.2@text&&\nclass.update@text##最新.*（|）",
-      "lastChapter": "class.update@tag.a@text",
-      "coverUrl": "class.pic@img@src",
-      "wordCount": ""
+      "name": "class.bookTitle@text",
+      "author": "class.red.0@text",
+      "intro": "id.bookIntro@text",
+      "kind": "class.booktag@a!0@text"
     },
-    "key": "https://www.zw34.net",
-    "_response_time": 1468
+    "tocRule": {
+      "chapterList": "class.panel-chapterlist.-1@dd@a",
+      "chapterName": "text",
+      "chapterUrl": "href##javascript:go_page\\('([^']+)'##$1###"
+    },
+    "contentRule": {
+      "content": "id.BookText@html",
+      "nextContentUrl": "id.linkNext@href##javascript:go_page\\('([^']+)'##$1###"
+    },
+    "key": "http://10gujin.com",
+    "_response_time": 5406
+  },
+  {
+    "bookSourceUrl": "http://www.shulinw.com",
+    "bookSourceName": "书林网",
+    "bookSourceGroup": "",
+    "bookSourceType": 0,
+    "bookUrlPattern": "",
+    "customOrder": 13252,
+    "enabled": false,
+    "enabledExplore": false,
+    "enabledCookieJar": false,
+    "loginUrl": "",
+    "bookSourceComment": "",
+    "lastUpdateTime": 0,
+    "respondTime": 180000,
+    "weight": 0,
+    "ruleExplore": {},
+    "searchUrl": "http://www.shulinw.com/modules/article/search.php?searchkey={{key}},{\n  \"charset\": \"gbk\"\n}",
+    "ruleSearch": {
+      "bookList": "tag.tbody@tag.tr!0:",
+      "name": "tag.td.0@tag.a@text",
+      "author": "tag.td.2@text",
+      "bookUrl": "tag.td.0@tag.a@href"
+    },
+    "ruleBookInfo": {
+      "name": "class.info@tag.h2@text",
+      "author": "class.intr@text##.作者：|分类.*",
+      "intro": "class.con@text",
+      "coverUrl": "class.img@img@src",
+      "tocUrl": "text.立即阅读@href"
+    },
+    "ruleToc": {
+      "chapterList": "class.list@tag.ul@tag.li",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href"
+    },
+    "ruleContent": {
+      "content": "id.booktext@html"
+    },
+    "searchRule": {
+      "bookList": "tag.tbody@tag.tr!0:",
+      "name": "tag.td.0@tag.a@text",
+      "author": "tag.td.2@text",
+      "bookUrl": "tag.td.0@tag.a@href"
+    },
+    "tag": "书林网",
+    "tocRule": {
+      "chapterList": "class.list@tag.ul@tag.li",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href"
+    },
+    "contentRule": {
+      "content": "id.booktext@html"
+    },
+    "exploreRule": {},
+    "bookInfoRule": {
+      "name": "class.info@tag.h2@text",
+      "author": "class.intr@text##.作者：|分类.*",
+      "intro": "class.con@text",
+      "coverUrl": "class.img@img@src",
+      "tocUrl": "text.立即阅读@href"
+    },
+    "loginJs": "",
+    "key": "http://www.shulinw.com",
+    "_response_time": 5883
   },
   {
     "bookSourceUrl": "https://s30001.zhongyue001.com/",
@@ -31845,7 +31674,7 @@
       "wordCount": "$..word"
     },
     "key": "https://s30001.zhongyue001.com/",
-    "_response_time": 1445,
+    "_response_time": 1416,
     "score": 50.0
   },
   {
@@ -31921,7 +31750,7 @@
       "nextContentUrl": "#linkNext@href"
     },
     "key": "https://www.00xiaoshuo.net/",
-    "_response_time": 2158,
+    "_response_time": 656,
     "score": 50.0
   },
   {
