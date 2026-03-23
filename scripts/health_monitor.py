@@ -16,6 +16,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
 
+from legado_paths import primary_source_file, resolve_legado_dir
+from source_inventory import SourceInventory
+
 # 健康阈值配置
 HEALTH_THRESHOLDS = {
     'source_count': {
@@ -47,13 +50,14 @@ HEALTH_THRESHOLDS = {
 class HealthMonitor:
     def __init__(self, base_dir: Path):
         self.base_dir = base_dir
-        self.sources_dir = base_dir / "sources/legado"
+        self.inventory = SourceInventory(base_dir)
+        self.sources_dir = self.inventory.base_dir
         self.temp_dir = base_dir / "temp"
         self.reports_dir = base_dir / "reports"
         self.reports_dir.mkdir(exist_ok=True)
 
         # 文件路径
-        self.main_sources_file = self.sources_dir / "full.json"
+        self.main_sources_file = self.inventory.working_file
         self.history_file = self.temp_dir / "source_history.json"
         self.health_history_file = self.reports_dir / "health_history.json"
 
@@ -83,12 +87,8 @@ class HealthMonitor:
 
     def load_sources(self) -> List[Dict]:
         """加载书源数据"""
-        if not self.main_sources_file.exists():
-            return []
-
         try:
-            with open(self.main_sources_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
+            return self.inventory.load_working_sources()
         except Exception as e:
             print(f"加载书源失败: {e}")
             return []

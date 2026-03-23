@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from batch_validator import BatchValidator
 from source_selector import SourceSelector
 from safe_updater import SafeUpdater
+from source_inventory import SourceInventory
 
 
 class InitializeSources:
@@ -45,7 +46,9 @@ class InitializeSources:
         self.raw_file = self.pool_dir / 'raw.json'
         self.candidates_file = self.pool_dir / 'candidates.json'
         self.invalid_file = self.pool_dir / 'invalid.json'
+        self.screened_file = self.pool_dir / 'screened.json'
         self.main_file = self.main_dir / 'full.json'
+        self.inventory = SourceInventory(self.base_dir)
 
         # 检查点目录
         self.checkpoint_dir = self.temp_dir / 'checkpoints'
@@ -64,34 +67,13 @@ class InitializeSources:
         print('\n=== 步骤 1：快速过滤 ===')
         print(f'原始书源：{len(sources)} 个')
 
-        filtered = []
+        filtered, report = self.inventory.refresh_screened_pool(sources, save=False)
+        print(f'静态筛选剔除：{report["rejected"]} 个')
+        print(f'主要原因：{report["reasons"]}')
 
-        # 过滤规则
-        EXCLUDED_TYPES = ['漫画', '有声', '图片', '视频']
-        EXCLUDED_KEYWORDS = ['漫画', '有声书', '听书', '影视', '视频']
-        REQUIRED_FIELDS = ['bookSourceName', 'bookSourceUrl', 'bookSourceType']
-
-        for source in sources:
-            # 检查 1：类型过滤
-            source_type = source.get('bookSourceType', 0)
-            if source_type in EXCLUDED_TYPES:
-                continue
-
-            # 检查 2：关键词过滤
-            name = source.get('bookSourceName', '')
-            if any(keyword in name for keyword in EXCLUDED_KEYWORDS):
-                continue
-
-            # 检查 3：字段完整性
-            if not all(field in source for field in REQUIRED_FIELDS):
-                continue
-
-            # 检查 4：URL 有效性
-            url = source.get('bookSourceUrl', '')
-            if not url or not isinstance(url, str) or not url.startswith('http'):
-                continue
-
-            filtered.append(source)
+        with open(self.screened_file, 'w', encoding='utf-8') as f:
+            json.dump(filtered, f, ensure_ascii=False, indent=2)
+        print(f'✓ screened pool 已保存：{self.screened_file}')
 
         print(f'过滤后书源：{len(filtered)} 个')
         print(f'过滤率：{(1 - len(filtered)/len(sources))*100:.1f}%')

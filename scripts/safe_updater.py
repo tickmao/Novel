@@ -10,10 +10,14 @@
 import json
 import os
 import shutil
+from copy import deepcopy
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import random
+
+from legado_paths import canonical_source_file, compatibility_source_file, resolve_legado_dir
+from source_policy import SourcePolicy
 
 
 class SafeUpdateError(Exception):
@@ -44,13 +48,12 @@ class SafeUpdater:
         Args:
             base_dir: 基础目录，默认为 sources/legado
         """
-        if base_dir is None:
-            base_dir = Path(__file__).parent.parent / 'sources' / 'legado'
-
-        self.base_dir = Path(base_dir)
+        self.base_dir = resolve_legado_dir(base_dir)
         self.main_dir = self.base_dir / 'main'
         self.backup_dir = self.main_dir / 'backups'
-        self.main_file = self.main_dir / 'full.json'
+        self.main_file = canonical_source_file(self.base_dir)
+        self.compatibility_file = compatibility_source_file(self.base_dir)
+        self.policy = SourcePolicy(self.base_dir.parent.parent)
 
         # 确保目录存在
         self.main_dir.mkdir(parents=True, exist_ok=True)
@@ -89,6 +92,8 @@ class SafeUpdater:
             for field in self.REQUIRED_FIELDS:
                 if field not in source:
                     return False, f'书源缺少必需字段：{field}'
+                if field == 'bookSourceName' and not str(source.get(field, '')).strip():
+                    return False, '书源名称为空'
 
             # 检查 URL 格式
             url = source.get('bookSourceUrl', '')
@@ -96,9 +101,12 @@ class SafeUpdater:
                 return False, f'书源 URL 无效：{url}'
 
         # 检查 4：评分合理性（如果有评分字段）
-        scored_sources = [s for s in sources if 'score' in s]
+        scored_sources = [s for s in sources if 'selectionScore' in s or 'score' in s]
         if scored_sources:
-            avg_score = sum(s.get('score', 0) for s in scored_sources) / len(scored_sources)
+            avg_score = sum(
+                float(s.get('selectionScore') or s.get('score') or 0)
+                for s in scored_sources
+            ) / len(scored_sources)
             if avg_score < self.MIN_AVG_SCORE:
                 return False, f'平均评分过低：{avg_score:.1f} < {self.MIN_AVG_SCORE}'
 
@@ -148,24 +156,36 @@ class SafeUpdater:
         Returns:
             是否成功
         """
-        # 写入临时文件
-        temp_file = self.main_dir / 'full.tmp'
+        temp_main = self.main_dir / 'full.tmp'
+        temp_compatibility = self.compatibility_file.parent / 'full.tmp'
 
         try:
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                json.dump(sources, f, ensure_ascii=False, indent=2)
+            payload = json.dumps(sources, ensure_ascii=False, indent=2)
 
-            # 原子替换
-            os.replace(temp_file, self.main_file)
+            with open(temp_main, 'w', encoding='utf-8') as f:
+                f.write(payload)
+            with open(temp_compatibility, 'w', encoding='utf-8') as f:
+                f.write(payload)
+
+            os.replace(temp_main, self.main_file)
+            os.replace(temp_compatibility, self.compatibility_file)
             print(f'✓ 原子更新成功：{len(sources)} 个书源')
+            print(f'✓ 兼容文件已同步：{self.compatibility_file}')
             return True
 
         except Exception as e:
             print(f'✗ 原子写入失败：{e}')
-            # 清理临时文件
-            if temp_file.exists():
-                temp_file.unlink()
+            for temp_file in (temp_main, temp_compatibility):
+                if temp_file.exists():
+                    temp_file.unlink()
             return False
+
+    def prepare_sources(self, sources: List[Dict]) -> List[Dict]:
+        """写入前统一做一次准入审核与名称规范化。"""
+        accepted, rejected, _ = self.policy.screen_sources(deepcopy(sources))
+        if rejected:
+            print(f'✓ 已在导出前剔除 {len(rejected)} 个不合规书源')
+        return accepted
 
     def rollback(self, backup_file: Optional[Path] = None, force: bool = False) -> bool:
         """
@@ -236,9 +256,12 @@ class SafeUpdater:
         print(f'\n=== 安全更新开始 ===')
         print(f'新书源数量：{len(new_sources)}')
 
+        prepared_sources = self.prepare_sources(new_sources)
+        print('✓ 已完成名称与分组规范化')
+
         # 步骤 1：验证数据
         if not skip_validation:
-            valid, error = self.validate_sources(new_sources)
+            valid, error = self.validate_sources(prepared_sources)
             if not valid:
                 print(f'✗ 数据验证失败：{error}')
                 raise SafeUpdateError(f'数据验证失败：{error}')
@@ -251,7 +274,7 @@ class SafeUpdater:
 
         # 步骤 3：原子写入
         try:
-            if self.atomic_write(new_sources):
+            if self.atomic_write(prepared_sources):
                 print('✓ 更新成功')
 
                 # 步骤 4：清理旧备份

@@ -48,6 +48,8 @@ preview*.png
 yiove_new.json
 
 # Novel 2.0 - 三层架构数据文件
-sources/legado/temp/          # 临时文件和检查点
-sources/legado/main/backups/  # 版本化备份
-temp/                         # 临时目录
+sources/legado/temp/
+sources/legado/main/backups/
+sources/legado/main/working.json
+sources/legado/pool/candidate_report.json
+temp/

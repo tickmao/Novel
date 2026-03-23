@@ -14,6 +14,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict
 
+from legado_paths import primary_source_file
+
 class SourceUpdater:
     def __init__(self, base_dir: Path):
         self.base_dir = base_dir
@@ -24,14 +26,9 @@ class SourceUpdater:
 
     def count_legado_sources(self) -> int:
         """统计阅读书源数量"""
-        # Novel 2.0: 使用新的三层架构路径
-        legado_file = self.sources_dir / "legado/main/full.json"
-
+        legado_file = primary_source_file(self.base_dir)
         if not legado_file.exists():
-            # 兼容旧路径
-            legado_file = self.sources_dir / "legado/full.json"
-            if not legado_file.exists():
-                return 0
+            return 0
 
         try:
             with open(legado_file, 'r', encoding='utf-8') as f:

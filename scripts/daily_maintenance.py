@@ -19,16 +19,16 @@ from typing import List, Dict, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).parent))
 
 from batch_validator import BatchValidator
-from source_selector import SourceSelector
 from safe_updater import SafeUpdater
+from source_inventory import SourceInventory
 
 
 class DailyMaintenance:
     """日常维护整合脚本"""
 
     # 阈值配置
-    MIN_SOURCES_WARNING = 900
-    MIN_SOURCES_CRITICAL = 800
+    MIN_SOURCES_WARNING = 950
+    MIN_SOURCES_CRITICAL = 900
     MIN_SCORE_THRESHOLD = 30
     MAX_CONSECUTIVE_FAILURES = 3
 
@@ -42,15 +42,16 @@ class DailyMaintenance:
         if base_dir is None:
             base_dir = Path(__file__).parent.parent / 'sources' / 'legado'
 
-        self.base_dir = Path(base_dir)
+        self.inventory = SourceInventory(base_dir)
+        self.base_dir = self.inventory.base_dir
         self.pool_dir = self.base_dir / 'pool'
         self.main_dir = self.base_dir / 'main'
         self.temp_dir = self.base_dir / 'temp'
 
         # 文件路径
-        self.main_file = self.main_dir / 'full.json'
+        self.main_file = self.inventory.working_file
         self.metadata_file = self.main_dir / 'metadata.json'
-        self.candidates_file = self.pool_dir / 'candidates.json'
+        self.candidates_file = self.inventory.candidate_file
 
         # 检查点目录
         self.checkpoint_dir = self.temp_dir / 'checkpoints'
@@ -373,8 +374,7 @@ class DailyMaintenance:
 
         try:
             # 读取当前书源
-            with open(self.main_file, 'r', encoding='utf-8') as f:
-                sources = json.load(f)
+            sources = self.inventory.load_working_sources()
             print(f'\n当前书源：{len(sources)} 个')
 
             # 读取元数据
@@ -406,28 +406,29 @@ class DailyMaintenance:
             replaced_count = 0
             if to_replace:
                 # 读取候选池
-                if self.candidates_file.exists():
-                    with open(self.candidates_file, 'r', encoding='utf-8') as f:
-                        candidates = json.load(f)
-                else:
-                    candidates = []
+                candidates = self.inventory.load_candidate_sources()
 
                 new_sources = self.replace_failed_sources(sources, to_replace, candidates)
                 replaced_count = len([i for i in to_replace if new_sources[i] != sources[i]])
 
-                # 更新书源
-                if not dry_run and replaced_count > 0:
-                    updater = SafeUpdater(base_dir=self.base_dir)
-                    if not updater.safe_update(new_sources):
-                        print('\n✗ 安全更新失败')
-                        return False
-
                 sources = new_sources
+
+            # 替换后重建库存并重新导出 1000 条
+            candidates = self.inventory.load_candidate_sources()
+            working_sources, export_sources, inventory_report = self.inventory.build_inventory(
+                sources,
+                candidates,
+                save=not dry_run,
+            )
+            sources = working_sources
 
             # 生成健康报告
             report = self.generate_health_report(sources, validation_stats, replaced_count)
+            report['inventory_report'] = inventory_report
 
             # 更新元数据
+            if not dry_run:
+                metadata = self.load_metadata()
             metadata['last_validation_index'] = (metadata.get('last_validation_index', 0) + batch_size) % len(sources)
             metadata['last_maintenance'] = datetime.now().isoformat()
             metadata['last_report'] = report

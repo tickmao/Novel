@@ -6,6 +6,16 @@
     "min_score_threshold": 35,
     "max_per_domain": 2
   },
+  "inventory": {
+    "export_target": 1000,
+    "working_target": 1030,
+    "min_working_sources": 950,
+    "max_working_sources": 1050,
+    "min_candidate_sources": 1800,
+    "screened_validation_batch": 360,
+    "validation_oversample_factor": 3,
+    "candidate_stale_days": 14
+  },
   "recovery": {
     "timeout": 15,
     "max_retries": 3,

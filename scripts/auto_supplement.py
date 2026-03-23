@@ -1,423 +1,227 @@
 #!/usr/bin/env python3
 """
-书源自动补充主控制器
-- 整合智能恢复、外部收集、增强评分等组件
-- 实现完整的自动补充流程
-- 维持1000个高质量书源
+书源自动补充主控制器。
+
+优先使用内部候选池补齐库存；不足时再从 screened pool 做增量验证，
+最后才触发外部收集。
 """
 
-import json
-import asyncio
+from __future__ import annotations
+
 import argparse
-import subprocess
-import sys
+import asyncio
+import json
 from pathlib import Path
-from datetime import datetime
-from typing import List, Dict, Tuple, Optional
+from typing import Dict, List, Tuple
 
-# 导入其他组件
-sys.path.append(str(Path(__file__).parent))
+from batch_validator import BatchValidator
+from source_collector import SourceCollector
+from source_inventory import SourceInventory
 
-try:
-    from smart_recovery import SmartRecovery
-    from source_collector import SourceCollector
-    from enhanced_scoring import EnhancedScoring
-except ImportError as e:
-    print(f"导入组件失败: {e}")
-    print("请确保所有组件脚本都在同一目录下")
-    exit(1)
-
-# 配置常量
-TARGET_SOURCES = 1000
-MIN_SOURCES_TRIGGER = 800
-EMERGENCY_TRIGGER = 700
-MIN_SCORE_THRESHOLD = 35
-MAX_PER_DOMAIN = 2
 
 class AutoSupplement:
-    def __init__(self, base_dir: Path):
+    def __init__(self, base_dir: Path, export_target: int | None = None):
         self.base_dir = base_dir
-        self.sources_dir = base_dir / "sources/legado"
-        self.scripts_dir = base_dir / "scripts"
-        self.temp_dir = base_dir / "temp"
-        self.temp_dir.mkdir(exist_ok=True)
+        self.inventory = SourceInventory(base_dir / "sources" / "legado")
+        self.policy = self.inventory.policy
 
-        # 文件路径
-        self.main_sources_file = self.sources_dir / "full.json"
-        self.backup_file = self.sources_dir / "full.backup.json"
-        self.invalid_sources_file = self.temp_dir / "invalid_sources.json"
-        self.error_report_file = self.temp_dir / "validation_report.json"
-        self.history_file = self.temp_dir / "source_history.json"
+        config = json.loads((base_dir / "config" / "supplement_config.json").read_text(encoding="utf-8"))
+        supplement_cfg = config.get("supplement", {})
+        validation_cfg = config.get("validation", {})
+        collection_cfg = config.get("collection", {})
 
-        # 统计信息
-        self.supplement_stats = {
-            'initial_count': 0,
-            'recovered_count': 0,
-            'collected_count': 0,
-            'final_count': 0,
-            'filtered_adult': 0,
-            'filtered_low_score': 0
+        self.export_target = export_target or self.inventory.export_target
+        self.working_target = max(self.inventory.working_target, self.export_target + 30)
+        self.min_working_sources = self.inventory.min_working_sources
+        self.inventory.export_target = self.export_target
+        self.inventory.working_target = self.working_target
+        self.validation_timeout = int(validation_cfg.get("timeout", 10))
+        self.validation_concurrency = int(validation_cfg.get("concurrency", 20))
+        self.collection_timeout = int(collection_cfg.get("timeout", 30))
+
+        self.stats = {
+            "initial_working": 0,
+            "initial_candidates": 0,
+            "screened_batch": 0,
+            "screened_valid": 0,
+            "external_collected": 0,
+            "external_large_files": 0,
+            "external_valid": 0,
+            "final_working": 0,
+            "final_export": 0,
         }
 
-    def load_current_sources(self) -> List[dict]:
-        """加载当前书源"""
-        if not self.main_sources_file.exists():
-            return []
+    async def validate_sources(self, sources: List[Dict]) -> Tuple[List[Dict], List[Dict], Dict]:
+        if not sources:
+            return [], [], {"valid": 0, "invalid": 0}
 
-        with open(self.main_sources_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        validator = BatchValidator(
+            batch_size=len(sources),
+            concurrency=self.validation_concurrency,
+            timeout=self.validation_timeout,
+            checkpoint_dir=None,
+        )
+        return await validator.validate_batch(sources, batch_num=1, total_batches=1)
 
-    def backup_current_sources(self, sources: List[dict]):
-        """备份当前书源"""
-        with open(self.backup_file, 'w', encoding='utf-8') as f:
-            json.dump(sources, f, ensure_ascii=False, indent=2)
-        print(f"已备份到: {self.backup_file}")
+    async def replenish_from_screened(
+        self,
+        current_urls: set,
+        target_gap: int,
+        *,
+        save: bool = True,
+    ) -> Tuple[List[Dict], List[Dict], Dict]:
+        screened_sources = self.inventory.load_screened_sources()
+        if not screened_sources:
+            screened_sources, _ = self.inventory.refresh_screened_pool(save=save)
 
-    async def validate_sources(self, sources: List[dict]) -> Tuple[List[dict], List[dict], Dict]:
-        """验证书源有效性"""
-        print("验证书源有效性...")
+        batch = self.inventory.select_screened_validation_batch(
+            existing_urls=current_urls,
+            target_gap=target_gap,
+            screened_sources=screened_sources,
+        )
+        self.stats["screened_batch"] = len(batch)
 
-        # 调用现有的validate.py脚本
-        temp_input = self.temp_dir / "temp_sources.json"
-        temp_valid = self.temp_dir / "temp_valid.json"
-        temp_invalid = self.temp_dir / "temp_invalid.json"
-        temp_report = self.temp_dir / "temp_report.json"
+        if not batch:
+            return [], [], {"valid": 0, "invalid": 0}
 
-        # 保存临时文件
-        with open(temp_input, 'w', encoding='utf-8') as f:
-            json.dump(sources, f, ensure_ascii=False, indent=2)
+        valid, invalid, stats = await self.validate_sources(batch)
+        self.stats["screened_valid"] = len(valid)
+        return valid, invalid, stats
 
-        # 运行验证脚本
-        cmd = [
-            sys.executable, str(self.scripts_dir / "validate.py"),
-            "--input", str(temp_input),
-            "--output", str(temp_valid),
-            "--invalid", str(temp_invalid),
-            "--report", str(temp_report),
-            "--timeout", "10"
-        ]
-
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"验证脚本执行失败: {result.stderr}")
-            return sources, [], {}
-
-        # 读取结果
-        valid_sources = []
-        invalid_sources = []
-        errors = {}
-
-        if temp_valid.exists():
-            with open(temp_valid, 'r', encoding='utf-8') as f:
-                valid_sources = json.load(f)
-
-        if temp_invalid.exists():
-            with open(temp_invalid, 'r', encoding='utf-8') as f:
-                invalid_sources = json.load(f)
-
-        if temp_report.exists():
-            with open(temp_report, 'r', encoding='utf-8') as f:
-                report = json.load(f)
-                errors = report.get('errors', {})
-
-        # 清理临时文件
-        for temp_file in [temp_input, temp_valid, temp_invalid, temp_report]:
-            if temp_file.exists():
-                temp_file.unlink()
-
-        return valid_sources, invalid_sources, errors
-
-    async def smart_recovery_process(self, invalid_sources: List[dict], errors: Dict) -> List[dict]:
-        """智能恢复失效书源"""
-        if not invalid_sources:
-            return []
-
-        print(f"\n=== 智能恢复 {len(invalid_sources)} 个失效书源 ===")
-
-        # 保存失效书源和错误报告
-        with open(self.invalid_sources_file, 'w', encoding='utf-8') as f:
-            json.dump(invalid_sources, f, ensure_ascii=False, indent=2)
-
-        error_report = {
-            'timestamp': datetime.now().isoformat(),
-            'errors': errors
-        }
-        with open(self.error_report_file, 'w', encoding='utf-8') as f:
-            json.dump(error_report, f, ensure_ascii=False, indent=2)
-
-        # 执行智能恢复
-        recovery = SmartRecovery(timeout=15)
-        recovered, still_invalid = await recovery.batch_recovery(invalid_sources, errors)
-
-        self.supplement_stats['recovered_count'] = len(recovered)
-        recovery.print_recovery_stats()
-
-        return recovered
-
-    async def external_collection_process(self, target_gap: int) -> List[dict]:
-        """外部书源收集"""
-        if target_gap <= 0:
-            return []
-
-        print(f"\n=== 外部收集 {target_gap} 个新书源 ===")
-
-        # 查找大型书源文件
+    async def replenish_from_external(self, current_urls: set, target_gap: int) -> Tuple[List[Dict], List[Dict], Dict]:
+        collector = SourceCollector(timeout=self.collection_timeout)
         large_files = []
-        yiove_file = self.sources_dir / "yiove_new.json"
+        yiove_file = self.inventory.base_dir / "yiove_new.json"
         if yiove_file.exists():
             large_files.append(yiove_file)
 
-        # 执行外部收集
-        collector = SourceCollector(timeout=30)
-        collected_sources = await collector.collect_all_sources(large_files)
+        collected = await collector.collect_all_sources(large_files)
+        self.stats["external_collected"] = len(collected)
+        self.stats["external_large_files"] = len(large_files)
 
-        # 限制收集数量（避免处理过多数据）
-        if len(collected_sources) > target_gap * 2:
-            import random
-            collected_sources = random.sample(collected_sources, target_gap * 2)
+        accepted, _, _ = self.policy.screen_sources(collected)
+        filtered = [
+            source for source in accepted
+            if str(source.get("bookSourceUrl", "")).strip() not in current_urls
+        ][: max(target_gap * 2, 200)]
 
-        self.supplement_stats['collected_count'] = len(collected_sources)
-        collector.print_collection_stats()
+        valid, invalid, stats = await self.validate_sources(filtered)
+        self.stats["external_valid"] = len(valid)
+        return valid, invalid, stats
 
-        return collected_sources
+    async def auto_supplement_workflow(self, force: bool = False, dry_run: bool = False) -> bool:
+        working_sources = self.inventory.load_working_sources()
+        candidate_sources, _ = self.inventory.refresh_candidate_pool(save=not dry_run)
 
-    def clean_and_format_sources(self, sources: List[dict]) -> List[dict]:
-        """清理和格式化书源"""
-        print("清理和格式化书源...")
+        self.stats["initial_working"] = len(working_sources)
+        self.stats["initial_candidates"] = len(candidate_sources)
 
-        # 调用现有的clean.py脚本
-        temp_input = self.temp_dir / "temp_clean_input.json"
-        temp_output = self.temp_dir / "temp_clean_output.json"
+        print("=== 书源自动补充 ===")
+        print(f"当前工作库存：{len(working_sources)}")
+        print(f"当前候选池：{len(candidate_sources)}")
+        print(f"目标工作库存：{self.working_target}")
+        print(f"对外导出数量：{self.export_target}")
 
-        with open(temp_input, 'w', encoding='utf-8') as f:
-            json.dump(sources, f, ensure_ascii=False, indent=2)
+        rebuilt_working, rebuilt_export, rebuilt_report = self.inventory.build_inventory(
+            working_sources,
+            candidate_sources,
+            save=False,
+        )
+        print(f"内部整理后工作库存：{len(rebuilt_working)}")
 
-        cmd = [
-            sys.executable, str(self.scripts_dir / "clean.py"),
-            "--input", str(temp_input),
-            "--output", str(temp_output)
-        ]
-
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"清理脚本执行失败: {result.stderr}")
-            return sources
-
-        # 读取清理后的结果
-        if temp_output.exists():
-            with open(temp_output, 'r', encoding='utf-8') as f:
-                cleaned_sources = json.load(f)
-
-            # 清理临时文件
-            temp_input.unlink()
-            temp_output.unlink()
-
-            return cleaned_sources
-
-        return sources
-
-    def filter_adult_content(self, sources: List[dict]) -> List[dict]:
-        """过滤成人内容"""
-        print("过滤成人内容...")
-
-        # 调用现有的clean_adult_content.py脚本
-        temp_input = self.temp_dir / "temp_adult_input.json"
-        temp_output = self.temp_dir / "temp_adult_output.json"
-
-        with open(temp_input, 'w', encoding='utf-8') as f:
-            json.dump(sources, f, ensure_ascii=False, indent=2)
-
-        cmd = [
-            sys.executable, str(self.scripts_dir / "clean_adult_content.py"),
-            "--input", str(temp_input),
-            "--output", str(temp_output)
-        ]
-
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"成人内容过滤脚本执行失败: {result.stderr}")
-            return sources
-
-        # 读取过滤后的结果
-        if temp_output.exists():
-            with open(temp_output, 'r', encoding='utf-8') as f:
-                filtered_sources = json.load(f)
-
-            self.supplement_stats['filtered_adult'] = len(sources) - len(filtered_sources)
-
-            # 清理临时文件
-            temp_input.unlink()
-            temp_output.unlink()
-
-            return filtered_sources
-
-        return sources
-
-    def enhanced_scoring_and_selection(self, sources: List[dict], target_sources: int = 1000) -> List[dict]:
-        """增强评分和筛选"""
-        print("增强评分和筛选...")
-
-        # 初始化增强评分系统
-        scorer = EnhancedScoring(self.history_file)
-
-        # 批量评分
-        results = scorer.batch_score_sources(sources)
-
-        # 过滤低分书源
-        filtered_results = [(s, score, details) for s, score, details in results
-                           if score >= MIN_SCORE_THRESHOLD]
-
-        self.supplement_stats['filtered_low_score'] = len(results) - len(filtered_results)
-
-        # 按评分排序
-        filtered_results.sort(key=lambda x: -x[1])
-
-        # 域名去重（每个域名最多保留2个）
-        domain_count = {}
-        final_sources = []
-
-        for source, score, details in filtered_results:
-            url = source.get('bookSourceUrl', '')
-            try:
-                from urllib.parse import urlparse
-                domain = urlparse(url).netloc
-            except:
-                domain = url
-
-            if domain_count.get(domain, 0) < MAX_PER_DOMAIN:
-                final_sources.append(source)
-                domain_count[domain] = domain_count.get(domain, 0) + 1
-
-            # 达到目标数量就停止
-            if len(final_sources) >= target_sources:
-                break
-
-        scorer.print_scoring_stats()
-        scorer.save_history()
-
-        return final_sources
-
-    async def auto_supplement_workflow(self, force: bool = False, target_sources: int = 1000) -> bool:
-        """自动补充工作流"""
-        print("=== 书源自动补充系统 ===")
-        print(f"目标书源数量: {target_sources}")
-        print(f"触发阈值: {MIN_SOURCES_TRIGGER}")
-        print(f"紧急阈值: {EMERGENCY_TRIGGER}")
-        print()
-
-        # 1. 加载当前书源
-        current_sources = self.load_current_sources()
-        self.supplement_stats['initial_count'] = len(current_sources)
-
-        print(f"当前书源数量: {len(current_sources)}")
-
-        # 2. 检查是否需要补充
-        if not force and len(current_sources) >= MIN_SOURCES_TRIGGER:
-            print("书源数量充足，无需补充")
+        if not force and len(rebuilt_working) >= self.min_working_sources:
+            print("库存充足，无需补源")
+            if not dry_run and (
+                len(working_sources) != len(rebuilt_working)
+                or len(rebuilt_export) != self.export_target
+            ):
+                self.inventory.build_inventory(working_sources, candidate_sources, save=True)
+            self.stats["final_working"] = len(rebuilt_working)
+            self.stats["final_export"] = len(rebuilt_export)
             return False
 
-        if len(current_sources) < EMERGENCY_TRIGGER:
-            print("⚠️  书源数量严重不足，启动紧急补充模式")
+        current_urls = {
+            str(source.get("bookSourceUrl", "")).strip()
+            for source in rebuilt_working + candidate_sources
+        }
+        target_gap = max(self.working_target - len(rebuilt_working), 0)
 
-        # 3. 备份当前书源
-        if current_sources:
-            self.backup_current_sources(current_sources)
+        print(f"当前库存低于阈值，需补充约 {target_gap} 条")
 
-        # 4. 验证当前书源
-        valid_sources, invalid_sources, errors = await self.validate_sources(current_sources)
-        print(f"验证结果: 有效 {len(valid_sources)}, 无效 {len(invalid_sources)}")
+        screened_valid, screened_invalid, _ = await self.replenish_from_screened(
+            current_urls,
+            target_gap,
+            save=not dry_run,
+        )
+        if screened_valid:
+            candidate_sources, _ = self.inventory.merge_validated_candidates(
+                screened_valid,
+                screened_invalid,
+                save=not dry_run,
+            )
 
-        # 5. 智能恢复失效书源
-        recovered_sources = await self.smart_recovery_process(invalid_sources, errors)
+        rebuilt_working, rebuilt_export, _ = self.inventory.build_inventory(
+            rebuilt_working,
+            candidate_sources,
+            save=False,
+        )
 
-        # 6. 计算还需要多少书源
-        current_valid_count = len(valid_sources) + len(recovered_sources)
-        target_gap = target_sources - current_valid_count
+        if len(rebuilt_working) < self.min_working_sources:
+            current_urls = {
+                str(source.get("bookSourceUrl", "")).strip()
+                for source in rebuilt_working + candidate_sources
+            }
+            target_gap = max(self.working_target - len(rebuilt_working), 0)
+            print(f"内部候选池不足，启动外部补源，缺口 {target_gap}")
+            external_valid, external_invalid, _ = await self.replenish_from_external(current_urls, target_gap)
+            if external_valid:
+                candidate_sources, _ = self.inventory.merge_validated_candidates(
+                    external_valid,
+                    external_invalid,
+                    save=not dry_run,
+                )
+                rebuilt_working, rebuilt_export, _ = self.inventory.build_inventory(
+                    rebuilt_working,
+                    candidate_sources,
+                    save=False,
+                )
 
-        print(f"\n当前有效书源: {current_valid_count}")
-        print(f"目标缺口: {target_gap}")
+        self.stats["final_working"] = len(rebuilt_working)
+        self.stats["final_export"] = len(rebuilt_export)
 
-        # 7. 外部收集新书源
-        collected_sources = await self.external_collection_process(max(target_gap, 200))
+        if dry_run:
+            print("试运行模式：未写入文件")
+            return len(rebuilt_working) >= self.min_working_sources
 
-        # 8. 合并所有书源
-        all_sources = valid_sources + recovered_sources + collected_sources
-        print(f"\n合并后总数: {len(all_sources)}")
-
-        # 9. 统一处理流程
-        print("\n=== 统一处理流程 ===")
-
-        # 清理和格式化
-        cleaned_sources = self.clean_and_format_sources(all_sources)
-        print(f"清理后: {len(cleaned_sources)}")
-
-        # 过滤成人内容
-        filtered_sources = self.filter_adult_content(cleaned_sources)
-        print(f"过滤成人内容后: {len(filtered_sources)}")
-
-        # 增强评分和筛选
-        final_sources = self.enhanced_scoring_and_selection(filtered_sources, target_sources)
-        self.supplement_stats['final_count'] = len(final_sources)
-
-        print(f"最终筛选: {len(final_sources)}")
-
-        # 10. 更新书源库
-        with open(self.main_sources_file, 'w', encoding='utf-8') as f:
-            json.dump(final_sources, f, ensure_ascii=False, indent=2)
-
-        print(f"\n✓ 书源库已更新: {self.main_sources_file}")
-
+        self.inventory.build_inventory(rebuilt_working, candidate_sources, save=True)
         return True
 
-    def print_supplement_stats(self):
-        """打印补充统计"""
-        print("\n=== 补充统计 ===")
-        print(f"初始书源: {self.supplement_stats['initial_count']}")
-        print(f"智能恢复: {self.supplement_stats['recovered_count']}")
-        print(f"外部收集: {self.supplement_stats['collected_count']}")
-        print(f"过滤成人内容: {self.supplement_stats['filtered_adult']}")
-        print(f"过滤低分书源: {self.supplement_stats['filtered_low_score']}")
-        print(f"最终书源: {self.supplement_stats['final_count']}")
+    def print_stats(self):
+        print("\n=== 补源统计 ===")
+        for key, value in self.stats.items():
+            print(f"{key}: {value}")
 
-        if self.supplement_stats['initial_count'] > 0:
-            improvement = self.supplement_stats['final_count'] - self.supplement_stats['initial_count']
-            print(f"净增长: {improvement:+d}")
 
 async def main():
     parser = argparse.ArgumentParser(description="书源自动补充主控制器")
-    parser.add_argument("--force", "-f", action="store_true", help="强制执行补充（忽略数量检查）")
-    parser.add_argument("--dry-run", action="store_true", help="试运行模式（不更新文件）")
-    parser.add_argument("--target", "-t", type=int, default=TARGET_SOURCES, help=f"目标书源数量，默认 {TARGET_SOURCES}")
+    parser.add_argument("--force", "-f", action="store_true", help="强制执行补源")
+    parser.add_argument("--dry-run", action="store_true", help="试运行，不写入文件")
+    parser.add_argument("--target", "-t", type=int, help="对外导出目标数量，默认读取配置")
     args = parser.parse_args()
 
-    # 使用参数中的目标数量
-    target_sources = args.target
-
-    # 获取项目根目录
     base_dir = Path(__file__).parent.parent
+    supplement = AutoSupplement(base_dir, export_target=args.target)
 
-    # 初始化自动补充系统
-    supplement = AutoSupplement(base_dir)
+    success = await supplement.auto_supplement_workflow(force=args.force, dry_run=args.dry_run)
+    supplement.print_stats()
 
-    try:
-        # 执行自动补充
-        success = await supplement.auto_supplement_workflow(force=args.force, target_sources=target_sources)
-
-        # 打印统计
-        supplement.print_supplement_stats()
-
-        if success:
-            print("\n✓ 自动补充完成")
-        else:
-            print("\n- 无需补充")
-
+    if success:
+        print("\n✓ 自动补充完成")
         return 0
 
-    except Exception as e:
-        print(f"\n❌ 自动补充失败: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
+    print("\n- 无需补充")
+    return 0
+
 
 if __name__ == "__main__":
-    exit(asyncio.run(main()))
+    raise SystemExit(asyncio.run(main()))

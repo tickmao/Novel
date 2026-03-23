@@ -67,7 +67,11 @@ class SourceSelector:
         Returns:
             评分（0-100）
         """
-        # 如果已有评分，直接使用
+        # 如果已有选择分，优先使用
+        if 'selectionScore' in source:
+            return float(source['selectionScore'])
+
+        # 其次使用已有评分
         if 'score' in source:
             return float(source['score'])
 

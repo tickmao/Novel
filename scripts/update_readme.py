@@ -7,10 +7,13 @@
 """
 
 import json
+import os
 import re
 from pathlib import Path
 from datetime import datetime
 from typing import Dict
+
+from legado_paths import primary_source_file
 
 class SourceCounter:
     def __init__(self, base_dir: Path):
@@ -20,7 +23,7 @@ class SourceCounter:
 
     def count_legado_sources(self) -> int:
         """统计阅读书源数量"""
-        legado_file = self.sources_dir / "legado/full.json"
+        legado_file = primary_source_file(self.base_dir)
 
         if not legado_file.exists():
             return 0
@@ -34,32 +37,15 @@ class SourceCounter:
             return 0
 
     def count_xsreader_sources(self) -> int:
-        """统计香色闺阁书源数量"""
+        """统计香色闺阁书源数量 - 与 update_sources.py 保持一致的估算口径"""
         xsreader_file = self.sources_dir / "xsreader/full.xbs"
 
         if not xsreader_file.exists():
             return 0
 
         try:
-            # 尝试不同的编码
-            encodings = ['utf-8', 'gbk', 'gb2312', 'latin1']
-            content = None
-
-            for encoding in encodings:
-                try:
-                    with open(xsreader_file, 'r', encoding=encoding) as f:
-                        content = f.read()
-                        break
-                except UnicodeDecodeError:
-                    continue
-
-            if content is None:
-                print("无法读取香色闺阁书源文件：编码问题")
-                return 0
-
-            # 简单统计：按行数估算
-            lines = [line.strip() for line in content.split('\n') if line.strip()]
-            return len(lines) // 10  # 估算每个书源约10行
+            file_size = os.path.getsize(xsreader_file)
+            return file_size // (9 * 1024)
         except Exception as e:
             print(f"读取香色闺阁书源失败: {e}")
             return 0

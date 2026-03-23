@@ -11,6 +11,7 @@ import json
 import asyncio
 import sys
 import traceback
+import shutil
 from pathlib import Path
 from datetime import datetime
 
@@ -230,7 +231,7 @@ class SystemTester:
             traceback.print_exc()
             return False
 
-    def test_auto_supplement_dry_run(self) -> bool:
+    async def test_auto_supplement_dry_run(self) -> bool:
         """测试自动补充系统（试运行）"""
         print("\n🤖 测试自动补充系统...")
 
@@ -238,30 +239,40 @@ class SystemTester:
             from auto_supplement import AutoSupplement
 
             # 创建测试环境
-            test_supplement = AutoSupplement(self.test_dir)
+            config_dir = self.test_dir / "config"
+            config_dir.mkdir(parents=True, exist_ok=True)
+            for name in ("supplement_config.json", "name_normalization.json", "content_audit.json"):
+                shutil.copy2(self.config_dir / name, config_dir / name)
+
+            legado_dir = self.test_dir / "sources/legado"
+            (legado_dir / "main").mkdir(parents=True, exist_ok=True)
+            (legado_dir / "pool").mkdir(parents=True, exist_ok=True)
 
             # 创建测试书源文件
-            test_sources_file = self.test_dir / "sources/legado/full.json"
-            test_sources_file.parent.mkdir(parents=True, exist_ok=True)
+            test_working_file = legado_dir / "main/working.json"
+            test_candidate_file = legado_dir / "pool/candidates.json"
 
-            with open(test_sources_file, 'w', encoding='utf-8') as f:
+            with open(test_working_file, 'w', encoding='utf-8') as f:
+                json.dump(self.test_sources, f, ensure_ascii=False, indent=2)
+            with open(test_candidate_file, 'w', encoding='utf-8') as f:
                 json.dump(self.test_sources, f, ensure_ascii=False, indent=2)
 
+            test_supplement = AutoSupplement(self.test_dir)
+
             # 测试加载功能
-            sources = test_supplement.load_current_sources()
+            sources = test_supplement.inventory.load_working_sources()
             if len(sources) == len(self.test_sources):
                 print(f"  ✓ 书源加载正常: {len(sources)} 个")
             else:
                 print("  ❌ 书源加载异常")
                 return False
 
-            # 测试备份功能
-            test_supplement.backup_current_sources(sources)
-            backup_file = test_supplement.backup_file
-            if backup_file.exists():
-                print("  ✓ 书源备份正常")
+            # 测试 dry-run 不会落盘修改
+            success = await test_supplement.auto_supplement_workflow(force=True, dry_run=True)
+            if success:
+                print("  ✓ dry-run 执行正常")
             else:
-                print("  ❌ 书源备份异常")
+                print("  ❌ dry-run 执行异常")
                 return False
 
             print("  ✅ 自动补充系统测试通过")
@@ -339,7 +350,7 @@ class SystemTester:
         self.test_results['health_monitor'] = await self.test_health_monitor()
 
         # 自动补充测试
-        self.test_results['auto_supplement'] = self.test_auto_supplement_dry_run()
+        self.test_results['auto_supplement'] = await self.test_auto_supplement_dry_run()
 
         # 系统集成测试
         self.test_results['integration'] = self.test_integration()

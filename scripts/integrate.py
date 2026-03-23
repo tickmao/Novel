@@ -17,6 +17,8 @@ from urllib.parse import urlparse
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from legado_paths import primary_source_file, write_source_mirror
+
 # 配置
 MAX_SOURCES = 1500
 MAX_RESPOND_TIME = 10000
@@ -255,10 +257,10 @@ def main():
     args = parser.parse_args()
 
     base_dir = Path(__file__).parent.parent
-    existing_path = base_dir / "sources/legado/full.json"
+    existing_path = primary_source_file(base_dir)
     new_path = base_dir / "sources/legado/yiove_new.json"
-    output_path = base_dir / "sources/legado/full.json"
-    backup_path = base_dir / "sources/legado/full.backup.json"
+    output_path = existing_path
+    backup_path = output_path.parent / "full.backup.json"
 
     # 读取现有书源
     print("读取现有书源...")
@@ -325,9 +327,8 @@ def main():
         print(f"\n已备份到: {backup_path}")
 
     # 输出
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(final, f, ensure_ascii=False, indent=2)
-    print(f"输出到: {output_path}")
+    written_paths = write_source_mirror(final, base_dir)
+    print(f"输出到: {written_paths[0]}")
 
     # 统计
     print("\n=== 统计 ===")

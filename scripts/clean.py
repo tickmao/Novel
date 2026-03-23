@@ -13,68 +13,56 @@ import json
 import re
 import time
 import argparse
+import unicodedata
 from pathlib import Path
 
 # 表情符号正则（覆盖常见 emoji 范围）
 EMOJI_PATTERN = re.compile(
     "["
-    "\U0001F300-\U0001F9FF"  # 常见 emoji
-    "\U00002600-\U000027BF"  # 杂项符号
-    "\U0001FA00-\U0001FAFF"  # 扩展符号
-    "\U00002300-\U000023FF"  # 技术符号
-    "\U00002B50-\U00002B55"  # 星星等
-    "\U0000FE00-\U0000FE0F"  # 变体选择器
-    "\U0000200D"             # 零宽连接符
-    "\U0001F1E0-\U0001F1FF"  # 国旗
+    "\U0001F100-\U0001F1FF"
+    "\U0001F300-\U0001FAFF"
+    "\U00002600-\U000027BF"
+    "\U00002300-\U000023FF"
+    "\U0000FE00-\U0000FE0F"
+    "\U0000200D"
     "]+",
     flags=re.UNICODE
 )
 
-# 特殊符号（需要移除）
+# 先移除装饰字符，再做 NFKC，避免 ㊣ 被转换成“正”
 SPECIAL_SYMBOLS = re.compile(
     r'[★☆✦✧⭐🌟💫🔥💥✨🎉🎊📚📖📕📗📘📙👍👎👏🙏💪'
     r'❤️💕💖💗💙💚💛✅❌⭕❗❓'
     r'①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'
     r'㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚㉛㉜㉝㉞㉟'
     r'⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻'
-    r'Ⅰ-Ⅻ～~丨|｜👁🔰🎨📻📥💠'
-    r'◎▪™〽㊣●○◆◇■□▲△▼▽'
-    r'Ａ-Ｚａ-ｚ０-９'
+    r'ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫ～~丨|｜👁🔰🎨📻📥💠'
+    r'◎▪™〽㊣●○◆◇■□▲△▼▽🈲'
     r']+'
 )
 
 # 括号及内容（中文括号、英文括号、方括号、尖括号）
-BRACKET_PATTERN = re.compile(r'[（(【\[<][^）)】\]>]*[）)】\]>]')
+BRACKET_PATTERN = re.compile(r'[（(【\[<〖{][^）)】\]>〗}]*[）)】\]>〗}]')
 
-# 特殊括号内容（花括号、书名号变体）
-SPECIAL_BRACKETS = re.compile(r'〖[^〗]*〗|\{[^}]*\}')
+LEADING_NOISE = re.compile(r'^源社区出品[-:：]?\s*|^[+\-#.·~_=]+\s*')
+LEADING_SINGLE_LETTER = re.compile(r'^[A-Za-z]\s+(?=[A-Za-z0-9\u4e00-\u9fff])')
+TRAILING_AUTHOR_TAG = re.compile(r'\s*#\S+$')
+TRAILING_DOMAIN = re.compile(r'[_\s-]*(?:[a-z0-9-]+\.)+[a-z]{2,}$', re.IGNORECASE)
+TRAILING_VERSION = re.compile(r'[-_. ]+v?\d+(?:\.\d+){0,2}$', re.IGNORECASE)
+TRAILING_CN_NUMBER = re.compile(r'(?<=[\u4e00-\u9fff])[-_. ]*\d{1,3}$')
+TRAILING_SYMBOLS = re.compile(r'[._\-~·]+$')
+MEANINGFUL_NAME = re.compile(r'[A-Za-z0-9\u4e00-\u9fff]')
 
-# 结尾序号（圆圈数字、阿拉伯数字含前导零 01-999）
-TRAILING_NUMBER = re.compile(r'[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚㉛㉜㉝㉞㉟]+$|0*\d{1,3}$')
-
-# 描述性后缀词（需要移除）
-DESC_SUFFIXES = re.compile(
-    r'(自制|备用|自用|精|全|待正文|弃了|需要VIP|手机版|TV版|电脑版|第一版|音频|匿名'
-    r'|精品|优质|稳定|高速|免费|付费|正版|盗版|无广告|去广告|纯净|最新|更新'
-    r'|测试|旧版|新版|修复|优化|增强|精简|完整|破解|会员|VIP|vip)$'
-)
-
-# 结尾符号（清理残留）
-TRAILING_SYMBOLS = re.compile(r'[._\-]+$')
-
-# 名称后缀清洗模式（按顺序应用）
-NAME_SUFFIX_PATTERNS = [
-    (r'^源社区出品-', ''),                     # 来源前缀（优先处理）
-    (r'^[+\-#.·]\s*', ''),                    # 开头特殊符号
-    (r'#\d+$', ''),                           # #数字 版本号
-    (r'\s*#[^\s]+$', ''),                     # #作者名 署名
-    (r'\s+[^\s]+$', ''),                      # 空格+内容（如 "爱书包 破冰"）
-    (r'_[a-zA-Z0-9.-]+\.[a-z]{2,}$', ''),    # _域名 后缀
-    (r'_[^_]+_[^_]+$', ''),                   # _xxx_xxx 重复内容
-    (r'-[\u4e00-\u9fa5]{2,4}$', ''),          # -作者名 后缀
-    (r'[a-z]\d{1,3}$', ''),                   # 英文+数字后缀（如 b13）
-    (r'(?<=[^\d])\d{1,3}$', ''),              # 纯数字后缀
-    (r'[._,]+$', ''),                          # 结尾符号
+DIRECT_SUFFIXES = [
+    '自制', '备用', '自用', '待正文', '需要VIP',
+    '手机版', 'TV版', '电脑版',
+    '精品', '优质', '稳定版', '高速版', '纯净版',
+    '旧版', '新版', '修复版', '优化版', '增强版', '精简版', '测试版',
+    '完整版', '完全版', '最新版',
+    '排行榜', '排行', '榜单', '分类', '发现', '下载',
+    '完本', '全本', '全书',
+    '共享API', 'Web共享API', 'web共享API', 'API',
+    'app', 'APP',
 ]
 
 # 分组排序顺序
@@ -163,27 +151,6 @@ def get_grade_group(score: int) -> str:
         return "备用"
 
 
-def strip_decorations(text: str) -> str:
-    """移除装饰性内容（表情、特殊符号、括号、后缀等）"""
-    if not text:
-        return ""
-    text = EMOJI_PATTERN.sub("", text)
-    text = SPECIAL_SYMBOLS.sub("", text)
-    text = BRACKET_PATTERN.sub("", text)
-    text = SPECIAL_BRACKETS.sub("", text)
-    # 名称后缀清洗
-    for pattern, replacement in NAME_SUFFIX_PATTERNS:
-        text = re.sub(pattern, replacement, text)
-    # 移除描述性后缀和结尾数字（循环直到无变化）
-    prev = None
-    while prev != text:
-        prev = text
-        text = DESC_SUFFIXES.sub("", text)
-        text = TRAILING_NUMBER.sub("", text)
-        text = TRAILING_SYMBOLS.sub("", text)
-    return text.strip()
-
-
 def clean_spaces(text: str) -> str:
     """清理空格"""
     if not text:
@@ -193,6 +160,72 @@ def clean_spaces(text: str) -> str:
     # 多个空格合并为一个
     text = re.sub(r'\s+', ' ', text)
     return text
+
+
+def is_usable_name(text: str) -> bool:
+    """判断名称是否仍然可用，避免清洗后变空。"""
+    normalized = clean_spaces(text)
+    return len(normalized) >= 2 and bool(MEANINGFUL_NAME.search(normalized))
+
+
+def apply_if_usable(text: str, pattern: re.Pattern, replacement: str = "") -> str:
+    """仅在替换后仍有可读名称时应用规则。"""
+    candidate = clean_spaces(pattern.sub(replacement, text))
+    return candidate if is_usable_name(candidate) else text
+
+
+def strip_decorations(text: str) -> str:
+    """移除装饰性内容，但尽量保留主体名称。"""
+    if not text:
+        return ""
+
+    text = EMOJI_PATTERN.sub("", text)
+    text = SPECIAL_SYMBOLS.sub("", text)
+    text = unicodedata.normalize("NFKC", text)
+    text = BRACKET_PATTERN.sub("", text)
+    text = clean_spaces(text)
+    text = LEADING_NOISE.sub("", text)
+    text = TRAILING_SYMBOLS.sub("", text)
+
+    return clean_spaces(text)
+
+
+def normalize_source_name(name: str) -> str:
+    """
+    清洗书源名称。
+
+    目标是去掉装饰、署名、版本号、括号说明等噪音，但不把名称洗空。
+    """
+    original = clean_spaces(name)
+    if not original:
+        return ""
+
+    text = strip_decorations(original)
+    fallback = text or original
+
+    for pattern in (
+        LEADING_SINGLE_LETTER,
+        TRAILING_AUTHOR_TAG,
+        TRAILING_DOMAIN,
+        TRAILING_VERSION,
+        TRAILING_CN_NUMBER,
+    ):
+        text = apply_if_usable(text, pattern)
+
+    if '/' in text:
+        aliases = [clean_spaces(part) for part in re.split(r'[/｜|]', text) if clean_spaces(part)]
+        if len(aliases) > 1 and is_usable_name(aliases[0]):
+            text = aliases[0]
+
+    for suffix in DIRECT_SUFFIXES:
+        while text.endswith(suffix):
+            candidate = clean_spaces(text[:-len(suffix)])
+            if not is_usable_name(candidate):
+                break
+            text = candidate
+
+    text = clean_spaces(TRAILING_SYMBOLS.sub("", text))
+    return text if is_usable_name(text) else fallback
 
 
 def normalize_group(group: str) -> str:
@@ -216,7 +249,7 @@ def clean_source(source: dict, grade: bool = False) -> dict:
     """清洗单个书源"""
     # 清洗名称
     if "bookSourceName" in source:
-        source["bookSourceName"] = clean_spaces(strip_decorations(source["bookSourceName"]))
+        source["bookSourceName"] = normalize_source_name(source["bookSourceName"])
 
     # 按评分分组（覆盖原有分组）
     if grade:

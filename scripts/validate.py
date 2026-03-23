@@ -85,8 +85,13 @@ async def validate_sources(sources: list, timeout: int = DEFAULT_TIMEOUT, sample
             completed += 1
 
             if is_valid:
+                source["_validation_status"] = "valid"
+                source["_last_validated_at"] = datetime.now().isoformat()
                 valid.append(source)
             else:
+                source["_validation_status"] = "invalid"
+                source["_last_validated_at"] = datetime.now().isoformat()
+                source["_validation_error"] = error
                 invalid.append(source)
                 errors[source.get("bookSourceUrl", "")] = error
 

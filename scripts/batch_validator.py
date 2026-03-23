@@ -135,12 +135,17 @@ class BatchValidator:
                 completed += 1
 
                 if is_valid:
+                    source['_validation_status'] = 'valid'
+                    source['_last_validated_at'] = datetime.now().isoformat()
                     valid.append(source)
                     if response_time:
                         response_times.append(response_time)
                         # 记录响应时间到书源
                         source['_response_time'] = response_time
                 else:
+                    source['_validation_status'] = 'invalid'
+                    source['_last_validated_at'] = datetime.now().isoformat()
+                    source['_validation_error'] = error
                     invalid.append(source)
                     errors[source.get('bookSourceUrl', '')] = error
 
