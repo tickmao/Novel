@@ -1,17 +1,17 @@
 {
-  "timestamp": "2026-03-22T04:18:28.840319",
-  "total": 313,
-  "valid": 306,
+  "timestamp": "2026-03-29T04:35:56.935295",
+  "total": 306,
+  "valid": 299,
   "invalid": 7,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://m.8kana.com#": "Cannot connect to host m.8kana.com:443 ssl:default",
-    "http://api.doufuyuedu.com/": "Server disconnected",
-    "https://www.xxsy.net#": "超时",
-    "https://m.qiutiandog.com/##@鱼": "超时",
-    "http://www.shfljx.com": "超时",
-    "http://www.yjxsw.com": "超时",
-    "https://www.daowenge.com#🎃": "超时"
+    "https://www.tadu.com#🎃": "HTTP 403",
+    "http://www.shuyy8.cc": "超时",
+    "http://www.uuxsw8.net": "超时",
+    "https://www.xshuyaya.com": "超时",
+    "http://www.uu234.net": "超时",
+    "https://m.guigushi2.com/": "超时",
+    "http://www.txt86w.com#🎃": "超时"
   }
 }
