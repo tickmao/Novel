@@ -1,5 +1,5 @@
 {
-  "last_validation_index": 540,
+  "last_validation_index": 640,
   "validation_history": {},
   "failure_counts": {
     "https://www.qfxs123.com/": 0,
@@ -1427,9 +1427,9 @@
     "http://m.12txt.com": 0,
     "http://m.bxwxc.com": 0
   },
-  "last_maintenance": "2026-04-13T19:20:36.536934",
+  "last_maintenance": "2026-04-14T19:24:14.882654",
   "last_report": {
-    "timestamp": "2026-04-13T19:20:36.536264",
+    "timestamp": "2026-04-14T19:24:14.881988",
     "health_status": "good",
     "health_message": "良好",
     "total_sources": 1030,
@@ -1438,14 +1438,14 @@
     "validation_stats": {
       "batch_num": 1,
       "total": 100,
-      "valid": 88,
-      "invalid": 12,
-      "valid_rate": 0.88,
-      "avg_response_time": 705.9659090909091
+      "valid": 92,
+      "invalid": 8,
+      "valid_rate": 0.92,
+      "avg_response_time": 745.5
     },
     "replaced_count": 0,
     "inventory_report": {
-      "timestamp": "2026-04-13T19:20:35.587083",
+      "timestamp": "2026-04-14T19:24:13.968599",
       "current_input": 1000,
       "candidate_input": 3639,
       "working_count": 1030,
@@ -1456,7 +1456,7 @@
         "target": 1030,
         "unique_domains": 699,
         "total_domains": 699,
-        "skipped_by_domain": 251,
+        "skipped_by_domain": 293,
         "avg_score": 58.01242718446602,
         "min_score": 54.0,
         "max_score": 70.0
@@ -1476,13 +1476,13 @@
       "stats_sync": {
         "success": true,
         "status": "success",
-        "updated_at": "2026-04-13T19:20:36.378027",
+        "updated_at": "2026-04-14T19:24:14.742449",
         "error": null
       }
     }
   },
   "inventory": {
-    "timestamp": "2026-04-13T19:20:35.587083",
+    "timestamp": "2026-04-14T19:24:13.968599",
     "current_input": 1000,
     "candidate_input": 3639,
     "working_count": 1030,
@@ -1493,7 +1493,7 @@
       "target": 1030,
       "unique_domains": 699,
       "total_domains": 699,
-      "skipped_by_domain": 251,
+      "skipped_by_domain": 293,
       "avg_score": 58.01242718446602,
       "min_score": 54.0,
       "max_score": 70.0
@@ -1513,12 +1513,12 @@
     "stats_sync": {
       "success": true,
       "status": "success",
-      "updated_at": "2026-04-13T19:20:36.378027",
+      "updated_at": "2026-04-14T19:24:14.742449",
       "error": null
     }
   },
-  "last_inventory_rebuild": "2026-04-13T19:20:35.587083",
-  "last_stats_sync": "2026-04-13T19:20:36.378027",
+  "last_inventory_rebuild": "2026-04-14T19:24:13.968599",
+  "last_stats_sync": "2026-04-14T19:24:14.742449",
   "last_stats_sync_status": "success",
   "last_stats_sync_error": null
 }
