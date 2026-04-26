@@ -1,14 +1,13 @@
 {
-  "timestamp": "2026-04-19T04:48:46.205501",
-  "total": 289,
-  "valid": 285,
-  "invalid": 4,
+  "timestamp": "2026-04-26T04:57:04.345465",
+  "total": 285,
+  "valid": 282,
+  "invalid": 3,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://www.shacg.com#🎃": "HTTP 405",
-    "https://www.52shukuw.com#关耳": "Server disconnected",
-    "http://www.mengbige.com": "超时",
-    "https://www.8kana.com#": "超时"
+    "https://www.shuq.net/": "HTTP 403",
+    "http://www.biquge001.com/      ": "超时",
+    "https://m.shoujix.com/": "超时"
   }
 }
