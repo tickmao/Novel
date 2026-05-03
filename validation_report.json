@@ -1,13 +1,14 @@
 {
-  "timestamp": "2026-04-26T04:57:04.345465",
-  "total": 285,
-  "valid": 282,
-  "invalid": 3,
+  "timestamp": "2026-05-03T05:28:20.797247",
+  "total": 282,
+  "valid": 278,
+  "invalid": 4,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://www.shuq.net/": "HTTP 403",
-    "http://www.biquge001.com/      ": "超时",
-    "https://m.shoujix.com/": "超时"
+    "https://www.dxmwx.org": "0, message='', url='https://www.dxmwx.org'",
+    "https://www.shoujix.com": "超时",
+    "http://www.dushu.com": "超时",
+    "https://www.yamibo.com/site/novel": "超时"
   }
 }
