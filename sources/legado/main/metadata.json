@@ -1,5 +1,5 @@
 {
-  "last_validation_index": 480,
+  "last_validation_index": 580,
   "validation_history": {},
   "failure_counts": {
     "https://www.qfxs123.com/": 0,
@@ -1427,37 +1427,37 @@
     "http://m.12txt.com": 0,
     "http://m.bxwxc.com": 0
   },
-  "last_maintenance": "2026-05-03T19:07:12.604204",
+  "last_maintenance": "2026-05-04T19:47:12.730272",
   "last_report": {
-    "timestamp": "2026-05-03T19:07:12.603496",
+    "timestamp": "2026-05-04T19:47:12.729544",
     "health_status": "good",
     "health_message": "良好",
     "total_sources": 1030,
     "avg_score": 58.2,
-    "unique_domains": 706,
+    "unique_domains": 705,
     "validation_stats": {
       "batch_num": 1,
       "total": 100,
-      "valid": 91,
-      "invalid": 9,
-      "valid_rate": 0.91,
-      "avg_response_time": 1083.6813186813188
+      "valid": 94,
+      "invalid": 6,
+      "valid_rate": 0.94,
+      "avg_response_time": 757.2765957446809
     },
     "replaced_count": 3,
     "inventory_report": {
-      "timestamp": "2026-05-03T19:07:11.700411",
+      "timestamp": "2026-05-04T19:47:11.840401",
       "current_input": 1000,
-      "candidate_input": 3687,
+      "candidate_input": 3694,
       "working_count": 1030,
       "export_count": 1000,
       "working_stats": {
-        "total_candidates": 3768,
+        "total_candidates": 3803,
         "selected": 1030,
         "target": 1030,
-        "unique_domains": 706,
-        "total_domains": 706,
-        "skipped_by_domain": 246,
-        "avg_score": 58.170679611650485,
+        "unique_domains": 705,
+        "total_domains": 705,
+        "skipped_by_domain": 239,
+        "avg_score": 58.21825242718447,
         "min_score": 54.0,
         "max_score": 70.0
       },
@@ -1468,7 +1468,7 @@
         "unique_domains": 685,
         "total_domains": 685,
         "skipped_by_domain": 0,
-        "avg_score": 58.2958,
+        "avg_score": 58.344800000000006,
         "min_score": 54.0,
         "max_score": 70.0
       },
@@ -1476,25 +1476,25 @@
       "stats_sync": {
         "success": true,
         "status": "success",
-        "updated_at": "2026-05-03T19:07:12.489535",
+        "updated_at": "2026-05-04T19:47:12.620467",
         "error": null
       }
     }
   },
   "inventory": {
-    "timestamp": "2026-05-03T19:07:11.700411",
+    "timestamp": "2026-05-04T19:47:11.840401",
     "current_input": 1000,
-    "candidate_input": 3687,
+    "candidate_input": 3694,
     "working_count": 1030,
     "export_count": 1000,
     "working_stats": {
-      "total_candidates": 3768,
+      "total_candidates": 3803,
       "selected": 1030,
       "target": 1030,
-      "unique_domains": 706,
-      "total_domains": 706,
-      "skipped_by_domain": 246,
-      "avg_score": 58.170679611650485,
+      "unique_domains": 705,
+      "total_domains": 705,
+      "skipped_by_domain": 239,
+      "avg_score": 58.21825242718447,
       "min_score": 54.0,
       "max_score": 70.0
     },
@@ -1505,7 +1505,7 @@
       "unique_domains": 685,
       "total_domains": 685,
       "skipped_by_domain": 0,
-      "avg_score": 58.2958,
+      "avg_score": 58.344800000000006,
       "min_score": 54.0,
       "max_score": 70.0
     },
@@ -1513,12 +1513,12 @@
     "stats_sync": {
       "success": true,
       "status": "success",
-      "updated_at": "2026-05-03T19:07:12.489535",
+      "updated_at": "2026-05-04T19:47:12.620467",
       "error": null
     }
   },
-  "last_inventory_rebuild": "2026-05-03T19:07:11.700411",
-  "last_stats_sync": "2026-05-03T19:07:12.489535",
+  "last_inventory_rebuild": "2026-05-04T19:47:11.840401",
+  "last_stats_sync": "2026-05-04T19:47:12.620467",
   "last_stats_sync_status": "success",
   "last_stats_sync_error": null
 }
