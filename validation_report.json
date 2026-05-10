@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-05-03T05:28:20.797247",
-  "total": 282,
-  "valid": 278,
+  "timestamp": "2026-05-10T05:34:56.760401",
+  "total": 278,
+  "valid": 274,
   "invalid": 4,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://www.dxmwx.org": "0, message='', url='https://www.dxmwx.org'",
-    "https://www.shoujix.com": "超时",
-    "http://www.dushu.com": "超时",
-    "https://www.yamibo.com/site/novel": "超时"
+    "http://zhuishushenqi.com/": "Cannot connect to host zhuishushenqi.com:80 ssl:de",
+    "https://www.tianyabook.com#": "超时",
+    "https://m.zongheng.com/": "HTTP 500",
+    "https://www.rouwenwu12.com/": "超时"
   }
 }
