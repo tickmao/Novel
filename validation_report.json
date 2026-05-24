@@ -1,14 +1,13 @@
 {
-  "timestamp": "2026-05-17T05:46:01.653043",
-  "total": 274,
-  "valid": 270,
-  "invalid": 4,
+  "timestamp": "2026-05-24T05:58:39.209547",
+  "total": 270,
+  "valid": 267,
+  "invalid": 3,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://www.ibotaodz.org/": "HTTP 404",
-    "http://new.zxcs.info": "Cannot connect to host new.zxcs.info:80 ssl:defaul",
-    "https://www.jcdf99.com/": "Server disconnected",
-    "https://api.yousuu.com/": "Cannot connect to host api.yousuu.com:443 ssl:defa"
+    "http://www.iyoule.com": "HTTP 502",
+    "https://m.gushici.net": "HTTP 403",
+    "https://www.nanyou15.com": "超时"
   }
 }
