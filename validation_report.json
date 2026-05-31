@@ -1,13 +1,14 @@
 {
-  "timestamp": "2026-05-24T05:58:39.209547",
-  "total": 270,
-  "valid": 267,
-  "invalid": 3,
+  "timestamp": "2026-05-31T06:15:07.459093",
+  "total": 267,
+  "valid": 263,
+  "invalid": 4,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "http://www.iyoule.com": "HTTP 502",
-    "https://m.gushici.net": "HTTP 403",
-    "https://www.nanyou15.com": "超时"
+    "https://www.biqugege.cc": "HTTP 404",
+    "https://wapk.china-yantai.net#🎃": "Cannot connect to host wapk.china-yantai.net:443 s",
+    "https://www.aiks68.com": "超时",
+    "http://www.60ksw.com/": "超时"
   }
 }
