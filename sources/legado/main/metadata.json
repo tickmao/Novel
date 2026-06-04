@@ -1,5 +1,5 @@
 {
-  "last_validation_index": 490,
+  "last_validation_index": 590,
   "validation_history": {},
   "failure_counts": {
     "https://www.qfxs123.com/": 0,
@@ -1427,9 +1427,9 @@
     "http://m.12txt.com": 0,
     "http://m.bxwxc.com": 0
   },
-  "last_maintenance": "2026-06-03T21:21:20.696318",
+  "last_maintenance": "2026-06-04T20:10:48.486860",
   "last_report": {
-    "timestamp": "2026-06-03T21:21:20.695559",
+    "timestamp": "2026-06-04T20:10:48.486097",
     "health_status": "good",
     "health_message": "良好",
     "total_sources": 1030,
@@ -1441,11 +1441,11 @@
       "valid": 79,
       "invalid": 21,
       "valid_rate": 0.79,
-      "avg_response_time": 871.9493670886076
+      "avg_response_time": 822.6582278481013
     },
-    "replaced_count": 4,
+    "replaced_count": 5,
     "inventory_report": {
-      "timestamp": "2026-06-03T21:21:19.739413",
+      "timestamp": "2026-06-04T20:10:47.579322",
       "current_input": 1000,
       "candidate_input": 3648,
       "working_count": 1030,
@@ -1476,13 +1476,13 @@
       "stats_sync": {
         "success": true,
         "status": "success",
-        "updated_at": "2026-06-03T21:21:20.580484",
+        "updated_at": "2026-06-04T20:10:48.374841",
         "error": null
       }
     }
   },
   "inventory": {
-    "timestamp": "2026-06-03T21:21:19.739413",
+    "timestamp": "2026-06-04T20:10:47.579322",
     "current_input": 1000,
     "candidate_input": 3648,
     "working_count": 1030,
@@ -1513,12 +1513,12 @@
     "stats_sync": {
       "success": true,
       "status": "success",
-      "updated_at": "2026-06-03T21:21:20.580484",
+      "updated_at": "2026-06-04T20:10:48.374841",
       "error": null
     }
   },
-  "last_inventory_rebuild": "2026-06-03T21:21:19.739413",
-  "last_stats_sync": "2026-06-03T21:21:20.580484",
+  "last_inventory_rebuild": "2026-06-04T20:10:47.579322",
+  "last_stats_sync": "2026-06-04T20:10:48.374841",
   "last_stats_sync_status": "success",
   "last_stats_sync_error": null
 }
