@@ -1,14 +1,21 @@
 {
-  "timestamp": "2026-05-31T06:15:07.459093",
-  "total": 267,
-  "valid": 263,
-  "invalid": 4,
+  "timestamp": "2026-06-07T06:21:03.496707",
+  "total": 263,
+  "valid": 252,
+  "invalid": 11,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://www.biqugege.cc": "HTTP 404",
-    "https://wapk.china-yantai.net#🎃": "Cannot connect to host wapk.china-yantai.net:443 s",
-    "https://www.aiks68.com": "超时",
-    "http://www.60ksw.com/": "超时"
+    "http://www.swsk.org#": "400, message=\"Data after `Connection: close`:\\n\\n ",
+    "http://www.qudushu.com#🎃": "400, message=\"Data after `Connection: close`:\\n\\n ",
+    "https://danwenku.com##旅途": "Server disconnected",
+    "http://m.yushuwu12.com/": "Cannot connect to host m.yushuwu12.com:80 ssl:defa",
+    "http://m.wushuzw.org#🎃": "400, message=\"Data after `Connection: close`:\\n\\n ",
+    "http://wap.wangshugu.org": "400, message=\"Data after `Connection: close`:\\n\\n ",
+    "https://wap.pan.org": "超时",
+    "http://kkcc.top/": "HTTP 521",
+    "http://www.80zw.la": "400, message=\"Data after `Connection: close`:\\n\\n ",
+    "https://www.hongxiu.com#🎃": "HTTP 504",
+    "https://www.jiuhuaiwenxue.com/": "超时"
   }
 }
