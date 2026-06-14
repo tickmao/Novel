@@ -1,21 +1,21 @@
 {
-  "timestamp": "2026-06-07T06:21:03.496707",
-  "total": 263,
-  "valid": 252,
+  "timestamp": "2026-06-14T06:36:47.941566",
+  "total": 252,
+  "valid": 241,
   "invalid": 11,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "http://www.swsk.org#": "400, message=\"Data after `Connection: close`:\\n\\n ",
-    "http://www.qudushu.com#🎃": "400, message=\"Data after `Connection: close`:\\n\\n ",
-    "https://danwenku.com##旅途": "Server disconnected",
-    "http://m.yushuwu12.com/": "Cannot connect to host m.yushuwu12.com:80 ssl:defa",
-    "http://m.wushuzw.org#🎃": "400, message=\"Data after `Connection: close`:\\n\\n ",
-    "http://wap.wangshugu.org": "400, message=\"Data after `Connection: close`:\\n\\n ",
-    "https://wap.pan.org": "超时",
-    "http://kkcc.top/": "HTTP 521",
-    "http://www.80zw.la": "400, message=\"Data after `Connection: close`:\\n\\n ",
-    "https://www.hongxiu.com#🎃": "HTTP 504",
-    "https://www.jiuhuaiwenxue.com/": "超时"
+    "https://book.vik.im#🎃": "HTTP 521",
+    "https://m.qinkan.net": "HTTP 403",
+    "http://www.vbiquge.org/": "Server disconnected",
+    "http://www.zzrx.net": "Server disconnected",
+    "https://www.haitang77.com": "超时",
+    "https://www.zei8.me#": "HTTP 403",
+    "https://m.duduaa.com#🎃": "超时",
+    "https://www.txtxs101.com#🎃": "HTTP 503",
+    "https://www.hltxt.com": "超时",
+    "https://www.xsyueduw.com/": "超时",
+    "http://www.taijizhidian.com#🎃": "超时"
   }
 }
