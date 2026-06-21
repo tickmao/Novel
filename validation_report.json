@@ -1,21 +1,15 @@
 {
-  "timestamp": "2026-06-14T06:36:47.941566",
-  "total": 252,
-  "valid": 241,
-  "invalid": 11,
+  "timestamp": "2026-06-21T06:48:37.055712",
+  "total": 241,
+  "valid": 236,
+  "invalid": 5,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://book.vik.im#🎃": "HTTP 521",
-    "https://m.qinkan.net": "HTTP 403",
-    "http://www.vbiquge.org/": "Server disconnected",
-    "http://www.zzrx.net": "Server disconnected",
-    "https://www.haitang77.com": "超时",
-    "https://www.zei8.me#": "HTTP 403",
-    "https://m.duduaa.com#🎃": "超时",
-    "https://www.txtxs101.com#🎃": "HTTP 503",
-    "https://www.hltxt.com": "超时",
-    "https://www.xsyueduw.com/": "超时",
-    "http://www.taijizhidian.com#🎃": "超时"
+    "https://69shux.co": "Cannot connect to host 69shux.co:443 ssl:default [",
+    "https://www.jiumodiary.com#": "Server disconnected",
+    "https://www.miaoshuge.cc#": "Cannot connect to host www.miaoshuge.cc:443 ssl:de",
+    "https://www.zhonghuadiancang.com": "超时",
+    "https://www.zggdwx.com#": "超时"
   }
 }
