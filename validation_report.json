@@ -1,15 +1,14 @@
 {
-  "timestamp": "2026-06-21T06:48:37.055712",
-  "total": 241,
-  "valid": 236,
-  "invalid": 5,
+  "timestamp": "2026-06-28T06:14:35.960336",
+  "total": 236,
+  "valid": 232,
+  "invalid": 4,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://69shux.co": "Cannot connect to host 69shux.co:443 ssl:default [",
-    "https://www.jiumodiary.com#": "Server disconnected",
-    "https://www.miaoshuge.cc#": "Cannot connect to host www.miaoshuge.cc:443 ssl:de",
-    "https://www.zhonghuadiancang.com": "超时",
-    "https://www.zggdwx.com#": "超时"
+    "http://m.enread.com#": "HTTP 502",
+    "https://m.dayuzc.com": "Server disconnected",
+    "https://m.bqg.fun#🎃": "超时",
+    "https://www.esjzone.one": "超时"
   }
 }
