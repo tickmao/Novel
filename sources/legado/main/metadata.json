@@ -1,5 +1,5 @@
 {
-  "last_validation_index": 400,
+  "last_validation_index": 500,
   "validation_history": {},
   "failure_counts": {
     "https://www.qfxs123.com/": 0,
@@ -1427,9 +1427,9 @@
     "http://m.12txt.com": 0,
     "http://m.bxwxc.com": 0
   },
-  "last_maintenance": "2026-07-03T19:36:40.664902",
+  "last_maintenance": "2026-07-04T19:21:18.496392",
   "last_report": {
-    "timestamp": "2026-07-03T19:36:40.664232",
+    "timestamp": "2026-07-04T19:21:18.495803",
     "health_status": "good",
     "health_message": "良好",
     "total_sources": 1030,
@@ -1438,14 +1438,14 @@
     "validation_stats": {
       "batch_num": 1,
       "total": 100,
-      "valid": 69,
-      "invalid": 31,
-      "valid_rate": 0.69,
-      "avg_response_time": 700.304347826087
+      "valid": 71,
+      "invalid": 29,
+      "valid_rate": 0.71,
+      "avg_response_time": 1138.394366197183
     },
     "replaced_count": 2,
     "inventory_report": {
-      "timestamp": "2026-07-03T19:36:39.786405",
+      "timestamp": "2026-07-04T19:21:17.591508",
       "current_input": 1000,
       "candidate_input": 3388,
       "working_count": 1030,
@@ -1476,13 +1476,13 @@
       "stats_sync": {
         "success": true,
         "status": "success",
-        "updated_at": "2026-07-03T19:36:40.561730",
+        "updated_at": "2026-07-04T19:21:18.391564",
         "error": null
       }
     }
   },
   "inventory": {
-    "timestamp": "2026-07-03T19:36:39.786405",
+    "timestamp": "2026-07-04T19:21:17.591508",
     "current_input": 1000,
     "candidate_input": 3388,
     "working_count": 1030,
@@ -1513,12 +1513,12 @@
     "stats_sync": {
       "success": true,
       "status": "success",
-      "updated_at": "2026-07-03T19:36:40.561730",
+      "updated_at": "2026-07-04T19:21:18.391564",
       "error": null
     }
   },
-  "last_inventory_rebuild": "2026-07-03T19:36:39.786405",
-  "last_stats_sync": "2026-07-03T19:36:40.561730",
+  "last_inventory_rebuild": "2026-07-04T19:21:17.591508",
+  "last_stats_sync": "2026-07-04T19:21:18.391564",
   "last_stats_sync_status": "success",
   "last_stats_sync_error": null
 }
