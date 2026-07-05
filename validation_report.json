@@ -1,14 +1,13 @@
 {
-  "timestamp": "2026-06-28T06:14:35.960336",
-  "total": 236,
-  "valid": 232,
-  "invalid": 4,
+  "timestamp": "2026-07-05T06:01:10.928715",
+  "total": 232,
+  "valid": 229,
+  "invalid": 3,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "http://m.enread.com#": "HTTP 502",
-    "https://m.dayuzc.com": "Server disconnected",
-    "https://m.bqg.fun#🎃": "超时",
-    "https://www.esjzone.one": "超时"
+    "https://www.yeshuba.com": "Cannot connect to host www.yeshuba.com:443 ssl:def",
+    "https://www.fxnzw.com": "HTTP 502",
+    "https://w7w.23fgh.com": "超时"
   }
 }
