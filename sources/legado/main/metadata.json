@@ -1,5 +1,5 @@
 {
-  "last_validation_index": 600,
+  "last_validation_index": 700,
   "validation_history": {},
   "failure_counts": {
     "https://www.qfxs123.com/": 0,
@@ -1427,37 +1427,37 @@
     "http://m.12txt.com": 0,
     "http://m.bxwxc.com": 0
   },
-  "last_maintenance": "2026-07-05T19:24:54.294655",
+  "last_maintenance": "2026-07-06T20:04:23.707669",
   "last_report": {
-    "timestamp": "2026-07-05T19:24:54.293948",
+    "timestamp": "2026-07-06T20:04:23.707231",
     "health_status": "good",
     "health_message": "良好",
     "total_sources": 1030,
-    "avg_score": 58.6,
-    "unique_domains": 714,
+    "avg_score": 58.7,
+    "unique_domains": 716,
     "validation_stats": {
       "batch_num": 1,
       "total": 100,
-      "valid": 81,
-      "invalid": 19,
-      "valid_rate": 0.81,
-      "avg_response_time": 542.8271604938271
+      "valid": 65,
+      "invalid": 35,
+      "valid_rate": 0.65,
+      "avg_response_time": 578.3692307692307
     },
-    "replaced_count": 2,
+    "replaced_count": 1,
     "inventory_report": {
-      "timestamp": "2026-07-05T19:24:53.399970",
+      "timestamp": "2026-07-06T20:04:23.233729",
       "current_input": 1000,
-      "candidate_input": 3388,
+      "candidate_input": 3506,
       "working_count": 1030,
       "export_count": 1000,
       "working_stats": {
-        "total_candidates": 3634,
+        "total_candidates": 3719,
         "selected": 1030,
         "target": 1030,
-        "unique_domains": 714,
-        "total_domains": 714,
-        "skipped_by_domain": 227,
-        "avg_score": 58.596893203883496,
+        "unique_domains": 716,
+        "total_domains": 716,
+        "skipped_by_domain": 228,
+        "avg_score": 58.707572815533986,
         "min_score": 54.0,
         "max_score": 70.0
       },
@@ -1465,10 +1465,10 @@
         "total_candidates": 1030,
         "selected": 1000,
         "target": 1000,
-        "unique_domains": 694,
-        "total_domains": 694,
+        "unique_domains": 695,
+        "total_domains": 695,
         "skipped_by_domain": 0,
-        "avg_score": 58.7348,
+        "avg_score": 58.848800000000004,
         "min_score": 54.0,
         "max_score": 70.0
       },
@@ -1476,25 +1476,25 @@
       "stats_sync": {
         "success": true,
         "status": "success",
-        "updated_at": "2026-07-05T19:24:54.188843",
+        "updated_at": "2026-07-06T20:04:23.638778",
         "error": null
       }
     }
   },
   "inventory": {
-    "timestamp": "2026-07-05T19:24:53.399970",
+    "timestamp": "2026-07-06T20:04:23.233729",
     "current_input": 1000,
-    "candidate_input": 3388,
+    "candidate_input": 3506,
     "working_count": 1030,
     "export_count": 1000,
     "working_stats": {
-      "total_candidates": 3634,
+      "total_candidates": 3719,
       "selected": 1030,
       "target": 1030,
-      "unique_domains": 714,
-      "total_domains": 714,
-      "skipped_by_domain": 227,
-      "avg_score": 58.596893203883496,
+      "unique_domains": 716,
+      "total_domains": 716,
+      "skipped_by_domain": 228,
+      "avg_score": 58.707572815533986,
       "min_score": 54.0,
       "max_score": 70.0
     },
@@ -1502,10 +1502,10 @@
       "total_candidates": 1030,
       "selected": 1000,
       "target": 1000,
-      "unique_domains": 694,
-      "total_domains": 694,
+      "unique_domains": 695,
+      "total_domains": 695,
       "skipped_by_domain": 0,
-      "avg_score": 58.7348,
+      "avg_score": 58.848800000000004,
       "min_score": 54.0,
       "max_score": 70.0
     },
@@ -1513,12 +1513,12 @@
     "stats_sync": {
       "success": true,
       "status": "success",
-      "updated_at": "2026-07-05T19:24:54.188843",
+      "updated_at": "2026-07-06T20:04:23.638778",
       "error": null
     }
   },
-  "last_inventory_rebuild": "2026-07-05T19:24:53.399970",
-  "last_stats_sync": "2026-07-05T19:24:54.188843",
+  "last_inventory_rebuild": "2026-07-06T20:04:23.233729",
+  "last_stats_sync": "2026-07-06T20:04:23.638778",
   "last_stats_sync_status": "success",
   "last_stats_sync_error": null
 }
