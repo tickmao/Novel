@@ -1,13 +1,17 @@
 {
-  "timestamp": "2026-07-05T06:01:10.928715",
-  "total": 232,
-  "valid": 229,
-  "invalid": 3,
+  "timestamp": "2026-07-12T05:24:42.266586",
+  "total": 229,
+  "valid": 222,
+  "invalid": 7,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://www.yeshuba.com": "Cannot connect to host www.yeshuba.com:443 ssl:def",
-    "https://www.fxnzw.com": "HTTP 502",
-    "https://w7w.23fgh.com": "超时"
+    "https://www.xsbook.top#🎃": "Server disconnected",
+    "http://www.fqxsw.net": "HTTP 521",
+    "http://www.tmxs.net": "HTTP 521",
+    "http://www.ttwx.net": "HTTP 521",
+    "https://www.danmeic.com": "超时",
+    "https://www.ghost580.com": "超时",
+    "https://www.dongnanshu.com": "超时"
   }
 }
