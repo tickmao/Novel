@@ -1,5 +1,5 @@
 {
-  "last_validation_index": 470,
+  "last_validation_index": 570,
   "validation_history": {},
   "failure_counts": {
     "https://www.qfxs123.com/": 0,
@@ -1427,9 +1427,9 @@
     "http://m.12txt.com": 0,
     "http://m.bxwxc.com": 0
   },
-  "last_maintenance": "2026-07-14T19:26:24.257469",
+  "last_maintenance": "2026-07-15T19:18:19.074480",
   "last_report": {
-    "timestamp": "2026-07-14T19:26:24.256882",
+    "timestamp": "2026-07-15T19:18:19.073724",
     "health_status": "good",
     "health_message": "良好",
     "total_sources": 1030,
@@ -1438,14 +1438,14 @@
     "validation_stats": {
       "batch_num": 1,
       "total": 100,
-      "valid": 74,
-      "invalid": 26,
-      "valid_rate": 0.74,
-      "avg_response_time": 785.581081081081
+      "valid": 73,
+      "invalid": 27,
+      "valid_rate": 0.73,
+      "avg_response_time": 708.5205479452055
     },
-    "replaced_count": 3,
+    "replaced_count": 4,
     "inventory_report": {
-      "timestamp": "2026-07-14T19:26:23.529097",
+      "timestamp": "2026-07-15T19:18:18.150451",
       "current_input": 1000,
       "candidate_input": 3393,
       "working_count": 1030,
@@ -1476,13 +1476,13 @@
       "stats_sync": {
         "success": true,
         "status": "success",
-        "updated_at": "2026-07-14T19:26:24.168982",
+        "updated_at": "2026-07-15T19:18:18.961579",
         "error": null
       }
     }
   },
   "inventory": {
-    "timestamp": "2026-07-14T19:26:23.529097",
+    "timestamp": "2026-07-15T19:18:18.150451",
     "current_input": 1000,
     "candidate_input": 3393,
     "working_count": 1030,
@@ -1513,12 +1513,12 @@
     "stats_sync": {
       "success": true,
       "status": "success",
-      "updated_at": "2026-07-14T19:26:24.168982",
+      "updated_at": "2026-07-15T19:18:18.961579",
       "error": null
     }
   },
-  "last_inventory_rebuild": "2026-07-14T19:26:23.529097",
-  "last_stats_sync": "2026-07-14T19:26:24.168982",
+  "last_inventory_rebuild": "2026-07-15T19:18:18.150451",
+  "last_stats_sync": "2026-07-15T19:18:18.961579",
   "last_stats_sync_status": "success",
   "last_stats_sync_error": null
 }
