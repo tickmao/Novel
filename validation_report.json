@@ -1,17 +1,11 @@
 {
-  "timestamp": "2026-07-12T05:24:42.266586",
-  "total": 229,
-  "valid": 222,
-  "invalid": 7,
+  "timestamp": "2026-07-19T05:19:03.635336",
+  "total": 222,
+  "valid": 221,
+  "invalid": 1,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://www.xsbook.top#🎃": "Server disconnected",
-    "http://www.fqxsw.net": "HTTP 521",
-    "http://www.tmxs.net": "HTTP 521",
-    "http://www.ttwx.net": "HTTP 521",
-    "https://www.danmeic.com": "超时",
-    "https://www.ghost580.com": "超时",
-    "https://www.dongnanshu.com": "超时"
+    "https://m.rouzhaiwu.info#🎃": "超时"
   }
 }
