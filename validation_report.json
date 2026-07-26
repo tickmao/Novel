@@ -1,11 +1,15 @@
 {
-  "timestamp": "2026-07-19T05:19:03.635336",
-  "total": 222,
-  "valid": 221,
-  "invalid": 1,
+  "timestamp": "2026-07-26T05:28:54.643915",
+  "total": 221,
+  "valid": 216,
+  "invalid": 5,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://m.rouzhaiwu.info#🎃": "超时"
+    "https://www.69hsz.com": "Cannot connect to host www.69hsz.com:443 ssl:defau",
+    "http://www.bookfedex.com/": "Cannot connect to host www.bookfedex.com:80 ssl:de",
+    "https://www.74txts.com#🎃": "Cannot connect to host www.74txts.com:443 ssl:defa",
+    "https://www.22biqu.com/": "Cannot connect to host www.22biqu.com:443 ssl:defa",
+    "https://www.longtengxiaoshuo.org": "超时"
   }
 }
