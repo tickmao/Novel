@@ -1,15 +1,14 @@
 {
-  "timestamp": "2026-07-26T05:28:54.643915",
-  "total": 221,
-  "valid": 216,
-  "invalid": 5,
+  "timestamp": "2026-08-02T05:23:50.312085",
+  "total": 216,
+  "valid": 212,
+  "invalid": 4,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://www.69hsz.com": "Cannot connect to host www.69hsz.com:443 ssl:defau",
-    "http://www.bookfedex.com/": "Cannot connect to host www.bookfedex.com:80 ssl:de",
-    "https://www.74txts.com#🎃": "Cannot connect to host www.74txts.com:443 ssl:defa",
-    "https://www.22biqu.com/": "Cannot connect to host www.22biqu.com:443 ssl:defa",
-    "https://www.longtengxiaoshuo.org": "超时"
+    "https://m.diyibanzhu6.shop#🎃": "HTTP 502",
+    "http://www.shengxuxu.net": "400, message=\"Data after `Connection: close`:\\n\\n ",
+    "http://i.12bz.net/": "超时",
+    "http://www.uu.net": "超时"
   }
 }
