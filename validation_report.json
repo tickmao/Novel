@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-08-02T05:23:50.312085",
-  "total": 216,
-  "valid": 212,
+  "timestamp": "2026-08-09T03:38:03.406183",
+  "total": 212,
+  "valid": 208,
   "invalid": 4,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://m.diyibanzhu6.shop#🎃": "HTTP 502",
-    "http://www.shengxuxu.net": "400, message=\"Data after `Connection: close`:\\n\\n ",
-    "http://i.12bz.net/": "超时",
-    "http://www.uu.net": "超时"
+    "https://www.topwork.cc#🎃": "Server disconnected",
+    "https://book.zri.moe/": "Server disconnected",
+    "https://zbwq.wmg.weimeigu.net/": "超时",
+    "https://www.lalashuwu.com/": "超时"
   }
 }
