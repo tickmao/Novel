@@ -94,7 +94,7 @@ Novel/
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=tickmao/Novel&type=Date)](https://star-history.com/#tickmao/Novel&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=tickmao/Novel&type=Date)](https://star-history.dera.page/#tickmao/Novel&Date)
 
 ## Author
 
