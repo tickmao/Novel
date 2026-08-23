@@ -1,13 +1,12 @@
 {
-  "timestamp": "2026-08-16T02:55:50.700836",
-  "total": 208,
-  "valid": 205,
-  "invalid": 3,
+  "timestamp": "2026-08-23T02:58:14.806996",
+  "total": 205,
+  "valid": 203,
+  "invalid": 2,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://api.langge.tk": "超时",
-    "https://m.ruochenwenxue.com/": "超时",
-    "https://www.pofans.com#🎃": "超时"
+    "http://www.ybsws.com/": "Cannot connect to host www.ybsws.com:80 ssl:defaul",
+    "http://www.zhuishushenqi.com#🎃": "Cannot connect to host www.zhuishushenqi.com:80 ss"
   }
 }
