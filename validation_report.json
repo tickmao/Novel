@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-08-23T02:58:14.806996",
-  "total": 205,
-  "valid": 203,
+  "timestamp": "2026-08-30T07:48:00.808621",
+  "total": 203,
+  "valid": 201,
   "invalid": 2,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "http://www.ybsws.com/": "Cannot connect to host www.ybsws.com:80 ssl:defaul",
-    "http://www.zhuishushenqi.com#🎃": "Cannot connect to host www.zhuishushenqi.com:80 ss"
+    "https://m.shuhaige.tw#🎃": "HTTP 502",
+    "http://www.xbotaodz.com": "400, message=\"Data after `Connection: close`:\\n\\n "
   }
 }
