@@ -1,12 +1,9 @@
 {
-  "timestamp": "2026-08-30T07:48:00.808621",
-  "total": 203,
+  "timestamp": "2026-09-06T06:48:14.562003",
+  "total": 201,
   "valid": 201,
-  "invalid": 2,
+  "invalid": 0,
   "sample": null,
   "timeout": 10,
-  "errors": {
-    "https://m.shuhaige.tw#🎃": "HTTP 502",
-    "http://www.xbotaodz.com": "400, message=\"Data after `Connection: close`:\\n\\n "
-  }
+  "errors": {}
 }
