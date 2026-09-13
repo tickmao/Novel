@@ -1,9 +1,11 @@
 {
-  "timestamp": "2026-09-06T06:48:14.562003",
+  "timestamp": "2026-09-13T07:07:30.839278",
   "total": 201,
-  "valid": 201,
-  "invalid": 0,
+  "valid": 200,
+  "invalid": 1,
   "sample": null,
   "timeout": 10,
-  "errors": {}
+  "errors": {
+    "http://m.fushutxt.cc": "Cannot connect to host m.fushutxt.cc:80 ssl:defaul"
+  }
 }

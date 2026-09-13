@@ -1,138 +1,89 @@
 [
   {
-    "bookSourceUrl": "https://m.shuhaige.tw#🎃",
-    "bookSourceName": "书海阁小说",
+    "bookSourceUrl": "http://m.fushutxt.cc",
+    "bookSourceName": "福书网吧",
     "bookSourceGroup": "备用",
     "bookSourceType": 0,
-    "customOrder": 481,
+    "bookUrlPattern": "http://m.fushutxt.cc/\\w+/\\d+.html",
+    "customOrder": 2558,
     "enabled": true,
     "enabledExplore": true,
-    "enabledCookieJar": false,
-    "header": "",
+    "enabledCookieJar": true,
+    "header": "{\"User-Agent\": \"Mozilla/5.0 (Linux; Android 9) Mobile Safari/537.36\"}",
     "bookSourceComment": "",
-    "lastUpdateTime": 0,
-    "respondTime": 2846,
+    "lastUpdateTime": 1721533163278,
+    "respondTime": 1656,
     "weight": 0,
-    "exploreUrl": "[\n  {\n    \"title\": \"书库\",\n    \"url\": \"https://m.shuhaige.tw/shuku/0_0_0_{{page}}.html\"\n  },\n  {\n    \"title\": \"全本\",\n    \"url\": \"https://m.shuhaige.tw/quanben/\"\n  },\n  {\n    \"title\": \"点击榜\",\n    \"url\": \"https://m.shuhaige.tw/allvisit/\"\n  }\n]",
+    "exploreUrl": "现代都市::xiandaidushi/index_{{page}}.html\n古代架空::gudaijiakong/index_{{page}}.html\n穿越重生::chuanyuechongsheng/index_{{page}}.html\n玄幻灵异::xuanhuanlingyi/index_{{page}}.html\n推理悬疑::tuilixuanyi/index_{{page}}.html\n网游竞技::wangyoujingji/index_{{page}}.html\nBL同人::BLtongren/index_{{page}}.html\nGL百合::GLbaihe/index_{{page}}.html\n本站推荐::bztuijian/index_{{page}}.html\n热门排行::bzremen/index_{{page}}.html\n周排行榜::bzremenweek/index_{{page}}.html\n月排行榜::bzremenmonth/index_{{page}}.html",
     "ruleExplore": {
-      "bookList": "class.list@li",
-      "name": "p.0@text",
-      "author": "p.1@a@text",
-      "intro": "p.2@text",
-      "kind": "p.1@span.0@text",
-      "lastChapter": "p.-1@text##.*：",
+      "bookList": ".book-li",
+      "name": "h4@text",
+      "author": "p.0@text||span.0@text",
+      "kind": "p.1:2@text||span.1:2@text##类型：|时间：",
       "bookUrl": "a@href",
       "coverUrl": "img@src"
     },
-    "searchUrl": "/search.html,{\n  \"body\": \"searchkey={{key}}\",\n  \"method\": \"POST\"\n}",
+    "searchUrl": "@js:\n(()=>{\n  if(page==1){\n    let url=source.getKey()+'/e/search/index.php,'+JSON.stringify({\n    \"method\":\"POST\",\n    \"body\":`keyboard=${key}&show=title&tempid=1&tbname=article`\n    });\n    return java.put('surl',String(java.connect(url).raw().request().url()));\n  } else {\n    return java.get('surl').replace(/result.+searchid/,`result/index.php?page=${page-1}&searchid`);\n  }\n})()",
     "ruleSearch": {
-      "bookList": "class.layui-btn-container@a",
-      "name": "text",
-      "bookUrl": "href"
+      "bookList": "h2",
+      "name": "a@text",
+      "author": "span.1@text",
+      "intro": "",
+      "kind": "0",
+      "lastChapter": "",
+      "bookUrl": "a@href",
+      "wordCount": ""
     },
     "ruleBookInfo": {
-      "name": "[property=\"og:novel:book_name\"]@content",
-      "author": "[property=\"og:novel:author\"]@content",
-      "intro": "[property=\"og:description\"]@content##.*观看小说:",
-      "kind": "[property~=category|status|update_time]@content",
-      "lastChapter": "[property~=las?test_chapter_name]@content",
-      "coverUrl": "[property=\"og:image\"]@content",
-      "tocUrl": "text.章节列表@href"
+      "name": "h1@text",
+      "author": "text.作者：.0@text##.*作者：",
+      "kind": "text.状态：@text##时间：|状态：|作者.+",
+      "coverUrl": "img@data-original"
     },
     "ruleToc": {
-      "chapterList": "class.read@li",
-      "chapterName": "a@text",
-      "chapterUrl": "a@href",
-      "nextTocUrl": "option@value"
+      "chapterList": "@js:\nvar page=src.match(/<b>(\\d+)<.b>/)[1];\nvar url=baseUrl.replace(/.html/,\"_0.html\")\nvar list=[{text:\"第1页\",href:baseUrl}];\nif(page&&list){\n\tfor(i=1;i<page;i++){\n\t\tlist.push({text:`第${i+1}页`,href:url.replace(/_0/,\"_\"+i)})\n\t\t}\n\t\tlist;\n\t}else{\n\t\tjava.longToast(\"目录获取失败，检查网络或稍后再试！\")\n\t\t}",
+      "chapterName": "text",
+      "chapterUrl": "href"
     },
     "ruleContent": {
-      "content": "class.content@p!0@html",
-      "nextContentUrl": "text.下一页@href",
-      "replaceRegex": "##.*点击下一页继续阅读.*|喜.*书海阁.*"
+      "content": "#text>p@textNodes"
     },
     "searchRule": {
-      "bookList": "class.layui-btn-container@a",
-      "name": "text",
-      "bookUrl": "href"
+      "bookList": "h2",
+      "name": "a@text",
+      "author": "span.1@text",
+      "intro": "",
+      "kind": "0",
+      "lastChapter": "",
+      "bookUrl": "a@href",
+      "wordCount": ""
     },
-    "tag": "书海阁小说🎃",
+    "tag": "福书网吧",
     "tocRule": {
-      "chapterList": "class.read@li",
-      "chapterName": "a@text",
-      "chapterUrl": "a@href",
-      "nextTocUrl": "option@value"
+      "chapterList": "@js:\nvar page=src.match(/<b>(\\d+)<.b>/)[1];\nvar url=baseUrl.replace(/.html/,\"_0.html\")\nvar list=[{text:\"第1页\",href:baseUrl}];\nif(page&&list){\n\tfor(i=1;i<page;i++){\n\t\tlist.push({text:`第${i+1}页`,href:url.replace(/_0/,\"_\"+i)})\n\t\t}\n\t\tlist;\n\t}else{\n\t\tjava.longToast(\"目录获取失败，检查网络或稍后再试！\")\n\t\t}",
+      "chapterName": "text",
+      "chapterUrl": "href"
     },
     "contentRule": {
-      "content": "class.content@p!0@html",
-      "nextContentUrl": "text.下一页@href",
-      "replaceRegex": "##.*点击下一页继续阅读.*|喜.*书海阁.*"
+      "content": "#text>p@textNodes"
     },
     "exploreRule": {
-      "bookList": "class.list@li",
-      "name": "p.0@text",
-      "author": "p.1@a@text",
-      "intro": "p.2@text",
-      "kind": "p.1@span.0@text",
-      "lastChapter": "p.-1@text##.*：",
+      "bookList": ".book-li",
+      "name": "h4@text",
+      "author": "p.0@text||span.0@text",
+      "kind": "p.1:2@text||span.1:2@text##类型：|时间：",
       "bookUrl": "a@href",
       "coverUrl": "img@src"
     },
     "bookInfoRule": {
-      "name": "[property=\"og:novel:book_name\"]@content",
-      "author": "[property=\"og:novel:author\"]@content",
-      "intro": "[property=\"og:description\"]@content##.*观看小说:",
-      "kind": "[property~=category|status|update_time]@content",
-      "lastChapter": "[property~=las?test_chapter_name]@content",
-      "coverUrl": "[property=\"og:image\"]@content",
-      "tocUrl": "text.章节列表@href"
+      "name": "h1@text",
+      "author": "text.作者：.0@text##.*作者：",
+      "kind": "text.状态：@text##时间：|状态：|作者.+",
+      "coverUrl": "img@data-original"
     },
-    "key": "https://m.shuhaige.tw#🎃",
+    "key": "http://m.fushutxt.cc",
     "_validation_status": "invalid",
-    "_last_validated_at": "2026-08-30T07:47:49.370434",
-    "_validation_error": "HTTP 502"
-  },
-  {
-    "bookSourceGroup": "精选",
-    "bookSourceName": "快眼看书",
-    "bookSourceType": 0,
-    "bookSourceUrl": "http://www.xbotaodz.com",
-    "customButton": false,
-    "customOrder": 98,
-    "enabled": true,
-    "enabledCookieJar": true,
-    "enabledExplore": true,
-    "eventListener": false,
-    "exploreScreen": "",
-    "exploreUrl": "  总点击  ::/top/allvisit/{{page}}\n  月点击  ::/top/monthvisit/{{page}}\n  周点击  ::/top/weekvisit/{{page}}\n 玄幻 ::/category/xuanhuan/\n 奇幻 ::/category/qihuan/\n 武侠 ::/category/wuxia/\n 仙侠 ::/category/xianxia\n 都市 ::/category/dushi\n 历史 ::/category/lishi\n 军事 ::/category/junshi\n 游戏 ::/category/youxi\n 竞技 ::/category/jingji\n 科幻 ::/category/kehuan\n 灵异 ::/category/lingyi\n 同人 ::/category/tongren\n 女生 ::/category/nvsheng\n 其他 ::/category/qita",
-    "lastUpdateTime": 1766339917225,
-    "respondTime": 2223,
-    "ruleBookInfo": {
-      "author": "class.novelinfo-l@tag.li.0@text##作者：",
-      "coverUrl": "class.novelinfo-r@tag.a@tag.img@src",
-      "intro": "class.novelintro@text",
-      "name": "class.w-left@tag.h1@text"
-    },
-    "ruleContent": {
-      "content": "id.chaptercontent@textNodes"
-    },
-    "ruleExplore": {},
-    "ruleSearch": {
-      "author": "class.info@tag.span.1@text",
-      "bookList": "class.librarylist@tag.li",
-      "bookUrl": "class.info@tag.span.0@tag.a@href",
-      "coverUrl": "class.pt-ll-l@tag.a@tag.img@src",
-      "lastChapter": "class.last@tag.a@text",
-      "name": "class.info@tag.span.0@tag.a@text"
-    },
-    "ruleToc": {
-      "chapterList": "class.fulldir@tag.ul@tag.li@tag.a",
-      "chapterName": "text",
-      "chapterUrl": "href"
-    },
-    "searchUrl": "/modules/article/search.php?searchkey={{key}}",
-    "weight": 1,
-    "_validation_status": "invalid",
-    "_last_validated_at": "2026-08-30T07:47:49.794389",
-    "_validation_error": "400, message=\"Data after `Connection: close`:\\n\\n "
+    "_last_validated_at": "2026-09-13T07:07:17.380916",
+    "_validation_error": "Cannot connect to host m.fushutxt.cc:80 ssl:defaul"
   }
 ]
