@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-09-13T07:07:30.839278",
-  "total": 201,
-  "valid": 200,
+  "timestamp": "2026-09-20T07:24:03.972517",
+  "total": 200,
+  "valid": 199,
   "invalid": 1,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "http://m.fushutxt.cc": "Cannot connect to host m.fushutxt.cc:80 ssl:defaul"
+    "https://cn.ttkan.co/": "HTTP 403"
   }
 }

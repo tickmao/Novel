@@ -1,89 +1,86 @@
 [
   {
-    "bookSourceUrl": "http://m.fushutxt.cc",
-    "bookSourceName": "福书网吧",
+    "bookSourceUrl": "https://cn.ttkan.co/",
+    "bookSourceName": "天天小说",
     "bookSourceGroup": "备用",
     "bookSourceType": 0,
-    "bookUrlPattern": "http://m.fushutxt.cc/\\w+/\\d+.html",
-    "customOrder": 2558,
+    "customOrder": 4011,
     "enabled": true,
     "enabledExplore": true,
     "enabledCookieJar": true,
-    "header": "{\"User-Agent\": \"Mozilla/5.0 (Linux; Android 9) Mobile Safari/537.36\"}",
-    "bookSourceComment": "",
-    "lastUpdateTime": 1721533163278,
-    "respondTime": 1656,
+    "header": "{\n  'User-Agent': \"Mozilla/5.0 (Linux; Android 15; V2304A Build/AP3A.240905.015.A2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/126.0.6478.71 Mobile Safari/537.36\",\n  'sec-ch-ua-platform': \"\\\"Android\\\"\",\n  'origin': \"https://cn.ttkan.co/\",\n  'x-requested-with': \"cn.mujiankeji.mbrowser\",\n  'referer': \"https://cn.ttkan.co/\",\n  'accept-language': \"zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7\"\n}",
+    "bookSourceComment": "//20240.23◎GEd520◎静白",
+    "lastUpdateTime": 1736693152789,
+    "respondTime": 2873,
     "weight": 0,
-    "exploreUrl": "现代都市::xiandaidushi/index_{{page}}.html\n古代架空::gudaijiakong/index_{{page}}.html\n穿越重生::chuanyuechongsheng/index_{{page}}.html\n玄幻灵异::xuanhuanlingyi/index_{{page}}.html\n推理悬疑::tuilixuanyi/index_{{page}}.html\n网游竞技::wangyoujingji/index_{{page}}.html\nBL同人::BLtongren/index_{{page}}.html\nGL百合::GLbaihe/index_{{page}}.html\n本站推荐::bztuijian/index_{{page}}.html\n热门排行::bzremen/index_{{page}}.html\n周排行榜::bzremenweek/index_{{page}}.html\n月排行榜::bzremenmonth/index_{{page}}.html",
+    "exploreUrl": "[{\"title\":\"全部分类\",\"url\":\"\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":1}},{\"title\":\"连载\",\"url\":\"https://cn.ttkan.co/novel/class/lianzai\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"随选\",\"url\":\"https://cn.ttkan.co/novel/class/suixuan\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"玄幻\",\"url\":\"https://cn.ttkan.co/novel/class/xuanhuan\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"都市\",\"url\":\"/novel/class/dushi\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"仙侠\",\"url\":\"https://cn.ttkan.co/novel/class/xianxia\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"言情\",\"url\":\"/novel/class/gudaiyanqing\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"穿越\",\"url\":\"/novel/class/chuanyuechongsheng\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"游戏\",\"url\":\"/novel/class/youxi\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"科幻\",\"url\":\"/novel/class/kehuan\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"悬疑\",\"url\":\"/novel/class/xuanyi\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"灵异\",\"url\":\"https://cn.ttkan.co/novel/class/lingyi\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"历史\",\"url\":\"https://cn.ttkan.co/novel/class/lishi\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"青春\",\"url\":\"/novel/class/qingchun\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"军事\",\"url\":\"/novel/class/junshi\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"竞技\",\"url\":\"/novel/class/jingji\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"现言\",\"url\":\"/novel/class/yanqing\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},{\"title\":\"其它\",\"url\":\"/novel/class/qita\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.25}},]",
     "ruleExplore": {
-      "bookList": ".book-li",
-      "name": "h4@text",
-      "author": "p.0@text||span.0@text",
-      "kind": "p.1:2@text||span.1:2@text##类型：|时间：",
-      "bookUrl": "a@href",
-      "coverUrl": "img@src"
+      "bookList": "",
+      "name": ""
     },
-    "searchUrl": "@js:\n(()=>{\n  if(page==1){\n    let url=source.getKey()+'/e/search/index.php,'+JSON.stringify({\n    \"method\":\"POST\",\n    \"body\":`keyboard=${key}&show=title&tempid=1&tbname=article`\n    });\n    return java.put('surl',String(java.connect(url).raw().request().url()));\n  } else {\n    return java.get('surl').replace(/result.+searchid/,`result/index.php?page=${page-1}&searchid`);\n  }\n})()",
+    "searchUrl": "https://cn.ttkan.co/novel/search?q={{key}}",
     "ruleSearch": {
-      "bookList": "h2",
-      "name": "a@text",
-      "author": "span.1@text",
-      "intro": "",
-      "kind": "0",
-      "lastChapter": "",
+      "bookList": ".pure-g@.pure-u-1-1",
+      "name": "h3@text",
+      "author": "li.1@text",
+      "intro": "li.2@text##简介：",
       "bookUrl": "a@href",
-      "wordCount": ""
+      "coverUrl": "amp-img@src"
     },
     "ruleBookInfo": {
       "name": "h1@text",
-      "author": "text.作者：.0@text##.*作者：",
-      "kind": "text.状态：@text##时间：|状态：|作者.+",
-      "coverUrl": "img@data-original"
-    },
-    "ruleToc": {
-      "chapterList": "@js:\nvar page=src.match(/<b>(\\d+)<.b>/)[1];\nvar url=baseUrl.replace(/.html/,\"_0.html\")\nvar list=[{text:\"第1页\",href:baseUrl}];\nif(page&&list){\n\tfor(i=1;i<page;i++){\n\t\tlist.push({text:`第${i+1}页`,href:url.replace(/_0/,\"_\"+i)})\n\t\t}\n\t\tlist;\n\t}else{\n\t\tjava.longToast(\"目录获取失败，检查网络或稍后再试！\")\n\t\t}",
-      "chapterName": "text",
-      "chapterUrl": "href"
-    },
-    "ruleContent": {
-      "content": "#text>p@textNodes"
-    },
-    "searchRule": {
-      "bookList": "h2",
-      "name": "a@text",
-      "author": "span.1@text",
-      "intro": "",
-      "kind": "0",
-      "lastChapter": "",
-      "bookUrl": "a@href",
+      "author": "span.0@text",
+      "intro": "p@text",
+      "kind": "{{@@li.2@text##类别：}}\n{{@@li.3@text##状态：}}",
+      "coverUrl": "{{book.coverUrl}}",
+      "tocUrl": "",
       "wordCount": ""
     },
-    "tag": "福书网吧",
+    "ruleToc": {
+      "chapterList": ".frame_body@.full_chapters@div.1@a",
+      "chapterName": "a@text##.*\\.",
+      "chapterUrl": "a@href"
+    },
+    "ruleContent": {
+      "content": ".content@p@html",
+      "nextContentUrl": "",
+      "replaceRegex": "##\\(本章.*|第.*?章.*"
+    },
+    "searchRule": {
+      "bookList": ".pure-g@.pure-u-1-1",
+      "name": "h3@text",
+      "author": "li.1@text",
+      "intro": "li.2@text##简介：",
+      "bookUrl": "a@href",
+      "coverUrl": "amp-img@src"
+    },
+    "tag": "天天小说",
     "tocRule": {
-      "chapterList": "@js:\nvar page=src.match(/<b>(\\d+)<.b>/)[1];\nvar url=baseUrl.replace(/.html/,\"_0.html\")\nvar list=[{text:\"第1页\",href:baseUrl}];\nif(page&&list){\n\tfor(i=1;i<page;i++){\n\t\tlist.push({text:`第${i+1}页`,href:url.replace(/_0/,\"_\"+i)})\n\t\t}\n\t\tlist;\n\t}else{\n\t\tjava.longToast(\"目录获取失败，检查网络或稍后再试！\")\n\t\t}",
-      "chapterName": "text",
-      "chapterUrl": "href"
+      "chapterList": ".frame_body@.full_chapters@div.1@a",
+      "chapterName": "a@text##.*\\.",
+      "chapterUrl": "a@href"
     },
     "contentRule": {
-      "content": "#text>p@textNodes"
+      "content": ".content@p@html",
+      "nextContentUrl": "",
+      "replaceRegex": "##\\(本章.*|第.*?章.*"
     },
     "exploreRule": {
-      "bookList": ".book-li",
-      "name": "h4@text",
-      "author": "p.0@text||span.0@text",
-      "kind": "p.1:2@text||span.1:2@text##类型：|时间：",
-      "bookUrl": "a@href",
-      "coverUrl": "img@src"
+      "bookList": "",
+      "name": ""
     },
     "bookInfoRule": {
       "name": "h1@text",
-      "author": "text.作者：.0@text##.*作者：",
-      "kind": "text.状态：@text##时间：|状态：|作者.+",
-      "coverUrl": "img@data-original"
+      "author": "span.0@text",
+      "intro": "p@text",
+      "kind": "{{@@li.2@text##类别：}}\n{{@@li.3@text##状态：}}",
+      "coverUrl": "{{book.coverUrl}}",
+      "tocUrl": "",
+      "wordCount": ""
     },
-    "key": "http://m.fushutxt.cc",
+    "key": "https://cn.ttkan.co/",
     "_validation_status": "invalid",
-    "_last_validated_at": "2026-09-13T07:07:17.380916",
-    "_validation_error": "Cannot connect to host m.fushutxt.cc:80 ssl:defaul"
+    "_last_validated_at": "2026-09-20T07:23:58.496905",
+    "_validation_error": "HTTP 403"
   }
 ]
