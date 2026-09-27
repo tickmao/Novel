@@ -1,11 +1,13 @@
 {
-  "timestamp": "2026-09-20T07:24:03.972517",
-  "total": 200,
-  "valid": 199,
-  "invalid": 1,
+  "timestamp": "2026-09-27T07:31:59.231049",
+  "total": 199,
+  "valid": 196,
+  "invalid": 3,
   "sample": null,
   "timeout": 10,
   "errors": {
-    "https://cn.ttkan.co/": "HTTP 403"
+    "https://www.doupoall.com#🎃": "Server disconnected",
+    "https://www.luoxia123.com/": "Server disconnected",
+    "https://www.52dzxy.com/": "HTTP 403"
   }
 }
