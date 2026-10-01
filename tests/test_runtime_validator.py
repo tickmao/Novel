@@ -13,8 +13,9 @@ from test_maintenance_v2 import source
 
 
 class FakeEngine:
-    def __init__(self, payload, fail=None, adult=False, duplicate=False):
+    def __init__(self, payload, fail=None, adult=False, duplicate=False, links_only=False):
         self.payload, self.fail, self.adult, self.duplicate = payload, fail, adult, duplicate
+        self.links_only = links_only
 
     async def __aenter__(self):
         if self.fail:
@@ -34,6 +35,8 @@ class FakeEngine:
             return [{'title': f'Chapter {i}', 'url': kwargs['url'] + f'/{i}'} for i in range(4)]
         if self.adult:
             return {'content': '成人文学专区 ' + 'context ' * 50}
+        if self.links_only:
+            return {'content': ' '.join(kwargs['url'] + f'/image-{i}.jpg' for i in range(40))}
         prefix = 'same' if self.duplicate else kwargs['url']
         return {'content': prefix + ' A traveler crossed the ancient mountain and found a quiet village near the river. ' * 10}
 
@@ -57,6 +60,10 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_duplicate_chapter_template_does_not_pass(self):
         result = await self.validator(duplicate=True).probe(source())
         self.assertEqual(result['kind'], 'content_duplicate')
+
+    async def test_image_urls_are_not_readable_prose(self):
+        result = await self.validator(links_only=True).probe(source())
+        self.assertEqual(result['kind'], 'content_empty')
 
     async def test_adult_evidence_stops_admission(self):
         result = await self.validator(adult=True).probe(source())

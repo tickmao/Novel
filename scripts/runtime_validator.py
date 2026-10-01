@@ -283,7 +283,8 @@ class RuntimeReadingValidator:
                 raw = value.get('rawContent') or prose
                 if flagged := audit_page('content', chapter['url'], raw):
                     return flagged
-                if len(re.sub(r'\s', '', prose)) < 200 or len(set(prose)) < 20:
+                reading_text = re.sub(r'https?://\S+', '', prose)
+                if len(re.sub(r'\s', '', reading_text)) < 200 or len(set(reading_text)) < 20:
                     raise ProbeFailure('content_empty', 'Chapter text is empty or too short')
                 if re.search(r'请(?:先)?登录后(?:阅读|查看)|购买本章|章节内容不存在|暂无正文|验证码|Access denied', prose, re.I):
                     raise ProbeFailure('content_locked', 'Chapter contains an access gate')
