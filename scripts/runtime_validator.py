@@ -40,7 +40,7 @@ def engine_command():
         raise EngineFailure('engine_unavailable', 'Set a pinned NOVEL_ENGINE_IMAGE or NOVEL_ENGINE_COMMAND')
     return ['docker', 'run', '--rm', '-i', '--read-only', '--cap-drop=ALL',
             '--security-opt=no-new-privileges', '--pids-limit=128', '--memory=512m', '--cpus=1',
-            '--tmpfs', '/tmp:rw,nosuid,nodev,size=128m', image]
+            '--tmpfs', '/tmp:rw,exec,nosuid,nodev,size=128m', image]
 
 
 class EngineSession:
@@ -49,6 +49,14 @@ class EngineSession:
         self.process = None
         self.container = None
         self.temp = None
+        self.stderr_task = None
+        self.startup_error = bytearray()
+        self.ready = False
+
+    async def drain_stderr(self):
+        while chunk := await self.process.stderr.read(4096):
+            if not self.ready and len(self.startup_error) < 2000:
+                self.startup_error.extend(chunk[:2000 - len(self.startup_error)])
 
     async def __aenter__(self):
         try:
@@ -61,15 +69,17 @@ class EngineSession:
             env.update(TMPDIR=self.temp.name, LANG='en_US.UTF-8')
             self.process = await asyncio.create_subprocess_exec(
                 *command, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL, env=env, cwd=self.temp.name,
+                stderr=asyncio.subprocess.PIPE, env=env, cwd=self.temp.name,
                 start_new_session=True, limit=4 * 1024 * 1024,
             )
+            self.stderr_task = asyncio.create_task(self.drain_stderr())
             request = {'source': self.source}
             if self.fixtures is not None:
                 request['fixtures'] = self.fixtures
             response = await self.exchange(request)
             if response.get('engine_commit') != ENGINE_COMMIT or response.get('protocol') != 1:
                 raise EngineFailure('engine_protocol', 'Worker identity or protocol mismatch')
+            self.ready = True
             return self
         except (OSError, ValueError) as exc:
             await self.close()
@@ -103,6 +113,8 @@ class EngineSession:
                 pass
         if self.temp:
             self.temp.cleanup()
+        if self.stderr_task:
+            await self.stderr_task
 
     async def exchange(self, request):
         try:
@@ -110,7 +122,11 @@ class EngineSession:
             await self.process.stdin.drain()
             line = await asyncio.wait_for(self.process.stdout.readline(), self.timeout)
             if not line:
-                raise EngineFailure('engine_crash', 'Worker exited before a response')
+                await self.process.wait()
+                if self.stderr_task:
+                    await self.stderr_task
+                detail = self.startup_error.decode(errors='replace') if not self.ready else ''
+                raise EngineFailure('engine_crash', f'Worker exited with status {self.process.returncode}: {detail}')
             response = json.loads(line)
             if not isinstance(response, dict) or 'ok' not in response:
                 raise ValueError('Invalid response')

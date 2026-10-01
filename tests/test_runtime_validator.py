@@ -1,12 +1,13 @@
 import asyncio
 import sys
 import unittest
+from unittest.mock import patch
 from copy import deepcopy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from runtime_validator import RuntimeReadingValidator, EngineFailure
+from runtime_validator import RuntimeReadingValidator, EngineFailure, EngineSession
 from source_policy import SourcePolicy
 from test_maintenance_v2 import source
 
@@ -71,6 +72,14 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['kind'], 'search')
         self.assertNotIn('sample', result)
         self.assertFalse(result['audit']['complete'])
+
+    async def test_worker_startup_failure_has_bounded_diagnostics(self):
+        import json
+        command = [sys.executable, '-c', 'import sys; sys.stderr.write("startup failure"); sys.exit(9)']
+        with patch.dict('os.environ', {'NOVEL_ENGINE_COMMAND': json.dumps(command)}):
+            with self.assertRaisesRegex(EngineFailure, 'status 9: startup failure'):
+                async with EngineSession(source()):
+                    self.fail('Worker must not start')
 
 
 if __name__ == '__main__':
