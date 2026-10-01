@@ -1,490 +1,228 @@
-#!/usr/bin/env python3
-"""
-日常维护整合脚本 - Phase 2 日常维护流程
-- 滚动验证（每天验证 100 个书源，10 天一轮）
-- 自动替换（连续 3 次失败或评分 <30）
-- 质量监控（生成健康报告）
-- 告警检查（<900 警告，<800 严重）
-"""
+"""Run resumable collection, validation, and publication under one writer lock."""
 
-import json
-import asyncio
+from __future__ import annotations
+
 import argparse
+import asyncio
+import json
+import os
 import sys
+import time
+from collections import Counter
+from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from datetime import datetime
-from typing import List, Dict, Optional, Tuple
 
-# 添加 scripts 目录到路径
-sys.path.insert(0, str(Path(__file__).parent))
-
-from batch_validator import BatchValidator
-from safe_updater import SafeUpdater
+from reading_validator import HTTPClient
+from runtime_validator import RuntimeReadingValidator as ReadingValidator
+from runtime_config import ENVIRONMENT_FAILURES
+from maintenance_lock import writer_lock
+from source_collector import collect_into
 from source_inventory import SourceInventory
+from source_store import atomic_bundle, digest, json_bytes, parse_time, read_json, utcnow
+from maintenance_acceptance import acceptance_status
+from yckceo_harvester import YckceoHarvester
+from submissions import collect_submissions
 
 
 class DailyMaintenance:
-    """日常维护整合脚本"""
-
-    # 阈值配置
-    MIN_SOURCES_WARNING = 950
-    MIN_SOURCES_CRITICAL = 900
-    MIN_SCORE_THRESHOLD = 30
-    MAX_CONSECUTIVE_FAILURES = 3
-
-    def __init__(self, base_dir: Path = None):
-        """
-        初始化
-
-        Args:
-            base_dir: 基础目录，默认为 sources/legado
-        """
-        if base_dir is None:
-            base_dir = Path(__file__).parent.parent / 'sources' / 'legado'
-
+    def __init__(self, base_dir=None):
         self.inventory = SourceInventory(base_dir)
         self.base_dir = self.inventory.base_dir
-        self.pool_dir = self.base_dir / 'pool'
-        self.main_dir = self.base_dir / 'main'
-        self.temp_dir = self.base_dir / 'temp'
-
-        # 文件路径
-        self.main_file = self.inventory.working_file
-        self.metadata_file = self.main_dir / 'metadata.json'
-        self.candidates_file = self.inventory.candidate_file
-
-        # 检查点目录
-        self.checkpoint_dir = self.temp_dir / 'checkpoints'
-        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-
-    def load_metadata(self) -> Dict:
-        """
-        加载元数据
-
-        Returns:
-            元数据字典
-        """
-        if not self.metadata_file.exists():
-            return {
-                'last_validation_index': 0,
-                'validation_history': {},
-                'failure_counts': {},
-                'last_maintenance': None
-            }
-
-        with open(self.metadata_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-
-    def save_metadata(self, metadata: Dict):
-        """
-        保存元数据
-
-        Args:
-            metadata: 元数据字典
-        """
-        with open(self.metadata_file, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, ensure_ascii=False, indent=2)
-
-    def select_sources_for_validation(
-        self,
-        sources: List[Dict],
-        metadata: Dict,
-        batch_size: int = 100
-    ) -> Tuple[List[Dict], List[int]]:
-        """
-        选择需要验证的书源（滚动验证）
-
-        Args:
-            sources: 所有书源
-            metadata: 元数据
-            batch_size: 批次大小
-
-        Returns:
-            (选中的书源, 选中的索引列表)
-        """
-        last_index = metadata.get('last_validation_index', 0)
-        total = len(sources)
-
-        # 计算本次验证的索引范围
-        start_index = last_index
-        end_index = min(start_index + batch_size, total)
-
-        # 如果到达末尾，从头开始
-        if end_index >= total:
-            end_index = batch_size - (total - start_index)
-            selected_indices = list(range(start_index, total)) + list(range(0, end_index))
-            next_index = end_index
-        else:
-            selected_indices = list(range(start_index, end_index))
-            next_index = end_index
-
-        selected_sources = [sources[i] for i in selected_indices]
-
-        print(f'滚动验证：索引 {start_index} → {next_index}（共 {len(selected_sources)} 个）')
-
-        return selected_sources, selected_indices
-
-    async def validate_sources(
-        self,
-        sources: List[Dict],
-        concurrency: int = 20,
-        timeout: int = 10
-    ) -> Tuple[List[Dict], List[Dict], Dict]:
-        """
-        验证书源
-
-        Args:
-            sources: 书源列表
-            concurrency: 并发数
-            timeout: 超时时间
-
-        Returns:
-            (有效书源, 无效书源, 统计信息)
-        """
-        print('\n=== 步骤 1：滚动验证 ===')
-
-        validator = BatchValidator(
-            batch_size=len(sources),  # 一次性验证所有选中的书源
-            concurrency=concurrency,
-            timeout=timeout,
-            checkpoint_dir=None  # 日常维护不需要检查点
-        )
-
-        valid, invalid, stats = await validator.validate_batch(
-            sources,
-            batch_num=1,
-            total_batches=1
-        )
-
-        return valid, invalid, stats
-
-    def identify_failed_sources(
-        self,
-        sources: List[Dict],
-        selected_indices: List[int],
-        invalid_sources: List[Dict],
-        metadata: Dict
-    ) -> List[int]:
-        """
-        识别需要替换的失效书源
-
-        Args:
-            sources: 所有书源
-            selected_indices: 本次验证的索引
-            invalid_sources: 无效书源
-            metadata: 元数据
-
-        Returns:
-            需要替换的书源索引列表
-        """
-        print('\n=== 步骤 2：识别失效书源 ===')
-
-        failure_counts = metadata.get('failure_counts', {})
-        to_replace = []
-
-        # 更新失败计数
-        for i, source in enumerate(sources):
-            url = source.get('bookSourceUrl', '')
-
-            if i in selected_indices:
-                # 本次验证的书源
-                if source in invalid_sources:
-                    # 失败
-                    failure_counts[url] = failure_counts.get(url, 0) + 1
-                else:
-                    # 成功，重置计数
-                    failure_counts[url] = 0
-
-            # 检查是否需要替换
-            if failure_counts.get(url, 0) >= self.MAX_CONSECUTIVE_FAILURES:
-                to_replace.append(i)
-                print(f'  - {source.get("bookSourceName", "未知")} (连续 {failure_counts[url]} 次失败)')
-
-            # 检查评分
-            score = source.get('score', 0)
-            if score > 0 and score < self.MIN_SCORE_THRESHOLD:
-                if i not in to_replace:
-                    to_replace.append(i)
-                    print(f'  - {source.get("bookSourceName", "未知")} (评分过低: {score})')
-
-        metadata['failure_counts'] = failure_counts
-
-        print(f'\n需要替换：{len(to_replace)} 个书源')
-
-        return to_replace
-
-    def replace_failed_sources(
-        self,
-        sources: List[Dict],
-        to_replace: List[int],
-        candidates: List[Dict]
-    ) -> List[Dict]:
-        """
-        替换失效书源
-
-        Args:
-            sources: 当前书源列表
-            to_replace: 需要替换的索引列表
-            candidates: 候选书源列表
-
-        Returns:
-            替换后的书源列表
-        """
-        print('\n=== 步骤 3：替换失效书源 ===')
-
-        if not to_replace:
-            print('无需替换')
-            return sources
-
-        if not candidates:
-            print('⚠ 候选池为空，无法替换')
-            return sources
-
-        # 复制书源列表
-        new_sources = sources.copy()
-
-        # 获取当前所有 URL（用于去重）
-        current_urls = {s.get('bookSourceUrl', '') for s in sources}
-
-        # 按评分排序候选书源
-        candidates_sorted = sorted(
-            candidates,
-            key=lambda s: s.get('score', 0),
-            reverse=True
-        )
-
-        replaced_count = 0
-
-        for idx in to_replace:
-            # 查找候选书源（不在当前列表中）
-            replacement = None
-            for candidate in candidates_sorted:
-                url = candidate.get('bookSourceUrl', '')
-                if url not in current_urls:
-                    replacement = candidate
-                    current_urls.add(url)
-                    break
-
-            if replacement:
-                old_source = new_sources[idx]
-                new_sources[idx] = replacement
-                replaced_count += 1
-
-                print(f'  替换：{old_source.get("bookSourceName", "未知")} → {replacement.get("bookSourceName", "未知")}')
-            else:
-                print(f'  ⚠ 无可用候选书源替换索引 {idx}')
-
-        print(f'\n✓ 已替换：{replaced_count} 个书源')
-
-        return new_sources
-
-    def generate_health_report(
-        self,
-        sources: List[Dict],
-        validation_stats: Dict,
-        replaced_count: int
-    ) -> Dict:
-        """
-        生成健康报告
-
-        Args:
-            sources: 当前书源列表
-            validation_stats: 验证统计
-            replaced_count: 替换数量
-
-        Returns:
-            健康报告
-        """
-        print('\n=== 步骤 4：生成健康报告 ===')
-
-        total = len(sources)
-
-        # 计算平均评分
-        scores = [s.get('score', 0) for s in sources if s.get('score', 0) > 0]
-        avg_score = sum(scores) / len(scores) if scores else 0
-
-        # 统计域名多样性
-        domains = set()
-        for source in sources:
-            from urllib.parse import urlparse
-            url = source.get('bookSourceUrl', '')
-            try:
-                domain = urlparse(url).netloc
-                if domain.startswith('www.'):
-                    domain = domain[4:]
-                domains.add(domain)
-            except:
-                pass
-
-        # 健康状态
-        if total < self.MIN_SOURCES_CRITICAL:
-            health_status = 'critical'
-            health_message = f'严重：书源数量 {total} < {self.MIN_SOURCES_CRITICAL}'
-        elif total < self.MIN_SOURCES_WARNING:
-            health_status = 'warning'
-            health_message = f'警告：书源数量 {total} < {self.MIN_SOURCES_WARNING}'
-        else:
-            health_status = 'good'
-            health_message = '良好'
-
-        report = {
-            'timestamp': datetime.now().isoformat(),
-            'health_status': health_status,
-            'health_message': health_message,
-            'total_sources': total,
-            'avg_score': round(avg_score, 1),
-            'unique_domains': len(domains),
-            'validation_stats': validation_stats,
-            'replaced_count': replaced_count
-        }
-
-        print(f'健康状态：{health_status} - {health_message}')
-        print(f'书源总数：{total}')
-        print(f'平均评分：{avg_score:.1f}')
-        print(f'唯一域名：{len(domains)}')
-        print(f'本次替换：{replaced_count}')
-
-        return report
-
-    async def maintain(
-        self,
-        batch_size: int = 100,
-        concurrency: int = 20,
-        timeout: int = 10,
-        dry_run: bool = False
-    ) -> bool:
-        """
-        执行日常维护
-
-        Args:
-            batch_size: 验证批次大小
-            concurrency: 验证并发数
-            timeout: 验证超时时间
-            dry_run: 仅模拟，不实际更新
-
-        Returns:
-            是否成功
-        """
-        print('\n' + '='*60)
-        print('日常维护流程开始')
-        print('='*60)
-        print(f'时间：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-        print(f'验证批次：{batch_size} 个书源')
-        print('='*60)
-
-        try:
-            # 读取当前书源
-            sources = self.inventory.load_working_sources()
-            print(f'\n当前书源：{len(sources)} 个')
-
-            # 读取元数据
-            metadata = self.load_metadata()
-
-            # 选择需要验证的书源
-            selected_sources, selected_indices = self.select_sources_for_validation(
-                sources,
-                metadata,
-                batch_size
-            )
-
-            # 验证书源
-            valid_sources, invalid_sources, validation_stats = await self.validate_sources(
-                selected_sources,
-                concurrency=concurrency,
-                timeout=timeout
-            )
-
-            # 识别失效书源
-            to_replace = self.identify_failed_sources(
-                sources,
-                selected_indices,
-                invalid_sources,
-                metadata
-            )
-
-            # 替换失效书源
-            replaced_count = 0
-            if to_replace:
-                # 读取候选池
-                candidates = self.inventory.load_candidate_sources()
-
-                new_sources = self.replace_failed_sources(sources, to_replace, candidates)
-                replaced_count = len([i for i in to_replace if new_sources[i] != sources[i]])
-
-                sources = new_sources
-
-            # 替换后重建库存并重新导出 1000 条
-            candidates = self.inventory.load_candidate_sources()
-            working_sources, export_sources, inventory_report = self.inventory.build_inventory(
-                sources,
-                candidates,
-                save=not dry_run,
-            )
-            sources = working_sources
-
-            # 生成健康报告
-            report = self.generate_health_report(sources, validation_stats, replaced_count)
-            report['inventory_report'] = inventory_report
-
-            # 更新元数据
+        self.metadata_file = self.inventory.metadata_file
+
+    async def validate(self, validator, refs, *, mode, deadline, save, report):
+        inventory, store = self.inventory, self.inventory.store
+        known = {ref for ref in refs if store.get(ref[0])['versions'][ref[1]].get('validation', {}).get('last_deep_success_at')}
+        baseline, completed = {}, []
+        counts, kinds, examples = Counter(), Counter(), {}
+        for offset in range(0, len(refs), 20):
+            if time.monotonic() >= deadline:
+                report['budget_exhausted'] = True
+                break
+            batch = refs[offset:offset + 20]
+            for key, revision in batch:
+                version = store.get(key)['versions'][revision]
+                baseline[key, revision] = (deepcopy(version.get('validation', {})), deepcopy(version.get('audit', {})))
+            tasks = [asyncio.create_task(validator.probe(inventory.audit_payload(store.get(key)['versions'][revision]), mode))
+                     for key, revision in batch]
+            _, pending = await asyncio.wait(tasks, timeout=max(0, deadline - time.monotonic()))
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+            if pending:
+                report['budget_exhausted'] = True
+            pairs = [(ref, task.result()) for ref, task in zip(batch, tasks) if task not in pending]
+            batch, results = [p[0] for p in pairs], [p[1] for p in pairs]
+            for ref, result in zip(batch, results):
+                completed.append((ref, result))
+                counts[result['status']] += 1
+                kinds[result['kind']] += 1
+                if result['status'] != 'valid' and result['kind'] not in examples:
+                    examples[result['kind']] = {'name': store.get(ref[0])['versions'][ref[1]]['source'].get('bookSourceName'),
+                                               'error': result.get('error'), 'status': result['status']}
+                inventory.record_result(*ref, result)
+            if results and all(result['kind'] in ENVIRONMENT_FAILURES for result in results):
+                report['engine_incident'] = True
+                if save:
+                    store.save()
+                break
+            prior = [(ref, result) for ref, result in completed if ref in known]
+            sites = {inventory.site(store.get(ref[0])['versions'][ref[1]]['source']) for ref, _ in prior}
+            network_failures = sum(result['kind'] in ('network', 'timeout') for _, result in prior)
+            if len(prior) >= 20 and len(sites) >= 5 and network_failures / len(prior) >= 0.5:
+                report['network_incident'] = True
+                for (key, revision), result in completed:
+                    version = store.get(key)['versions'][revision]
+                    if (result['kind'] in ('network', 'timeout')
+                            and result.get('audit', {}).get('decision') not in ('block', 'review')):
+                        version['validation'], version['audit'] = baseline[key, revision]
+                    store.touch(key)
+                if save:
+                    store.save()
+                break
+            if save:
+                store.save()
+            print(f'{mode}: {len(completed)}/{len(refs)} {dict(counts)}', flush=True)
+        report[mode] = dict(counts)
+        report[mode + '_kinds'] = dict(kinds)
+        report[mode + '_examples'] = examples
+        report[mode + '_checked'] = len(completed)
+
+    async def maintain(self, batch_size=300, concurrency=20, timeout=10, dry_run=False,
+                       mode='daily', collect=True, publish=False, max_minutes=90, fetch_cap=None, backfill_rounds=1):
+        with writer_lock(self.base_dir):
+            inventory = self.inventory
+            inventory.store = __import__('source_store').SourceStore(inventory.store.root)
+            store = inventory.store
+            if not store.exists:
+                if dry_run:
+                    raise RuntimeError('Run source_inventory.py migrate before a dry run')
+                inventory.ensure_migrated()
+            report = {'schema_version': 3, 'started_at': utcnow(), 'mode': mode, 'dry_run': dry_run,
+                      'published': False, 'providers': {}}
+            deadline = time.monotonic() + max_minutes * 60
+            report['static_audit'] = inventory.audit_all()
             if not dry_run:
-                metadata = self.load_metadata()
-            metadata['last_validation_index'] = (metadata.get('last_validation_index', 0) + batch_size) % len(sources)
-            metadata['last_maintenance'] = datetime.now().isoformat()
-            metadata['last_report'] = report
-
+                store.save()
+            _, _, initial = inventory.select()
+            if mode == 'catchup' and not initial['needs_replenishment']:
+                report['skipped'] = 'Inventory and catalog are complete'
+                return report
+            async with HTTPClient(concurrency, timeout, max_bytes=32 * 1024 * 1024) as client:
+                if collect:
+                    collection_deadline = (deadline if mode == 'backfill' else
+                                           min(deadline, time.monotonic() + min(600, max_minutes * 60 * 0.15)))
+                    report['providers']['submissions'] = await collect_submissions(
+                        store, client, inventory.project_root, save=not dry_run, deadline=collection_deadline)
+                    cfg = inventory.config.get('yckceo', {})
+                    harvester = YckceoHarvester(inventory.policy, **cfg)
+                    provider_state = store.state.get('providers', {}).get('yckceo', {})
+                    last_scan = parse_time(provider_state.get('last_full_scan_at'))
+                    full_scan = mode == 'backfill' or not last_scan or datetime.now(timezone.utc) - last_scan > timedelta(days=7)
+                    batches = []
+                    rounds = backfill_rounds if mode == 'backfill' else 1
+                    for round_index in range(rounds):
+                        result = await harvester.sync(
+                            store, client, full_scan=full_scan, scan=round_index == 0,
+                            daily_pages=int(cfg.get('daily_pages', 5)),
+                            fetch_cap=fetch_cap if fetch_cap is not None else (300 if mode in ('backfill', 'catchup') else 150),
+                            deadline=collection_deadline, save=not dry_run,
+                        )
+                        batches.append(result)
+                        if time.monotonic() >= deadline or not result.get('fetched_ids') or not result.get('pending_count'):
+                            break
+                    report['providers']['yckceo'] = batches
+                    last_other = parse_time(store.state.get('last_external_collection_at'))
+                    if mode != 'backfill' and (not last_other or datetime.now(timezone.utc) - last_other > timedelta(days=1)):
+                        channels = read_json(inventory.project_root / 'config/source_channels.json', {})
+                        report['providers']['external'] = await collect_into(store, client, channels, deadline=collection_deadline, save=not dry_run)
+                        if report['providers']['external']['files'] and not report['providers']['external']['errors']:
+                            store.state['last_external_collection_at'] = utcnow()
+                report['static_audit'] = inventory.audit_all()
+                if mode != 'backfill':
+                    validator = ReadingValidator(inventory.policy, concurrency=min(concurrency, 4))
+                    refs = inventory.queue(limit=batch_size)
+                    export, _, _ = inventory.select()
+                    light_refs = [(item['_source_id'], item['_revision']) for item in export
+                                  if (item['_source_id'], item['_revision']) not in set(refs)]
+                    if mode == 'daily':
+                        await self.validate(validator, light_refs, mode='light', deadline=deadline, save=not dry_run, report=report)
+                    if not report.get('network_incident') and not report.get('engine_incident'):
+                        await self.validate(validator, refs, mode='deep', deadline=deadline, save=not dry_run, report=report)
+                    previous = read_json(inventory.base_dir / 'main/publication.json', {})
+                    if (mode == 'daily' and previous.get('schema_version') == 3
+                            and not report.get('network_incident') and not report.get('engine_incident')):
+                        day = datetime.now(timezone.utc).date().isoformat()
+                        selected = sorted(previous.get('sources', []), key=lambda item: digest([day, item['source_id']]))[:50]
+                        spot_refs = [(item['source_id'], item['revision']) for item in selected]
+                        await self.validate(validator, spot_refs, mode='spot', deadline=deadline, save=not dry_run, report=report)
+            _, _, current = inventory.select()
+            report['inventory'] = current
+            report['publication_gate'] = inventory.publication_gate(current)
+            report['finished_at'] = utcnow()
+            store.state.setdefault('runs', []).append({key: value for key, value in report.items() if key != 'providers'})
+            store.state['runs'] = store.state['runs'][-30:]
             if not dry_run:
-                self.save_metadata(metadata)
-                print(f'\n✓ 元数据已保存：{self.metadata_file}')
-
-            print('\n' + '='*60)
-            print('日常维护流程完成')
-            print('='*60)
-
-            # 告警检查
-            if report['health_status'] == 'critical':
-                print('\n🚨 严重告警：书源数量过少，需要立即补充！')
-                return False
-            elif report['health_status'] == 'warning':
-                print('\n⚠️  警告：书源数量偏少，建议尽快补充')
-
-            return True
-
-        except Exception as e:
-            print(f'\n✗ 日常维护异常：{e}')
-            import traceback
-            traceback.print_exc()
-            return False
+                store.save()
+                inventory.write_shadow()
+                if publish and mode != 'backfill':
+                    # A network incident can remove a confirmed adult source, but cannot certify new availability.
+                    has_prior = (inventory.base_dir / 'main/publication.json').exists()
+                    if not report['publication_gate']['ready']:
+                        report['publication_skipped'] = 'Gate: ' + ', '.join(report['publication_gate']['missing'])
+                    elif report.get('engine_incident'):
+                        report['publication_skipped'] = 'Runtime incident; existing snapshot retained'
+                    elif report.get('network_incident'):
+                        prior = read_json(inventory.base_dir / 'main/publication.json', {})
+                        allowed = {(item['source_id'], item['revision']) for item in prior.get('sources', [])}
+                        safe, _, _ = inventory.select(allowed=allowed)
+                        if has_prior and len(safe) < prior.get('count', 0):
+                            inventory.publish(allowed=allowed, allow_empty=True)
+                            report['published'] = True
+                            report['safety_prune'] = True
+                        else:
+                            report['publication_skipped'] = 'Shared network failure; existing snapshot retained'
+                    elif current['export_count'] or has_prior:
+                        inventory.publish(allow_empty=has_prior)
+                        report['published'] = True
+                    else:
+                        report['publication_skipped'] = 'Bootstrap has no verified sources yet'
+                report['release_active'] = read_json(self.base_dir / 'main/publication.json', {}).get('schema_version') == 3
+                store.state['runs'][-1] = {key: value for key, value in report.items() if key != 'providers'}
+                report['acceptance'] = acceptance_status(store.state['runs'])
+                store.save()
+                atomic_bundle({self.base_dir / 'main' / 'maintenance_report.json': json_bytes(report)})
+            print(json.dumps(report, ensure_ascii=False, indent=2), flush=True)
+            return report
 
 
 async def main():
-    """命令行入口"""
-    parser = argparse.ArgumentParser(description='日常维护整合脚本 - Phase 2 日常维护流程')
-    parser.add_argument('--base-dir', type=Path, help='基础目录')
-    parser.add_argument('--batch-size', type=int, default=100, help='验证批次大小')
-    parser.add_argument('--concurrency', type=int, default=20, help='验证并发数')
-    parser.add_argument('--timeout', type=int, default=10, help='验证超时时间（秒）')
-    parser.add_argument('--dry-run', action='store_true', help='仅模拟，不实际更新')
-
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--base-dir', type=Path)
+    parser.add_argument('--mode', choices=['daily', 'catchup', 'backfill'], default='daily')
+    parser.add_argument('--batch-size', type=int, default=300)
+    parser.add_argument('--concurrency', type=int, default=20)
+    parser.add_argument('--timeout', type=int, default=10)
+    parser.add_argument('--max-minutes', type=float, default=90)
+    parser.add_argument('--fetch-cap', type=int)
+    parser.add_argument('--backfill-rounds', type=int, default=1)
+    parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--no-collect', action='store_true')
+    parser.add_argument('--publish', action='store_true')
     args = parser.parse_args()
-
-    # 创建维护器
-    maintainer = DailyMaintenance(base_dir=args.base_dir)
-
-    # 执行维护
-    success = await maintainer.maintain(
-        batch_size=args.batch_size,
-        concurrency=args.concurrency,
-        timeout=args.timeout,
-        dry_run=args.dry_run
-    )
-
-    if success:
-        print('\n✓ 维护成功')
-        sys.exit(0)
-    else:
-        print('\n✗ 维护失败')
-        sys.exit(1)
+    if args.batch_size < 0 or args.concurrency < 1 or args.timeout <= 0 or args.max_minutes <= 0 or args.backfill_rounds < 1 or (args.fetch_cap is not None and args.fetch_cap < 0):
+        parser.error('Budgets and concurrency must be positive')
+    if args.dry_run and args.publish:
+        parser.error('--dry-run and --publish cannot be combined')
+    maintenance = DailyMaintenance(args.base_dir)
+    values = vars(args)
+    values.pop('base_dir')
+    values['collect'] = not values.pop('no_collect')
+    report = await maintenance.maintain(**values)
+    if os.environ.get('GITHUB_OUTPUT'):
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+            stream.write('published=' + str(bool(report.get('published'))).lower() + '\n')
 
 
 if __name__ == '__main__':

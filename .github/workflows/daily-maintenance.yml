@@ -1,152 +1,156 @@
-name: Daily Maintenance
+name: Maintain Sources
 
 on:
   schedule:
-    - cron: '0 18 * * *'  # 每天凌晨 2 点（UTC+8）
+    - cron: '0 18 * * *'
+    - cron: '0 0,6,12 * * *'
   workflow_dispatch:
     inputs:
-      batch_size:
-        description: '验证批次大小'
-        required: false
-        default: '100'
-      concurrency:
-        description: '验证并发数'
-        required: false
-        default: '20'
-      timeout:
-        description: '验证超时时间（秒）'
-        required: false
-        default: '10'
+      mode:
+        type: choice
+        options: [daily, catchup, backfill]
+        default: catchup
       dry_run:
-        description: '仅模拟，不实际更新'
-        required: false
-        default: 'false'
+        type: boolean
+        default: false
+      publish:
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: source-maintenance
+  cancel-in-progress: false
 
 jobs:
-  maintenance:
+  maintain:
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
+    timeout-minutes: 100
+    outputs:
+      published: ${{ steps.maintenance.outputs.published }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
-
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
       - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+      - name: Run offline regression tests
+        run: python -B -m unittest discover -s tests -v
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the pinned runtime
+        id: runtime
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: runtime/Dockerfile
+          load: true
+          tags: novel-runtime:ci
+          cache-from: type=gha,scope=novel-runtime
+          cache-to: type=gha,mode=max,scope=novel-runtime
+      - name: Initialize the raw store
+        if: inputs.dry_run != true
+        run: python scripts/source_inventory.py migrate
+      - name: Verify runtime compatibility
+        env:
+          NOVEL_ENGINE_IMAGE: ${{ steps.runtime.outputs.imageid }}
         run: |
-          pip install -r scripts/requirements.txt
-
-      - name: Run daily maintenance
+          python -B scripts/probe_runtime.py fixtures
+          python -B scripts/probe_runtime.py sample --count 60 --max-minutes 15
+          python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE"
+      - name: Maintain inventory
         id: maintenance
+        env:
+          NOVEL_ENGINE_IMAGE: ${{ steps.runtime.outputs.imageid }}
+          REQUESTED_MODE: ${{ inputs.mode }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          PUBLISH: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || inputs.publish) }}
         run: |
-          set +e
-          python3 scripts/daily_maintenance.py \
-            --base-dir sources/legado \
-            --batch-size ${{ github.event.inputs.batch_size || '100' }} \
-            --concurrency ${{ github.event.inputs.concurrency || '20' }} \
-            --timeout ${{ github.event.inputs.timeout || '10' }} \
-            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
-          EXIT_CODE=$?
-          set -e
-
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "status=success" >> $GITHUB_OUTPUT
-          else
-            echo "status=failed" >> $GITHUB_OUTPUT
-            exit $EXIT_CODE
+          MODE="${REQUESTED_MODE:-daily}"
+          if [ "$EVENT_SCHEDULE" = '0 0,6,12 * * *' ]; then MODE=catchup; fi
+          BATCH=300
+          if [ "$MODE" = catchup ]; then BATCH=1000; fi
+          FLAGS=()
+          if [ "$DRY_RUN" = true ]; then
+            FLAGS+=(--dry-run)
+          elif [ "$PUBLISH" = true ]; then
+            FLAGS+=(--publish)
           fi
-
-      - name: Read health report
-        if: steps.maintenance.outputs.status == 'success'
-        id: health
+          python -B scripts/daily_maintenance.py --mode "$MODE" --batch-size "$BATCH" --max-minutes 60 "${FLAGS[@]}"
+      - name: Verify the publication
+        id: verify
+        env:
+          PUBLISHED: ${{ steps.maintenance.outputs.published }}
         run: |
-          if [ -f "sources/legado/main/metadata.json" ]; then
-            HEALTH_STATUS=$(python3 -c "import json; data = json.load(open('sources/legado/main/metadata.json')); print(data.get('last_report', {}).get('health_status', 'unknown'))")
-            TOTAL_SOURCES=$(python3 -c "import json; data = json.load(open('sources/legado/main/metadata.json')); print(data.get('last_report', {}).get('total_sources', 0))")
-            REPLACED_COUNT=$(python3 -c "import json; data = json.load(open('sources/legado/main/metadata.json')); print(data.get('last_report', {}).get('replaced_count', 0))")
-
-            echo "health_status=$HEALTH_STATUS" >> $GITHUB_OUTPUT
-            echo "total_sources=$TOTAL_SOURCES" >> $GITHUB_OUTPUT
-            echo "replaced_count=$REPLACED_COUNT" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Commit changes
-        if: steps.maintenance.outputs.status == 'success' && github.event.inputs.dry_run != 'true'
+          FLAGS=()
+          if [ "$PUBLISHED" = true ]; then FLAGS+=(--current-health); fi
+          python -B scripts/check_publication.py --allow-bootstrap "${FLAGS[@]}"
+      - name: Persist completed work
+        if: ${{ always() && inputs.dry_run != true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISHED: ${{ steps.maintenance.outputs.published }}
+          VERIFIED: ${{ steps.verify.outcome == 'success' }}
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
-          # 更新 README 和站点数据
-          python3 scripts/update_sources.py --base-dir .
-
-          # 核心文件必须存在
-          git add sources/legado/main/full.json
-          # 可选文件容错
-          git add sources/legado/main/backups/ 2>/dev/null || true
-          git add sources/legado/main/metadata.json 2>/dev/null || true
-          git add README.md docs/index.html STATS.md 2>/dev/null || true
-
-          git commit -m "chore: 日常维护 - 替换 ${{ steps.health.outputs.replaced_count || '0' }} 个失效书源" || echo "No changes to commit"
-
-      - name: Push changes
-        if: steps.maintenance.outputs.status == 'success' && github.event.inputs.dry_run != 'true'
-        run: |
-          set +e
-          for i in 1 2 3; do
-            git push && break || {
-              echo "Push attempt $i failed, retrying in $((i * 5)) seconds..."
-              sleep $((i * 5))
-            }
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          gh auth setup-git
+          for path in sources/legado/pool/raw/ reports/runtime/; do
+            if [ -d "$path" ]; then git add "$path"; fi
           done
-          set -e
-
-      - name: Create warning issue
-        if: steps.health.outputs.health_status == 'warning'
-        uses: actions/github-script@v7
+          for file in sources/legado/main/shadow.json sources/legado/main/maintenance_report.json; do
+            if [ -f "$file" ]; then git add "$file"; fi
+          done
+          if [ "$PUBLISHED" = true ] && [ "$VERIFIED" = true ]; then
+            git add sources/legado/main/ sources/legado/full.json sources/legado/pool/candidates.json README.md STATS.md docs/
+          fi
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore: maintain source inventory and publication'
+          git push origin HEAD:master
+      - name: Preserve recovery data
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
         with:
-          script: |
-            github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '⚠️ 书源数量警告',
-              body: `书源数量偏少：${{ steps.health.outputs.total_sources }} < 900\n\n建议尽快补充书源。`,
-              labels: ['warning', 'automation']
-            })
-
-      - name: Create critical issue
-        if: steps.health.outputs.health_status == 'critical'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '🚨 书源数量严重不足',
-              body: `书源数量严重不足：${{ steps.health.outputs.total_sources }} < 800\n\n需要立即补充书源！`,
-              labels: ['critical', 'automation']
-            })
-
-      - name: Create issue on failure
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '日常维护失败',
-              body: `日常维护在 ${new Date().toISOString()} 失败。\n\n请检查工作流日志：${context.payload.repository.html_url}/actions/runs/${context.runId}`,
-              labels: ['bug', 'automation']
-            })
-
-      - name: Cleanup
-        if: ${{ !cancelled() }}
+          name: maintenance-recovery-${{ github.run_id }}
+          retention-days: 14
+          path: |
+            sources/legado/pool/raw/
+            sources/legado/main/maintenance_report.json
+            sources/legado/main/shadow.json
+            reports/runtime/
+      - name: Add run summary
+        if: ${{ always() }}
         run: |
-          rm -rf sources/legado/temp/checkpoints/*.json || true
+          python scripts/check_publication.py --summary --allow-bootstrap >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    needs: maintain
+    if: needs.maintain.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - uses: actions/deploy-pages@v4
+        id: deployment

@@ -8,7 +8,7 @@
       "max_files": 3
     },
     {
-      "name": "aoaostar/legado-book-source",
+      "name": "aoaostar/legado",
       "description": "Legado书源收集",
       "priority": "high",
       "file_patterns": ["书源", "source", "legado"],
@@ -48,8 +48,11 @@
       "url": "https://www.yckceo.com/yuedu/shuyuan/index.html",
       "description": "YCKCEO书源分享",
       "priority": "high",
-      "max_links": 5,
-      "link_patterns": ["*.json"]
+      "mode": "list_and_per_id_json",
+      "daily_pages": 2,
+      "daily_fetch_cap": 80,
+      "emergency_fetch_cap": 300,
+      "json_path_template": "/yuedu/shuyuan/json/id/{id}.json"
     },
     {
       "url": "https://legado.aoaostar.com/",

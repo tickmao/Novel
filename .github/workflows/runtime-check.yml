@@ -1,0 +1,41 @@
+name: Check Pinned Runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: [master]
+    paths: ['runtime/**', 'scripts/runtime*.py', 'scripts/probe_runtime.py', '.github/workflows/runtime-check.yml']
+  pull_request:
+    paths: ['runtime/**', 'scripts/runtime*.py', 'scripts/probe_runtime.py', '.github/workflows/runtime-check.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r scripts/requirements.txt
+      - name: Build runtime
+        run: |
+          docker build -f runtime/Dockerfile -t novel-runtime:ci .
+          printf 'NOVEL_ENGINE_IMAGE=%s\n' "$(docker image inspect novel-runtime:ci --format '{{.Id}}')" >> "$GITHUB_ENV"
+      - run: python -B scripts/probe_runtime.py fixtures
+      - name: Check a bounded live sample
+        if: github.event_name != 'pull_request'
+        run: |
+          python -B scripts/source_inventory.py migrate
+          python -B scripts/probe_runtime.py sample --count 60 --max-minutes 15
+          python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-fixtures
+          path: reports/runtime/

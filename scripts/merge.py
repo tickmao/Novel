@@ -191,6 +191,8 @@ def main():
         meta = json.loads(args.meta) if args.meta else {}
         output_data = add_meta(merged, meta)
 
+    from validate import assert_report_output
+    assert_report_output(Path(output_path))
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
 

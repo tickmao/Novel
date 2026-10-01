@@ -1,1 +1,6 @@
-aiohttp>=3.9.0
+aiohttp>=3.11,<4
+lxml>=5.3,<7
+cssselect>=1.2,<2
+jsonpath-ng>=1.7,<2
+regex>=2024.11
+tldextract>=5.1,<6

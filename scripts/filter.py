@@ -74,6 +74,8 @@ def main():
 
     # 输出小说书源
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    from validate import assert_report_output
+    assert_report_output(Path(output_path))
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(novels, f, ensure_ascii=False, indent=2)
 

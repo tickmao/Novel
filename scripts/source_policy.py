@@ -14,12 +14,13 @@ from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlparse
 
 from clean import calculate_quality_score, normalize_group, normalize_source_name
+from content_audit import ContentAudit
 
 
 CN_ONLY_RE = re.compile(r"^[\u4e00-\u9fff·]{2,16}$")
 HAS_CN_RE = re.compile(r"[\u4e00-\u9fff]")
 HAS_ASCII_OR_DIGIT_RE = re.compile(r"[A-Za-z0-9]")
-MEDIA_KEYWORDS = ("漫画", "有声", "视频", "影视", "音频", "听书", "动漫", "漫客", "咚漫", "画涯", "韩漫", "禁嫚")
+MEDIA_KEYWORDS = ("漫画", "有声", "视频", "影视", "音频", "听书", "动漫", "漫客", "咚漫", "画涯", "韩漫", "禁嫚", "禁漫")
 CHINESE_DIGITS = str.maketrans({
     "0": "零",
     "1": "一",
@@ -99,6 +100,8 @@ class SourcePolicy:
             for item in self.audit_config.get("url_patterns", [])
         ]
         self.allow_patterns = tuple(self.audit_config.get("allow_patterns", []))
+        reviews = _load_json(config_dir / 'content_reviews.json', {'decisions': []})
+        self.auditor = ContentAudit(self.audit_config, reviews.get('decisions', []))
 
     def _normalize_domain(self, domain: str) -> str:
         cleaned = domain.lower().strip()
@@ -197,43 +200,11 @@ class SourcePolicy:
 
         return candidate, "pure_chinese", []
 
+    def audit_source(self, source: Dict, pages: Optional[List[Dict]] = None) -> Dict:
+        return self.auditor.check(source, pages)
+
     def detect_adult_risks(self, source: Dict) -> List[str]:
-        """
-        从名称、分组、备注、URL 多字段检查成人向风险。
-        """
-        text_fields = [
-            str(source.get("originalName", "")),
-            str(source.get("bookSourceName", "")),
-            str(source.get("bookSourceGroup", "")),
-            str(source.get("bookSourceComment", "")),
-        ]
-        text_blob = " ".join(filter(None, text_fields))
-        for allow in self.allow_patterns:
-            text_blob = text_blob.replace(allow, "")
-
-        risks: List[str] = []
-
-        for pattern, reason in self.text_patterns:
-            if pattern.search(text_blob):
-                risks.append(reason)
-
-        url_blob = " ".join([
-            str(source.get("bookSourceUrl", "")),
-            str(source.get("searchUrl", "")),
-            str(source.get("exploreUrl", "")),
-        ])
-        for pattern, reason in self.url_patterns:
-            if pattern.search(url_blob):
-                risks.append(reason)
-
-        # 去重并保序
-        deduped: List[str] = []
-        seen = set()
-        for risk in risks:
-            if risk not in seen:
-                deduped.append(risk)
-                seen.add(risk)
-        return deduped
+        return list(dict.fromkeys(item["rule"] for item in self.audit_source(source)["evidence"]))
 
     def _rule_completeness(self, source: Dict) -> int:
         return sum(
@@ -264,9 +235,10 @@ class SourcePolicy:
         enriched["_adult_hit_reasons"] = adult_risks
         enriched["_name_quality_score"] = 10 if audit_status == "pure_chinese" else 0
 
-        base_score = float(source.get("selectionScore") or source.get("score") or calculate_quality_score(source))
+        base_score = float(calculate_quality_score(source))
         validation_bonus = 3 if source.get("_validation_status") == "valid" else 0
-        enriched["selectionScore"] = round(base_score + enriched["_name_quality_score"] + validation_bonus, 2)
+        enriched["_base_quality_score"] = base_score
+        enriched["selectionScore"] = round(min(100, base_score + enriched["_name_quality_score"] + validation_bonus), 2)
 
         return enriched
 
@@ -281,10 +253,10 @@ class SourcePolicy:
         if not url.startswith(("http://", "https://")):
             reject_reasons.append("URL 无效")
 
-        if int(record.get("bookSourceType", 0)) != 0:
+        if str(record.get("bookSourceType", 0)) != "0":
             reject_reasons.append("不是小说源")
 
-        if self._rule_completeness(record) < 2:
+        if self._rule_completeness(record) < 3:
             reject_reasons.append("规则不完整")
 
         media_text = " ".join([
@@ -294,7 +266,8 @@ class SourcePolicy:
         if any(keyword in media_text for keyword in MEDIA_KEYWORDS):
             reject_reasons.append("非纯小说内容")
 
-        reject_reasons.extend(record.get("_name_audit_reasons", []))
+        if not str(record.get("bookSourceName", "")).strip():
+            reject_reasons.append("名称为空")
         reject_reasons.extend(record.get("_adult_hit_reasons", []))
 
         if reject_reasons:
