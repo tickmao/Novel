@@ -16,6 +16,7 @@ def publication_gate(root, inventory, previous=None):
         and evidence.get('fixture_count', 0) >= 6
         and evidence.get('fixture_failures') == 0
         and evidence.get('live_sample_count', 0) >= 60
+        and evidence.get('live_valid_count', 0) >= 1
         and re.fullmatch(r'sha256:[0-9a-f]{64}', str(evidence.get('container_digest', ''))) is not None
     )
     launched = bool(previous and previous.get('schema_version') == 3

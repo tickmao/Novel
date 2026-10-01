@@ -46,7 +46,8 @@ browser rules remain unsupported. Rules that cannot provide enough evidence
 remain unverified; they are not confirmed site failures.
 
 The publication gate requires passing container fixtures, 60 live sample
-attempts, at least 950 healthy sources and 300 eligible reserves for the first
+attempts with at least one complete reading success, at least 950 healthy sources
+and 300 eligible reserves for the first
 version 3 release. Later releases may report shortages but cannot use unverified
 entries to fill them. Changing the adapter fingerprint invalidates old evidence.
 

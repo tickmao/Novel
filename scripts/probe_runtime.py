@@ -104,6 +104,11 @@ def sample_refs(inventory, count):
                  'js_rules' if '@js:' in text or '<js>' in text else
                  'json' if '$.' in text else 'static')
         groups[group].append(ref)
+    for group in groups.values():
+        group.sort(key=lambda ref: (
+            not bool(inventory.store.get(ref[0])['versions'][ref[1]].get('validation', {}).get('last_deep_success_at')),
+            ref,
+        ))
     selected = []
     for index in range(count):
         for group in sorted(groups):
@@ -163,11 +168,14 @@ async def main():
         sample = read_json(output / 'sample.json', {})
         result = {key: fixture.get(key) for key in ('engine_commit', 'validator_version', 'fixture_count', 'fixture_failures', 'runtime_fingerprint')}
         result.update(live_sample_count=sample.get('live_sample_count', 0), container_digest=args.container_digest,
+                      live_valid_count=sum(row['result'].get('status') == 'valid'
+                                           for row in sample.get('rows', [])),
                       checked_at=utcnow(), status='passed')
         if (fixture.get('engine_commit') != ENGINE_COMMIT or sample.get('engine_commit') != ENGINE_COMMIT
                 or fixture.get('runtime_fingerprint') != runtime_fingerprint()
                 or sample.get('runtime_fingerprint') != runtime_fingerprint()
                 or not args.container_digest
+                or result['live_valid_count'] == 0
                 or fixture.get('container_digest') != args.container_digest
                 or sample.get('container_digest') != args.container_digest
                 or fixture.get('fixture_failures', 1) or sample.get('live_sample_count', 0) < 60

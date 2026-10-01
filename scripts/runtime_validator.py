@@ -122,19 +122,27 @@ class EngineSession:
             await self.process.stdin.drain()
             line = await asyncio.wait_for(self.process.stdout.readline(), self.timeout)
             if not line:
-                await self.process.wait()
-                if self.stderr_task:
-                    await self.stderr_task
-                detail = self.startup_error.decode(errors='replace') if not self.ready else ''
-                raise EngineFailure('engine_crash', f'Worker exited with status {self.process.returncode}: {detail}')
+                raise await self.closed_error()
             response = json.loads(line)
             if not isinstance(response, dict) or 'ok' not in response:
                 raise ValueError('Invalid response')
             return response
         except asyncio.TimeoutError as exc:
             raise EngineFailure('engine_timeout', 'Worker request exceeded its budget') from exc
+        except (BrokenPipeError, ConnectionResetError) as exc:
+            raise await self.closed_error() from exc
         except (ValueError, OSError) as exc:
             raise EngineFailure('engine_protocol', type(exc).__name__) from exc
+
+    async def closed_error(self):
+        try:
+            await asyncio.wait_for(self.process.wait(), 2)
+            if self.stderr_task:
+                await asyncio.wait_for(asyncio.shield(self.stderr_task), 2)
+        except asyncio.TimeoutError:
+            return EngineFailure('engine_protocol', 'Worker closed its protocol stream')
+        detail = self.startup_error.decode(errors='replace') if not self.ready else ''
+        return EngineFailure('engine_crash', f'Worker exited with status {self.process.returncode}: {detail}')
 
     async def request(self, op, **kwargs):
         response = await self.exchange({'op': op, **kwargs})

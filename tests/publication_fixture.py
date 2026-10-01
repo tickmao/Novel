@@ -16,5 +16,6 @@ def enable_test_publication(root):
         'status': 'passed', 'engine_commit': ENGINE_COMMIT, 'validator_version': VALIDATOR_VERSION,
         'runtime_fingerprint': runtime_fingerprint(),
         'fixture_count': 6, 'fixture_failures': 0, 'live_sample_count': 60,
+        'live_valid_count': 1,
         'container_digest': 'sha256:' + '0' * 64,
     }))
