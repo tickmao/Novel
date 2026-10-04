@@ -1,233 +1,145 @@
 [
   {
-    "bookSourceUrl": "https://www.doupoall.com#🎃",
-    "bookSourceName": "斗破小说网",
-    "bookSourceGroup": "备用",
-    "bookSourceType": 0,
-    "customOrder": 487,
-    "enabled": true,
-    "enabledExplore": true,
-    "enabledCookieJar": true,
-    "header": "{\n    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'\n}",
-    "bookSourceComment": "",
-    "lastUpdateTime": 0,
-    "respondTime": 2876,
-    "weight": 0,
-    "exploreUrl": "",
-    "ruleExplore": {
-      "bookList": "",
-      "name": "",
-      "author": "",
-      "intro": "",
-      "kind": "",
-      "lastChapter": "",
-      "bookUrl": "",
-      "coverUrl": ""
-    },
-    "searchUrl": "{{\n\tvar su=source.getKey()\nvar htmlUrl=java.get(su,{}).headers('Location')\njava.log(`重定向：${htmlUrl[0]}`)\nvar posturl=htmlUrl[0]?htmlUrl[0]:(su.includes(\"#\")?su.match(/([^\\#]+)\\#/)[1]:su)\nposturl = posturl.slice(-1)=='/'?posturl.slice(0,-1):posturl\njava.log(`请求：${posturl}`)\n\nck=cookie.getCookie(posturl);\n\ncookie.setCookie(posturl,String(ck).replace(/vbemnlastsearchtime=.*/,\"\"));\n\nposturl;\n}}/e/search/index.php,{\n   \"body\":\"tbname=bookname&keyboard={{key}}&show=title,writer&tempid=1\",\n   \"method\": \"POST\"\n}",
-    "ruleSearch": {
-      "bookList": ".book-coverlist",
-      "name": "h4@a@text",
-      "author": ".author@text",
-      "intro": ".intro@text",
-      "kind": "p.0@span@text",
-      "lastChapter": "",
-      "bookUrl": "h4@a@href",
-      "coverUrl": "img@src",
-      "wordCount": ""
-    },
-    "ruleBookInfo": {
-      "init": "@put:{\nn:\"h1@a@text||[property~=book_name|title]@content\",\na:\"[property$=author]@content\",\nk:\"[property~=category|status|update_time]@content\",\nl:\"[property~=lastest_chapter_name|latest_chapter_name]@content\",\ni:\"[property$=description]@content\",\nc:\"[property$=image]@content\"\n}",
-      "name": "@get:{n}",
-      "author": "@get:{a}",
-      "intro": "@get:{i}",
-      "kind": "@get:{k}",
-      "lastChapter": "@get:{l}",
-      "coverUrl": "@get:{c}",
-      "tocUrl": "",
-      "wordCount": ""
-    },
-    "ruleToc": {
-      "chapterList": ".m-book-list@ul@li@a",
-      "chapterName": "text",
-      "chapterUrl": "href",
-      "updateTime": "",
-      "nextTocUrl": "option@value"
-    },
-    "ruleContent": {
-      "content": "#chaptercontent@html",
-      "nextContentUrl": "text.下一@href\n@js:\nif(result){\n result=result[0].includes(\"_\")?result:\"\";\n}",
-      "sourceRegex": "",
-      "replaceRegex": "##{{book.author}}.*.接着再看更方便|本章没完.*继续阅读！如果被转码.*更换浏揽器即可。|本章未完.*退出阅读模式即可，谢谢|.*提醒.*看完记得.*|\\s*温馨提示.?亲爱的读者.*\\s*|\\d+。。"
-    },
-    "searchRule": {
-      "bookList": ".book-coverlist",
-      "name": "h4@a@text",
-      "author": ".author@text",
-      "intro": ".intro@text",
-      "kind": "p.0@span@text",
-      "lastChapter": "",
-      "bookUrl": "h4@a@href",
-      "coverUrl": "img@src",
-      "wordCount": ""
-    },
-    "tag": "斗破小说网🎃",
-    "tocRule": {
-      "chapterList": ".m-book-list@ul@li@a",
-      "chapterName": "text",
-      "chapterUrl": "href",
-      "updateTime": "",
-      "nextTocUrl": "option@value"
-    },
-    "contentRule": {
-      "content": "#chaptercontent@html",
-      "nextContentUrl": "text.下一@href\n@js:\nif(result){\n result=result[0].includes(\"_\")?result:\"\";\n}",
-      "sourceRegex": "",
-      "replaceRegex": "##{{book.author}}.*.接着再看更方便|本章没完.*继续阅读！如果被转码.*更换浏揽器即可。|本章未完.*退出阅读模式即可，谢谢|.*提醒.*看完记得.*|\\s*温馨提示.?亲爱的读者.*\\s*|\\d+。。"
-    },
-    "exploreRule": {
-      "bookList": "",
-      "name": "",
-      "author": "",
-      "intro": "",
-      "kind": "",
-      "lastChapter": "",
-      "bookUrl": "",
-      "coverUrl": ""
-    },
-    "bookInfoRule": {
-      "init": "@put:{\nn:\"h1@a@text||[property~=book_name|title]@content\",\na:\"[property$=author]@content\",\nk:\"[property~=category|status|update_time]@content\",\nl:\"[property~=lastest_chapter_name|latest_chapter_name]@content\",\ni:\"[property$=description]@content\",\nc:\"[property$=image]@content\"\n}",
-      "name": "@get:{n}",
-      "author": "@get:{a}",
-      "intro": "@get:{i}",
-      "kind": "@get:{k}",
-      "lastChapter": "@get:{l}",
-      "coverUrl": "@get:{c}",
-      "tocUrl": "",
-      "wordCount": ""
-    },
-    "key": "https://www.doupoall.com#🎃",
-    "_validation_status": "invalid",
-    "_last_validated_at": "2026-09-27T07:31:46.514862",
-    "_validation_error": "Server disconnected"
-  },
-  {
-    "bookSourceUrl": "https://www.luoxia123.com/",
-    "bookSourceName": "落霞小说",
-    "bookSourceGroup": "备用",
-    "bookSourceType": 0,
-    "bookUrlPattern": "https://www.luoxia123.com/.*/",
-    "customOrder": 79,
-    "enabled": true,
-    "enabledExplore": false,
-    "enabledCookieJar": true,
-    "header": "{\"User-Agent\": \"Mozilla/5.0 (Linux; Android 9) Mobile Safari/537.36\"}",
-    "bookSourceComment": "",
-    "lastUpdateTime": 1713702331495,
-    "respondTime": 2526,
-    "weight": 0,
-    "exploreUrl": "[\n{\"title\":\"分类\",\"url\":\"\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":1}},\n{\"title\":\"玄幻仙侠\",\"url\":\"/xuanhuan/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.4}},\n{\"title\":\"都市言情\",\"url\":\"/yanqing/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.4}},\n{\"title\":\"穿越架空\",\"url\":\"/chuanyue/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.4}},\n{\"title\":\"历史军事\",\"url\":\"/lishi/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.4}},\n{\"title\":\"科幻灵异\",\"url\":\"/lingyi/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.4}},\n{\"title\":\"网游竞技\",\"url\":\"/wangyou/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.4}},\n{\"title\":\"耽美同人\",\"url\":\"/danmei/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.4}},\n{\"title\":\"文学经典\",\"url\":\"/wenxue/<,index_{{page}}.html>\",\"style\":{\"layout_flexGrow\":1,\"layout_flexBasisPercent\":0.4}}\n]",
-    "ruleExplore": {
-      "bookList": "tbody>tr",
-      "name": "td.0@text",
-      "author": "td.1@text",
-      "kind": "td.2@text",
-      "bookUrl": " a.0@href"
-    },
-    "searchUrl": "https://www.luoxia123.com/e/search/index.php,{\n  \"body\": \"tbname=bookname&show=title,writer&tempid=1&keyboard={{key}}\",\n  \"charset\": \"UTF-8\",\n  \"method\": \"POST\"\n}",
-    "ruleSearch": {
-      "bookList": "tbody>tr",
-      "name": "td.0@text",
-      "author": "td.2@text",
-      "kind": "td.-1@text",
-      "lastChapter": "td.1@text",
-      "bookUrl": " a.0@href"
-    },
-    "ruleBookInfo": {
-      "name": "h1@textNodes",
-      "author": "small@text",
-      "intro": ".m-summary@text",
-      "coverUrl": "img@src",
-      "tocUrl": ""
-    },
-    "ruleToc": {
-      "chapterList": "class.list-group@a",
-      "chapterName": "text",
-      "chapterUrl": "href"
-    },
-    "ruleContent": {
-      "content": "id.content@html",
-      "nextContentUrl": "text.下一章@href||class.m-page@a.-1@href"
-    },
-    "searchRule": {
-      "bookList": "tbody>tr",
-      "name": "td.0@text",
-      "author": "td.2@text",
-      "kind": "td.-1@text",
-      "lastChapter": "td.1@text",
-      "bookUrl": " a.0@href"
-    },
-    "tag": "落霞小说",
-    "tocRule": {
-      "chapterList": "class.list-group@a",
-      "chapterName": "text",
-      "chapterUrl": "href"
-    },
-    "contentRule": {
-      "content": "id.content@html",
-      "nextContentUrl": "text.下一章@href||class.m-page@a.-1@href"
-    },
-    "exploreRule": {
-      "bookList": "tbody>tr",
-      "name": "td.0@text",
-      "author": "td.1@text",
-      "kind": "td.2@text",
-      "bookUrl": " a.0@href"
-    },
-    "bookInfoRule": {
-      "name": "h1@textNodes",
-      "author": "small@text",
-      "intro": ".m-summary@text",
-      "coverUrl": "img@src",
-      "tocUrl": ""
-    },
-    "key": "https://www.luoxia123.com/",
-    "_validation_status": "invalid",
-    "_last_validated_at": "2026-09-27T07:31:48.836910",
-    "_validation_error": "Server disconnected"
-  },
-  {
+    "bookSourceUrl": "https://www.zhaogushi.cn",
+    "bookSourceName": "找故事网",
     "bookSourceGroup": "标准",
-    "bookSourceName": "我爱读者",
     "bookSourceType": 0,
-    "bookSourceUrl": "https://www.52dzxy.com/",
-    "customButton": false,
-    "customOrder": 315,
+    "bookUrlPattern": "https://www.zhaogushi.cn/article/\\d+.html",
+    "customOrder": 22,
     "enabled": true,
-    "enabledCookieJar": true,
     "enabledExplore": true,
-    "eventListener": false,
-    "lastUpdateTime": 1759385591772,
-    "respondTime": 712,
-    "ruleBookInfo": {},
-    "ruleContent": {
-      "content": "tag.p@text##我爱读者校园网"
-    },
+    "enabledCookieJar": false,
+    "bookSourceComment": "",
+    "lastUpdateTime": 1745178426437,
+    "respondTime": 1498,
+    "weight": 0,
+    "exploreUrl": "全部故事::https://www.zhaogushi.cn/page_{{page}}.html\n民间故事::https://www.zhaogushi.cn/category-1_{{page}}.html\n读书故事::https://www.zhaogushi.cn/category-2_{{page}}.html\n聊斋故事::https://www.zhaogushi.cn/category-3_{{page}}.html\n现代故事::https://www.zhaogushi.cn/category-4_{{page}}.html\n传奇故事::https://www.zhaogushi.cn/category-5_{{page}}.html\n民俗传说::https://www.zhaogushi.cn/category-6_{{page}}.html",
     "ruleExplore": {},
+    "searchUrl": "https://www.zhaogushi.cn/search/{{key}}.html",
     "ruleSearch": {
-      "bookList": "class.booklist@tag.td",
-      "bookUrl": "class.time@tag.a.0@href",
-      "name": "class.time@tag.a.0@text"
+      "bookList": "class.entry-container",
+      "name": "h2@text",
+      "author": "class.entry-meta-author@text",
+      "intro": "class.entry-summary@text",
+      "kind": "time.ispot@text",
+      "bookUrl": "h2@a@href",
+      "coverUrl": ".lazy@src"
+    },
+    "ruleBookInfo": {
+      "init": "@put:{n:\"[property$=og:title]@content\",\na:\"[property$=author]@content\",\nk:\"[property~=category|status|update_time|og:updated_time]@content\",\nl:\"[property~=las?test_chapter_name]@content\",\ni:\"[property$=description]@content\",\nc:\"[property$=image]@content\"}",
+      "name": "@get:{n}",
+      "author": "@get:{a}",
+      "intro": "@get:{i}",
+      "kind": "@get:{k}##T.*",
+      "lastChapter": "@get:{l}",
+      "coverUrl": "@get:{c}"
     },
     "ruleToc": {
-      "chapterList": "class.maglisttitle@tag.a",
-      "chapterName": "text",
-      "chapterUrl": "href"
+      "chapterList": "class.single-bar-header@h1",
+      "chapterName": "@text",
+      "chapterUrl": "{{baseUrl}}"
     },
-    "searchUrl": "#",
+    "ruleContent": {
+      "content": "class.single-entry@html"
+    },
+    "tag": "找故事网",
+    "searchRule": {
+      "bookList": "class.entry-container",
+      "name": "h2@text",
+      "author": "class.entry-meta-author@text",
+      "intro": "class.entry-summary@text",
+      "kind": "time.ispot@text",
+      "bookUrl": "h2@a@href",
+      "coverUrl": ".lazy@src"
+    },
+    "exploreRule": {},
+    "bookInfoRule": {
+      "init": "@put:{n:\"[property$=og:title]@content\",\na:\"[property$=author]@content\",\nk:\"[property~=category|status|update_time|og:updated_time]@content\",\nl:\"[property~=las?test_chapter_name]@content\",\ni:\"[property$=description]@content\",\nc:\"[property$=image]@content\"}",
+      "name": "@get:{n}",
+      "author": "@get:{a}",
+      "intro": "@get:{i}",
+      "kind": "@get:{k}##T.*",
+      "lastChapter": "@get:{l}",
+      "coverUrl": "@get:{c}"
+    },
+    "tocRule": {
+      "chapterList": "class.single-bar-header@h1",
+      "chapterName": "@text",
+      "chapterUrl": "{{baseUrl}}"
+    },
+    "contentRule": {
+      "content": "class.single-entry@html"
+    },
+    "key": "https://www.zhaogushi.cn",
+    "_validation_status": "invalid",
+    "_last_validated_at": "2026-10-04T07:44:16.970100",
+    "_validation_error": "Server disconnected"
+  },
+  {
+    "bookSourceComment": "//填写书籍变量可开启“只看楼主”功能\n//250211by= =",
+    "bookSourceGroup": "标准",
+    "bookSourceName": "华人论坛存档",
+    "bookSourceType": 0,
+    "bookSourceUrl": "http://www.huarenv5.com##",
+    "bookUrlPattern": "",
+    "customOrder": 371,
+    "enabled": true,
+    "enabledCookieJar": false,
+    "enabledExplore": true,
+    "exploreUrl": "未来幻想::http://www.huarenv5.com/forum/forumdisplay.php?fid=54&filter=type&typeid=108",
+    "header": "{\n  \"User-Agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36\"\n}",
+    "lastUpdateTime": 1742532095014,
+    "loginCheckJs": "",
+    "loginUi": "",
+    "loginUrl": "http://www.huarenv5.com/forum/logging.php?action=login",
+    "respondTime": 1689,
+    "ruleBookInfo": {
+      "author": "id.threadtitle@h1@ownText||.noveltitle@p.1@text##.*作者：(.*)（.*##$1",
+      "coverUrl": "class.lazy@data-original",
+      "init": "<js>\nif(/forum/.test(baseUrl)){\ny=java.getString(\".postauthor.0@div.0@a@text\");}\nif(/book/.test(baseUrl)){\tyy=java.getString(\".noveltitle.0@p.0@text\");y=String(yy).replace(/ 发表.*/,\"\");\n\t}\nsource.setVariable(y);result</js>",
+      "intro": "h1@html&&.firstpost@.t_msgfontfix@html&&.noveltitle.0@p.1:0@html&&.novelcontent.0@html\n<js>\n//java.log(result)\nbook.getVariable(\"custom\")!=\"\"?x=\"开启\":x=\"关闭\";\nyhm=java.getString(\".postauthor.0@div.0@a@text\");\nif(yhm==\"\") {zuozhe=java.getString(\".noveltitle.0@p.0@text\");\nyhm=String(zuozhe).replace(/ 发表.*/,\"\");}\n\"<br>本帖楼主用户名：【\"+yhm+\"】\\n在本页面右上角书籍变量内输入任意文字开启“只看楼主”功能\\n若设置失败请点击本页面右上角，检查源变量与楼主用户名是否一致\\n当前状态：【\"+x+\"】\\n————\\n\"+result.replace(/<span[^<]*<\\/span>/gi,\"\").replace(/<font[^<]*<\\/font>/gi,\"\").replace(/<li[^<]*<\\/li>/gi,\"\").replace(/\\<[^<]*<\\[^>]*\\>/gi,\"\")\n</js>",
+      "kind": "",
+      "name": ".noveltitle@p.1@text||title@ownText##《(.*)》.*##$1",
+      "tocUrl": "",
+      "wordCount": ""
+    },
+    "ruleContent": {
+      "content": "<js>\n//try{\nlz=source.getVariable();\nlist=\"\";\n//获取需要显示的内容，分割为数组\nif(/forum/.test(baseUrl)){\nzuozhe=java.getString(\"td[rowspan='2']@div.0@a@text\").split(\"\\n\");\nshijian=java.getString(\".authorinfo em@text\").split(\"\\n\");\nneir=java.getString(\".postmessage@tr@td@ownText\").split(\"\\n\");\n}\nif(/books/.test(baseUrl)){\tzuozhe=java.getString(\"@@.noveltitle@p.0@text\").split(\"\\n\");\nshijian=java.getString(\".noveltitle@p.0@text\").split(\"\\n\");\nneir=java.getString(\".novelcontent@ownText\").split(\"\\n\");\n}\n\n//修整内容后依次拼接\nfor(i=0;i<zuozhe.length;i++){\ntxt=String(neir[i]).replace(/\\s/g,\"\\n\");\nzz=String(zuozhe[i]).replace(/ 发表.*/,\"\");\nsj=String(shijian[i]).replace(/.*发表/,\"发表\");\njava.log(zz+lz);\n\n//只看楼主\nif (book.getVariable(\"custom\")!=\"\"){\n  if(zz==lz){\n  list=list+\"\\n@\"+zz+\"__\"+sj+\"\\n\"+txt+\"\\n————\\n\";\n  }else{};\n}else{list=list+\"\\n@\"+zz+\"__\"+sj+\"\\n\"+txt+\"\\n————\\n\";}\n}\nlist\nif(list==\"\"){\"未获取到内容，或许是因为“只看楼主”功能开启中\\n请尝试在详情页点击右上角删除书籍变量，关闭只看楼主功能后刷新本页面\"}\n//}catch {\"代码错误\"}\n</js>",
+      "imageStyle": "",
+      "nextContentUrl": "",
+      "payAction": ""
+    },
+    "ruleExplore": {
+      "author": "span.0@a@text||a[href*=readnovel.php]@text##.*作者[\\:：]|（.*|\\s[(欢迎)(请勿)勿暂].*",
+      "bookList": "@js:\nif(/booklist/.test(baseUrl)) a=java.getElements(\"table[cellspacing='5']@tr!0\");\nif(/forum/.test(baseUrl)) a=java.getElements(\"tbody[id~=normalthread]@tr\");\nif(/books\\/$/.test(baseUrl)) a=java.getElements(\".forumitem1_content a\");\n//java.log(a)",
+      "bookUrl": "a[href*=readnovel.php]@href||a@href",
+      "intro": "span.0@a@text||a[href*=readnovel.php]@text##.*（(.*)）.*?##$1",
+      "kind": "em.0@text&&.attach@title&&a[href~=booklist.php]@text",
+      "lastChapter": ".lastpost@text",
+      "name": "span.0@a@text||a[href~=readnovel.php]@text##.*《|》.*",
+      "wordCount": ""
+    },
+    "ruleSearch": {
+      "author": "class.author@tag.a@text##.*作者.|\\【.*",
+      "bookList": "class.searchlist@tag.table@tag.tbody",
+      "bookUrl": "tag.a@href##highlight.*",
+      "checkKeyWord": "http://www.huarenv5.com/forum/viewthread.php?tid=350681&",
+      "coverUrl": "",
+      "kind": "class.forum@tag.a@text##口-",
+      "name": "class.subject@tag.a.0@text##\\《|\\》.*"
+    },
+    "ruleToc": {
+      "chapterList": "@js:\n    //获取总页数\ntry{\n        a = java.getString(\".last.0@text\").match(/\\s(\\d+)/)[1];\n    }\ncatch {\n    a = java.getElements(\".pages.0@a\").length;\n    if(a) {java.log(\"有.pages，按长度\")\n    }\n    else {java.log(\"没有.pages，取末页\");\n        aa = java.getString(\"text.末页@href\");\n        a = String(aa).replace(/.*page=/, \"\");\n        java.log(a)\n    }\n}\nlist = [];\nlist.push({text: \"第1页\",href: baseUrl});\nfor(i = 2; i <= a; i++) {\n    if(/thread-/.test(baseUrl)) {java.log(\"测thread\");\n        dz1 = baseUrl.replace(/-\\d+-\\d+.html/, \"-\");\n        dz2 = baseUrl.match(/-\\d+\\.html$/);\n        //\tjava.log(dz1+i+dz2);\n        list.push({\n            text: \"第\" + i + \"页\",\n            href: dz1 + i + dz2\n        })\n    }\n    else {java.log(\"page拼接\")\n        list.push({\n            text: \"第\" + i + \"页\",\n            href: baseUrl + \"&page=\" + i\n        })\n    }\n}\njava.log(JSON.stringify(list))\nlist",
+      "chapterName": "text",
+      "chapterUrl": "href",
+      "nextTocUrl": "",
+      "preUpdateJs": "",
+      "updateTime": ""
+    },
+    "searchUrl": "http://www.huarenv5.com/forum/search.php,{\n  \"charset\": \"gbk\",\n  \"method\": \"POST\",\n  \"body\": \"srchtxt={{key}}&searchsubmit=true&orderway=lastpost&srchtype=title&sch_time=all\"\n}",
     "weight": 0,
     "_validation_status": "invalid",
-    "_last_validated_at": "2026-09-27T07:31:48.876502",
-    "_validation_error": "HTTP 403"
+    "_last_validated_at": "2026-10-04T07:44:24.216158",
+    "_validation_error": "超时"
   }
 ]
