@@ -26,6 +26,38 @@ class CatalogTransport:
 
 
 class HarvesterTests(unittest.IsolatedAsyncioTestCase):
+    async def test_long_catalog_scan_leaves_time_to_download_and_resumes(self):
+        elapsed = 0
+
+        async def fetch(request):
+            nonlocal elapsed
+            if '/json/' in request['url']:
+                return Response(request['url'], json.dumps([source()]))
+            elapsed += 6
+            return Response(request['url'],
+                            '<a href="/yuedu/shuyuan/content/id/42.html">Book</a>'
+                            '<a href="/yuedu/shuyuan/index.html?page=20">20</a>')
+
+        with tempfile.TemporaryDirectory() as tmp, patch('yckceo_harvester.time') as clock, \
+                patch('yckceo_harvester.asyncio.sleep', new=AsyncMock()):
+            clock.monotonic.side_effect = lambda: elapsed
+            store = SourceStore(Path(tmp))
+            client = AsyncMock()
+            client.fetch.side_effect = fetch
+            harvester = YckceoHarvester(request_delay=0)
+            report = await harvester.sync(store, client, full_scan=True, fetch_cap=1, deadline=100)
+            self.assertGreater(report['pages'], 0)
+            self.assertLess(report['pages'], 20)
+            self.assertEqual(report['fetched_ids'], 1)
+            loaded = SourceStore(Path(tmp))
+            state = loaded.state['providers']['yckceo']
+            self.assertEqual(state['scan_cursor'], report['pages'] + 1)
+            self.assertNotIn('last_full_scan_at', state)
+            self.assertEqual(loaded.manifest['count'], 1)
+            await harvester.sync(loaded, client, full_scan=True, deadline=300)
+            self.assertEqual(state['scan_cursor'], 1)
+            self.assertIn('last_full_scan_at', state)
+
     async def test_same_id_can_receive_a_new_revision(self):
         with tempfile.TemporaryDirectory() as tmp, patch('yckceo_harvester.asyncio.sleep', new=AsyncMock()):
             store = SourceStore(Path(tmp))

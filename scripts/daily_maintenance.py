@@ -13,7 +13,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from reading_validator import HTTPClient
+from reading_validator import HTTPClient, ProbeFailure
 from runtime_validator import RuntimeReadingValidator as ReadingValidator
 from runtime_config import ENVIRONMENT_FAILURES
 from maintenance_lock import writer_lock
@@ -37,6 +37,8 @@ class DailyMaintenance:
         baseline, completed = {}, []
         counts, kinds, examples = Counter(), Counter(), {}
         for offset in range(0, len(refs), 20):
+            if report.get('engine_incident') or report.get('network_incident'):
+                break
             if time.monotonic() >= deadline:
                 report['budget_exhausted'] = True
                 break
@@ -46,10 +48,13 @@ class DailyMaintenance:
                 baseline[key, revision] = (deepcopy(version.get('validation', {})), deepcopy(version.get('audit', {})))
             tasks = [asyncio.create_task(validator.probe(inventory.audit_payload(store.get(key)['versions'][revision]), mode))
                      for key, revision in batch]
-            _, pending = await asyncio.wait(tasks, timeout=max(0, deadline - time.monotonic()))
-            for task in pending:
-                task.cancel()
-            await asyncio.gather(*pending, return_exceptions=True)
+            try:
+                _, pending = await asyncio.wait(tasks, timeout=max(0, deadline - time.monotonic()))
+            finally:
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
             if pending:
                 report['budget_exhausted'] = True
             pairs = [(ref, task.result()) for ref, task in zip(batch, tasks) if task not in pending]
@@ -89,6 +94,63 @@ class DailyMaintenance:
         report[mode + '_examples'] = examples
         report[mode + '_checked'] = len(completed)
 
+    async def collect_sources(self, client, *, mode, deadline, save, fetch_cap, backfill_rounds, report):
+        inventory, store = self.inventory, self.inventory.store
+
+        async def submissions():
+            return await collect_submissions(store, client, inventory.project_root, save=save, deadline=deadline)
+
+        async def yckceo():
+            cfg = inventory.config.get('yckceo', {})
+            harvester = YckceoHarvester(inventory.policy, **cfg)
+            provider_state = store.state.get('providers', {}).get('yckceo', {})
+            last_scan = parse_time(provider_state.get('last_full_scan_at'))
+            full_scan = mode == 'backfill' or not last_scan or datetime.now(timezone.utc) - last_scan > timedelta(days=7)
+            batches = report['providers']['yckceo'] = []
+            rounds = backfill_rounds if mode == 'backfill' else 1
+            for round_index in range(rounds):
+                result = await harvester.sync(
+                    store, client, full_scan=full_scan, scan=round_index == 0,
+                    daily_pages=int(cfg.get('daily_pages', 5)),
+                    fetch_cap=fetch_cap if fetch_cap is not None else (300 if mode in ('backfill', 'catchup') else 150),
+                    deadline=deadline, save=save,
+                )
+                batches.append(result)
+                if time.monotonic() >= deadline or not result.get('fetched_ids') or not result.get('pending_count'):
+                    break
+            return batches
+
+        async def external():
+            last = parse_time(store.state.get('last_external_collection_at'))
+            if last and datetime.now(timezone.utc) - last <= timedelta(days=1):
+                return {'skipped': 'Feeds were checked within the last day'}
+            channels = read_json(inventory.project_root / 'config/source_channels.json', {})
+            result = await collect_into(store, client, channels, deadline=deadline, save=save)
+            if result['files'] and not result['errors']:
+                store.state['last_external_collection_at'] = utcnow()
+            return result
+
+        async def run_provider(name, operation):
+            try:
+                async with asyncio.timeout(max(0, deadline - time.monotonic())):
+                    report['providers'][name] = await operation()
+            except TimeoutError:
+                report['collection_budget_exhausted'] = True
+                report['providers'][name] = {'status': 'budget_exhausted',
+                                             'completed': report['providers'].get(name)}
+            except (OSError, ValueError, ProbeFailure) as exc:
+                report['providers'][name] = {'error': str(exc)[:150]}
+
+        try:
+            async with asyncio.TaskGroup() as tasks:
+                tasks.create_task(run_provider('submissions', submissions))
+                tasks.create_task(run_provider('yckceo', yckceo))
+                if mode != 'backfill':
+                    tasks.create_task(run_provider('external', external))
+        finally:
+            if save:
+                store.save()
+
     async def maintain(self, batch_size=300, concurrency=20, timeout=10, dry_run=False,
                        mode='daily', collect=True, publish=False, max_minutes=90, fetch_cap=None, backfill_rounds=1):
         with writer_lock(self.base_dir):
@@ -105,58 +167,43 @@ class DailyMaintenance:
             report['static_audit'] = inventory.audit_all()
             if not dry_run:
                 store.save()
-            _, _, initial = inventory.select()
-            if mode == 'catchup' and not initial['needs_replenishment']:
-                report['skipped'] = 'Inventory and catalog are complete'
-                return report
-            async with HTTPClient(concurrency, timeout, max_bytes=32 * 1024 * 1024) as client:
-                if collect:
-                    collection_deadline = (deadline if mode == 'backfill' else
-                                           min(deadline, time.monotonic() + min(600, max_minutes * 60 * 0.15)))
-                    report['providers']['submissions'] = await collect_submissions(
-                        store, client, inventory.project_root, save=not dry_run, deadline=collection_deadline)
-                    cfg = inventory.config.get('yckceo', {})
-                    harvester = YckceoHarvester(inventory.policy, **cfg)
-                    provider_state = store.state.get('providers', {}).get('yckceo', {})
-                    last_scan = parse_time(provider_state.get('last_full_scan_at'))
-                    full_scan = mode == 'backfill' or not last_scan or datetime.now(timezone.utc) - last_scan > timedelta(days=7)
-                    batches = []
-                    rounds = backfill_rounds if mode == 'backfill' else 1
-                    for round_index in range(rounds):
-                        result = await harvester.sync(
-                            store, client, full_scan=full_scan, scan=round_index == 0,
-                            daily_pages=int(cfg.get('daily_pages', 5)),
-                            fetch_cap=fetch_cap if fetch_cap is not None else (300 if mode in ('backfill', 'catchup') else 150),
-                            deadline=collection_deadline, save=not dry_run,
-                        )
-                        batches.append(result)
-                        if time.monotonic() >= deadline or not result.get('fetched_ids') or not result.get('pending_count'):
-                            break
-                    report['providers']['yckceo'] = batches
-                    last_other = parse_time(store.state.get('last_external_collection_at'))
-                    if mode != 'backfill' and (not last_other or datetime.now(timezone.utc) - last_other > timedelta(days=1)):
-                        channels = read_json(inventory.project_root / 'config/source_channels.json', {})
-                        report['providers']['external'] = await collect_into(store, client, channels, deadline=collection_deadline, save=not dry_run)
-                        if report['providers']['external']['files'] and not report['providers']['external']['errors']:
-                            store.state['last_external_collection_at'] = utcnow()
-                report['static_audit'] = inventory.audit_all()
-                if mode != 'backfill':
-                    validator = ReadingValidator(inventory.policy, concurrency=min(concurrency, 4))
-                    refs = inventory.queue(limit=batch_size)
-                    export, _, _ = inventory.select()
-                    light_refs = [(item['_source_id'], item['_revision']) for item in export
-                                  if (item['_source_id'], item['_revision']) not in set(refs)]
+            # Fix this run's validation queue before collectors add new revisions.
+            # Fresh arrivals remain durable and join the next scheduled run.
+            refs = inventory.queue(limit=batch_size) if mode != 'backfill' else []
+            export, _, _ = inventory.select()
+            scheduled = set(refs)
+            light_refs = [(item['_source_id'], item['_revision']) for item in export
+                          if (item['_source_id'], item['_revision']) not in scheduled]
+
+            async def check_inventory():
+                validator = ReadingValidator(inventory.policy, concurrency=min(concurrency, 4))
+                async with asyncio.TaskGroup() as checks:
+                    checks.create_task(self.validate(validator, refs, mode='deep', deadline=deadline,
+                                                     save=not dry_run, report=report))
                     if mode == 'daily':
-                        await self.validate(validator, light_refs, mode='light', deadline=deadline, save=not dry_run, report=report)
-                    if not report.get('network_incident') and not report.get('engine_incident'):
-                        await self.validate(validator, refs, mode='deep', deadline=deadline, save=not dry_run, report=report)
-                    previous = read_json(inventory.base_dir / 'main/publication.json', {})
-                    if (mode == 'daily' and previous.get('schema_version') == 3
-                            and not report.get('network_incident') and not report.get('engine_incident')):
-                        day = datetime.now(timezone.utc).date().isoformat()
-                        selected = sorted(previous.get('sources', []), key=lambda item: digest([day, item['source_id']]))[:50]
-                        spot_refs = [(item['source_id'], item['revision']) for item in selected]
-                        await self.validate(validator, spot_refs, mode='spot', deadline=deadline, save=not dry_run, report=report)
+                        checks.create_task(self.validate(validator, light_refs, mode='light', deadline=deadline,
+                                                         save=not dry_run, report=report))
+                previous = read_json(inventory.base_dir / 'main/publication.json', {})
+                if (mode == 'daily' and previous.get('schema_version') == 3
+                        and not report.get('network_incident') and not report.get('engine_incident')):
+                    day = datetime.now(timezone.utc).date().isoformat()
+                    selected = sorted(previous.get('sources', []), key=lambda item: digest([day, item['source_id']]))[:50]
+                    spot_refs = [(item['source_id'], item['revision']) for item in selected]
+                    await self.validate(validator, spot_refs, mode='spot', deadline=deadline,
+                                        save=not dry_run, report=report)
+
+            async with HTTPClient(concurrency, timeout, max_bytes=32 * 1024 * 1024) as client:
+                async with asyncio.TaskGroup() as tasks:
+                    if collect:
+                        collection_deadline = (deadline if mode == 'backfill' else
+                                               min(deadline, time.monotonic() + min(600, max_minutes * 60 * 0.15)))
+                        tasks.create_task(self.collect_sources(
+                            client, mode=mode, deadline=collection_deadline, save=not dry_run,
+                            fetch_cap=fetch_cap, backfill_rounds=backfill_rounds, report=report))
+                    if mode != 'backfill':
+                        tasks.create_task(check_inventory())
+            # A newly collected exclusion must apply before selecting the release.
+            report['static_audit'] = inventory.audit_all()
             _, _, current = inventory.select()
             report['inventory'] = current
             report['publication_gate'] = inventory.publication_gate(current)

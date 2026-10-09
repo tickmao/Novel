@@ -74,9 +74,11 @@ class YckceoHarvester:
         catalog = state['catalog']
         report = {'listed': 0, 'fetched_ids': 0, 'sources': 0, 'failed': 0, 'pages': 0}
         deadline = deadline or time.monotonic() + 3600
+        # Leave half of each run for downloads while a large catalog scan resumes.
+        scan_deadline = time.monotonic() + max(0, deadline - time.monotonic()) / 2
         page = state.get('scan_cursor', 1) if full_scan else 1
         last_page = state.get('last_page', 1)
-        while scan and time.monotonic() < deadline and (full_scan or page <= daily_pages):
+        while scan and time.monotonic() < scan_deadline and (full_scan or page <= daily_pages):
             try:
                 response = await client.fetch({'url': self.listing_url(page)})
                 listings, last_page = parse_listing_page(response.text)

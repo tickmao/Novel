@@ -1,6 +1,6 @@
 # Maintenance status
 
-Updated: 2026-10-01
+Updated: 2026-10-09
 
 ## Current direction
 
@@ -8,6 +8,12 @@ The approved objective is a sustainable public inventory of about 1,000 readable
 Legado sources, with 500 eligible reserves. Availability takes priority over
 count. Explicit adult sites and adult sections are excluded; ambiguous evidence
 is quarantined for contextual review.
+
+Existing raw sources and newly collected Legado sources feed the same automated
+loop. Collection runs alongside inventory validation. Failed sources leave the
+eligible inventory, qualified reserves fill the gaps, and scheduled runs keep
+collecting and checking revisions after the target count is reached. Raw records
+and failure evidence remain available for later checks.
 
 The historical 306-source public file and 1,000-source internal file remain
 archived in [the legacy audit](reports/legacy-audit/README.md). They are inputs to
@@ -33,7 +39,28 @@ publication sequence has been replaced by runtime and inventory gates.
 - Updated CI for Python 3.11, a pinned runtime image, recovery artifacts,
   daily/catchup maintenance, 50-source spot checks and seven-day acceptance.
 
-## Verified locally
+## Loop changes on 2026-10-09
+
+- Collection providers and inventory validation run concurrently under the same
+  writer lock. New revisions are saved and join validation from the next run.
+- Daily light checks and deep reading checks share the runtime concurrency limit.
+- A failed or timed-out provider does not stop other providers or validation.
+  Completed collection work is saved, and cancelled probes are closed.
+- Catchup runs continue after the inventory reaches its target. Large catalog
+  scans reserve time for downloads and resume from their saved cursor.
+- Collection finishes before the final content audit and publication decision.
+  A new excluded revision cannot fall back to the old public version.
+
+Validation: 81 Python tests passed on Python 3.14.6, and `git diff --check`
+passed. Tests cover concurrent progress, provider failure and timeout, dry-run
+preservation, cancellation, catalog resume, and a two-run replacement cycle
+that keeps 1,000 eligible sources while restoring the reserve from collection.
+Reading outcomes in that cycle are simulated.
+
+These changes require deployment and live acceptance. The earlier runtime gate
+still applies; no production source count is established by offline tests.
+
+## Verification recorded on 2026-10-01
 
 - 70 Python tests passed on Python 3.11.15 and Python 3.14.6.
 - The pinned JVM engine and bridge compiled with JDK 21.
