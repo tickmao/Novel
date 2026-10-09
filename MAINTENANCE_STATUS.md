@@ -4,96 +4,93 @@ Updated: 2026-10-09
 
 ## Current direction
 
-The approved objective is a sustainable public inventory of about 1,000 readable
-Legado sources, with 500 eligible reserves. Availability takes priority over
-count. Explicit adult sites and adult sections are excluded; ambiguous evidence
-is quarantined for contextual review.
+Maintain about 1,000 readable Legado sources and 500 eligible reserves through
+an automated collection, validation, exclusion and replacement loop. Availability
+takes priority over count. Explicit adult sites and adult sections are excluded;
+ambiguous evidence is quarantined for contextual review.
 
-Existing raw sources and newly collected Legado sources feed the same automated
-loop. Collection runs alongside inventory validation. Failed sources leave the
-eligible inventory, qualified reserves fill the gaps, and scheduled runs keep
-collecting and checking revisions after the target count is reached. Raw records
-and failure evidence remain available for later checks.
+Existing raw sources and newly collected sources feed the same inventory.
+Collection runs alongside validation. Failed sources leave the eligible inventory,
+qualified reserves fill the gaps, and scheduled runs keep checking upstream
+revisions after the target count is reached. Raw records and failure evidence
+remain available for later checks.
 
-The historical 306-source public file and 1,000-source internal file remain
-archived in [the legacy audit](reports/legacy-audit/README.md). They are inputs to
-revalidation, not proof of current readability. The former bulk static-only
-publication sequence has been replaced by runtime and inventory gates.
+## Acceptance result
 
-## Implemented locally
+GitHub CLI login is verified for `tickmao`. The development branch has completed
+container and bounded live checks. **The 1,000-source objective has not passed
+acceptance.** No public source files were published by these runs.
 
-- Added a disposable JVM worker for exact source revisions, using
-  `lukelzlz/legado-server` at `3cb7acb2a2892e71184c1dd12c8e8d7b5a60fbb7`.
-  The worker calls the rule core without reader caches or source normalization.
-- Added two-book, four-chapter admission, dynamic discovery review, stage
-  evidence, runtime fingerprints and explicit unsupported/environment outcomes.
-- Kept full reading evidence separate from search results. Search success cannot
-  clear a reading failure or extend a transient grace period.
-- Added contextual content evidence and revision-specific review decisions.
-  Site exclusions also cover alternative source fragments for the same site.
-- Added a first-release gate: passing container compatibility evidence,
-  60 live sample attempts, at least 950 healthy sources and 300 eligible reserves.
-  The old 45-source experiment cannot bypass this gate.
-- Added shadow snapshots, shared writer locks, bounded collection and validation,
-  incremental feed downloads, GitHub subdirectory discovery and submission ingestion.
-- Updated CI for Python 3.11, a pinned runtime image, recovery artifacts,
-  daily/catchup maintenance, 50-source spot checks and seven-day acceptance.
+Code checked: `d6a913b9e9f98f01699baa19fbe01df777f41673`.
 
-## Loop changes on 2026-10-09
+| Check | Observed result |
+| --- | --- |
+| Python regression suite on GitHub Actions, Python 3.11 | 83 tests passed |
+| Local regression suite, Python 3.14.6 | 83 tests passed |
+| Container rule fixtures | 8 passed, 0 failed |
+| Separate live compatibility sample | 60 attempted, 1 complete reading success |
+| First maintenance cycle | 40 checked, 0 eligible sources |
+| Second maintenance cycle | 40 checked, 0 eligible sources |
+| External feed collection | 5 files, 5,632 source definitions, 3,905 new revisions |
+| YCKCEO collection | Reached the bounded collection time limit |
+| Final shadow inventory | 0 healthy sources, 0 eligible reserves |
+| Publication gate | Blocked by healthy and reserve counts |
+| Seven-day operational acceptance | Not started |
 
-- Collection providers and inventory validation run concurrently under the same
-  writer lock. New revisions are saved and join validation from the next run.
-- Daily light checks and deep reading checks share the runtime concurrency limit.
-- A failed or timed-out provider does not stop other providers or validation.
-  Completed collection work is saved, and cancelled probes are closed.
-- Catchup runs continue after the inventory reaches its target. Large catalog
-  scans reserve time for downloads and resume from their saved cursor.
-- Collection finishes before the final content audit and publication decision.
-  A new excluded revision cannot fall back to the old public version.
+Source definitions can repeat across feeds. New revisions are not a count of
+unique sites or readable sources. The compatibility sample is separate from
+inventory admission; its one success does not imply an eligible public inventory.
 
-Validation: 81 Python tests passed on Python 3.14.6, and `git diff --check`
-passed. Tests cover concurrent progress, provider failure and timeout, dry-run
-preservation, cancellation, catalog resume, and a two-run replacement cycle
-that keeps 1,000 eligible sources while restoring the reserve from collection.
-Reading outcomes in that cycle are simulated.
+The workflow's successful result means its bounded technical checks completed.
+It does not establish the product's inventory or sustained availability targets.
+An earlier run of the same validation code had zero complete successes out of
+60 attempts and failed the strict acceptance step. The previously successful
+source returned different books, and one sampled chapter was empty or too short.
+This variability remains unresolved.
 
-These changes require deployment and live acceptance. The earlier runtime gate
-still applies; no production source count is established by offline tests.
+- [Python pipeline run](https://github.com/tickmao/Novel/actions/runs/37875758757)
+- [Final container and maintenance run](https://github.com/tickmao/Novel/actions/runs/37875758758)
+- [Earlier failed live acceptance](https://github.com/tickmao/Novel/actions/runs/37874597774)
+- [Acceptance summary](reports/runtime/acceptance.json)
+- [Compatibility evidence](reports/runtime/compatibility.json)
+- [Live sample](reports/runtime/sample.json)
+- [First cycle](reports/runtime/maintenance-cycle-1.json)
+- [Second cycle](reports/runtime/maintenance-cycle-2.json)
+- [Shadow inventory](reports/runtime/maintenance-shadow.json)
 
-## Verification recorded on 2026-10-01
+## What the live checks exposed
 
-- 70 Python tests passed on Python 3.11.15 and Python 3.14.6.
-- The pinned JVM engine and bridge compiled with JDK 21.
-- 35 upstream rule compatibility and network security tests passed.
-- Eight actual JVM fixture cases passed: CSS, legacy selectors, JSONPath,
-  JavaScript content, a Java helper, dynamic search, dynamic discovery and
-  adult-discovery exclusion.
-- Publication checksum and mirror consistency checks passed.
-- Workflow YAML parsing and `git diff --check` passed.
+The two maintenance cycles recorded 51 unverified results, 21 invalid results,
+5 transient failures, 2 unsupported rules and 1 review result. No source passed
+complete reading and content admission in those 80 attempts.
 
-Fixture results are in [reports/runtime/fixtures.json](reports/runtime/fixtures.json).
-These are native JVM offline checks, not container or live-site acceptance.
+Nineteen attempts were rejected as disabled or non-novel sources. Thirty-five
+reported rule errors, including upstream HTTP 403 responses; 16 could not extract
+enough distinct books. Unverified and unsupported results do not prove that the
+site fails in a user's Legado app.
 
-## Remaining rollout requirements
+External collection continued despite individual feed errors. YCKCEO reached its
+time limit while other feeds added revisions. Both maintenance cycles completed
+without an engine incident, and the second cycle used the updated raw store.
+The development acceptance job retains reports only; its collected raw records
+are not imported into the production inventory.
 
-The local machine has no Docker executable. GitHub CLI is not authenticated.
-No container run, 60-source live sample or remote workflow has completed yet.
-The seven-day observation period has not started. Development-branch CI is
-configured to run a bounded sample without publishing public source files.
+## Remaining rollout work
 
-The compatibility report correctly remains `blocked`: it has no container
-digest or live sample evidence. Existing raw source payloads and public snapshots
-have not been rewritten by this implementation.
+1. Exclude known disabled and non-novel inputs before runtime scheduling, while
+   retaining their raw records and reasons.
+2. Investigate rule and search failures against representative exact revisions.
+   Compare blocked upstream requests with an appropriate execution environment;
+   do not convert unsupported or unconfirmed failures into verified passes.
+3. Accumulate qualified stock through persistent maintenance runs. Keep the
+   first public release gated until at least 950 healthy sources and 300 eligible
+   reserves are available; continue toward 1,000 and 500.
+4. Verify the public snapshot and its mirrors, then observe seven consecutive
+   daily runs with at least 950 healthy sources and at least 95% success in each
+   50-source spot check.
 
-1. Authenticate GitHub CLI and use the reviewed CI changes, or provide a Docker
-   environment. See [runtime setup](runtime/README.md).
-2. Run container fixtures and the 60-source sample; retain unsupported and
-   unconfirmed failures as such.
-3. Accumulate qualified inventory in shadow mode. The initial public release
-   stays gated until the 950/300 minimum is met; continue toward 1,000/500.
-4. Verify the first publication, then collect seven consecutive daily observations
-   with at least 950 healthy sources and at least 95% success in each spot check.
-
-The original raw archive has 17,161 source identities. Its previous static results
-do not meet the new runtime evidence requirement. A zero eligible count during
-migration means revalidation is pending, not that all historical sites failed.
+The current production branch still uses the previous maintenance workflow.
+At fetched commit `ce5c639`, its actual public import file contains 194 entries
+while its internal file contains 1,000. These counts are not readability evidence.
+The local 45-entry experimental snapshot remains outside the acceptance commits.
+Historical inventories remain archived in [the legacy audit](reports/legacy-audit/README.md).
