@@ -154,6 +154,8 @@ async def main():
     parser.add_argument('--count', type=int, default=60)
     parser.add_argument('--max-minutes', type=float, default=20)
     parser.add_argument('--container-digest')
+    parser.add_argument('--require-ready', action='store_true',
+                        help='Fail acceptance when the runtime gate is blocked')
     args = parser.parse_args()
     output = args.base_dir / 'reports/runtime'
     if args.action == 'fixtures':
@@ -183,6 +185,8 @@ async def main():
             result['status'] = 'blocked'
         atomic_bundle({output / 'compatibility.json': json_bytes(result)})
         print(json.dumps(result, indent=2))
+        if args.require_ready and result['status'] != 'passed':
+            raise SystemExit(1)
 
 
 if __name__ == '__main__':

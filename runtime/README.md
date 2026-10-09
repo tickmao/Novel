@@ -19,7 +19,7 @@ docker build -f runtime/Dockerfile -t novel-runtime:local .
 export NOVEL_ENGINE_IMAGE="$(docker image inspect novel-runtime:local --format '{{.Id}}')"
 .venv/bin/python -B scripts/probe_runtime.py fixtures
 .venv/bin/python -B scripts/probe_runtime.py sample --count 60 --max-minutes 20
-.venv/bin/python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE"
+.venv/bin/python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE" --require-ready
 .venv/bin/python -B scripts/daily_maintenance.py --mode catchup --no-collect --batch-size 300 --max-minutes 20
 ```
 
@@ -27,6 +27,8 @@ The sample command writes only `reports/runtime/`. It resumes the same input
 and preserves per-revision results. It does not modify the raw inventory or
 public files. Container and adapter identities must match across fixture and
 sample reports. A native JVM fixture run cannot approve container publication.
+Use `--require-ready` for acceptance: a blocked report then returns a nonzero
+exit code. Inventory jobs can omit it to keep collecting without publication.
 
 `NOVEL_ENGINE_COMMAND` is an optional JSON argument array for local development.
 It starts the compiled `io.legado.server.NovelProbeKt` class. Production uses

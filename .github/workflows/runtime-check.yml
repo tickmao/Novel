@@ -33,7 +33,7 @@ jobs:
         run: |
           python -B scripts/source_inventory.py migrate
           python -B scripts/probe_runtime.py sample --count 60 --max-minutes 15
-          python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE"
+          python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE" --require-ready
       - uses: actions/upload-artifact@v4
         if: always()
         with:

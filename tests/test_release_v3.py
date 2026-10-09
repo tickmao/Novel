@@ -1,5 +1,6 @@
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -15,6 +16,7 @@ from source_store import read_json, utcnow
 from test_inventory_v2 import ready_result, seed
 from publication_fixture import enable_test_publication
 from maintenance_acceptance import acceptance_status
+from runtime_config import ENGINE_COMMIT, runtime_fingerprint
 
 
 class EvidenceTests(unittest.TestCase):
@@ -71,6 +73,32 @@ class ReleaseGateTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_runtime_acceptance_command_fails_without_evidence(self):
+        result = subprocess.run([
+            sys.executable, '-B', str(ROOT / 'scripts/probe_runtime.py'), 'gate',
+            '--base-dir', str(self.root), '--require-ready',
+        ], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        report = read_json(self.root / 'reports/runtime/compatibility.json')
+        self.assertEqual(report['status'], 'blocked')
+
+    def test_runtime_acceptance_command_accepts_matching_evidence(self):
+        output = self.root / 'reports/runtime'
+        output.mkdir(parents=True)
+        identity = {'engine_commit': ENGINE_COMMIT, 'runtime_fingerprint': runtime_fingerprint(),
+                    'validator_version': VALIDATOR_VERSION, 'container_digest': 'sha256:' + 'a' * 64}
+        (output / 'fixtures.json').write_text(json.dumps({**identity, 'fixture_count': 8, 'fixture_failures': 0}))
+        (output / 'sample.json').write_text(json.dumps({
+            **identity, 'live_sample_count': 60,
+            'rows': [{'result': {'status': 'valid', 'kind': 'reading'}} for _ in range(60)],
+        }))
+        result = subprocess.run([
+            sys.executable, '-B', str(ROOT / 'scripts/probe_runtime.py'), 'gate',
+            '--base-dir', str(self.root), '--require-ready', '--container-digest', identity['container_digest'],
+        ], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(read_json(output / 'compatibility.json')['status'], 'passed')
 
     def test_old_experimental_release_cannot_bypass_first_release_gate(self):
         seed(self.inventory, 2)
