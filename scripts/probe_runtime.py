@@ -73,9 +73,16 @@ def fixtures():
     cases.append(('jsonpath', js_source, pages))
     metadata = deepcopy(js_source)
     metadata['ruleSearch'].update(kind='$.id', bookUrl=base + '/book/{{book.kind}}')
+    metadata['ruleBookInfo'].update(kind='$.id', tocUrl=base + '/book/{{book.kind}}/toc')
+    metadata['ruleToc']['chapterUrl'] = '$.url@js:result + "?book=" + book.kind'
+    metadata['ruleContent']['content'] = '$.content@js:result + " " + book.name'
     metadata_pages = deepcopy(pages)
     metadata_pages[base + '/search?q=Example'] = json.dumps({'books': [
         {'name': f'Example {b}', 'id': str(b)} for b in range(2)]})
+    for b in range(2):
+        metadata_pages[f'{base}/book/{b}'] = json.dumps({'name': f'Example {b}', 'id': str(b)})
+        for c in range(4):
+            metadata_pages[f'{base}/book/{b}/chapter/{c}?book={b}'] = pages[f'{base}/book/{b}/chapter/{c}']
     cases.append(('book_metadata_url', metadata, metadata_pages))
     return cases
 

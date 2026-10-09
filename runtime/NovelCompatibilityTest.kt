@@ -53,6 +53,34 @@ class NovelCompatibilityTest {
     }
 
     @Test
+    fun `book variables do not leak between sources using the same address`() {
+        val runner = RuleRunner { url ->
+            if (url.contains("search")) """{"books":[{"name":"Example"}]}"""
+            else """{"name":"Example"}"""
+        }
+        fun source(id: String) = buildJsonObject {
+            put("bookSourceUrl", "https://$id.example")
+            put("searchUrl", "/search")
+            putJsonObject("ruleSearch") {
+                put("bookList", "$.books")
+                put("name", "$.name")
+                put("kind", id)
+                put("bookUrl", "https://books.example/shared")
+            }
+            putJsonObject("ruleBookInfo") {
+                put("name", "$.name")
+                put("tocUrl", "https://catalog.example/{{book.kind}}")
+            }
+        }.toString()
+        val first = source("first")
+        val second = source("second")
+        runner.search(first, "Example")
+        runner.search(second, "Example")
+        assertEquals("https://catalog.example/first", runner.details(first, "https://books.example/shared").tocUrl)
+        assertEquals("https://catalog.example/second", runner.details(second, "https://books.example/shared").tocUrl)
+    }
+
+    @Test
     fun `JavaScript source headers are evaluated before parsing`() {
         val source = buildJsonObject {
             put("bookSourceUrl", "https://fixture.example")

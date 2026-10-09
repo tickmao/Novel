@@ -1,6 +1,15 @@
 --- a/server/src/main/kotlin/io/legado/server/RuleRunner.kt
 +++ b/server/src/main/kotlin/io/legado/server/RuleRunner.kt
-@@ -61,16 +61,23 @@
+@@ -43,6 +43,8 @@
+     private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build()
+     private val json = Json { ignoreUnknownKeys = true }
+     internal val jsSandbox = JsSandbox(this)
++    // Keep book variables in this worker without caching any response pages.
++    private val bookContexts = mutableMapOf<Pair<String?, String>, Map<String, String>>()
+ 
+     fun search(sourceJson: String, keyword: String): List<SearchResult> {
+         val source = sourceJson.objectValue()
+@@ -61,16 +63,24 @@
              }
              val (urlTemplate, options) = splitUrlOptions(searchUrl)
              val mergedOptions = mergeOptions(parseSourceHeaders(source, sourceUrl), options)
@@ -19,6 +28,7 @@
 +                        item.value(rule.string("kind"), jsSandbox, body, sourceUrl).orEmpty() else "",
 +                )
 +                val url = item.value(rule.string("bookUrl"), jsSandbox, body, sourceUrl, book)?.absolute(sourceUrl) ?: return@mapNotNull null
++                bookContexts[sourceUrl to url] = book + ("bookUrl" to url)
                  SearchResult(
                      sourceId = sourceUrl,
 -                    name = item.value(rule.string("name"), jsSandbox, body, sourceUrl) ?: return@mapNotNull null,
@@ -28,7 +38,68 @@
                      bookUrl = url,
                      coverUrl = item.value(rule.string("coverUrl"), jsSandbox, body, sourceUrl)?.absolute(sourceUrl),
                      intro = item.value(rule.string("intro"), jsSandbox, body, sourceUrl),
-@@ -448,11 +455,17 @@
+@@ -159,14 +169,24 @@
+                     ?.takeIf { it.isNotBlank() }?.let { NodeValue.document(it) } ?: baseDoc
+             else -> baseDoc.at(initRule)
+         }
+-        fun value(key: String): String? = runCatching { root.value(rule.string(key), jsSandbox, body, bookUrl) }.getOrNull()
++        val book = bookContexts[sourceUrl to bookUrl].orEmpty().toMutableMap()
++        fun value(key: String): String? = runCatching { root.value(rule.string(key), jsSandbox, body, bookUrl, book) }.getOrNull()
+         val name = sanitizeBookName(value("name"))
++        if (name.isNotBlank()) book["name"] = name
++        value("kind")?.takeIf { it.isNotBlank() }?.let { book["kind"] = it }
++        val author = value("author")
++        author?.takeIf { it.isNotBlank() }?.let { book["author"] = it }
++        val tocUrl = value("tocUrl")?.absolute(bookUrl) ?: bookUrl
++        book["bookUrl"] = bookUrl
++        book["tocUrl"] = tocUrl
++        bookContexts[sourceUrl to bookUrl] = book.toMap()
++        bookContexts[sourceUrl to tocUrl] = book.toMap()
+         return BookDetails(
+             sourceId = source.string("bookSourceUrl")!!,
+             name = name.ifBlank { "未命名书籍" },
+-            author = value("author"), intro = value("intro"),
++            author = author, intro = value("intro"),
+             coverUrl = value("coverUrl")?.absolute(bookUrl),
+-            tocUrl = value("tocUrl")?.absolute(bookUrl) ?: bookUrl,
++            tocUrl = tocUrl,
+         )
+     }
+ 
+@@ -191,9 +211,11 @@
+                 val baseDoc = NodeValue.document(body)
+                 chapterNodes = if (isJsRule(listRule)) jsListNodes(baseDoc, listRule, body, tocUrl) else nodes(body, listRule)
+             }
++            val book = bookContexts[sourceUrl to tocUrl].orEmpty()
+             chapterNodes.mapIndexedNotNull { index, node ->
+-                val chUrl = node.value(rule.string("chapterUrl"), jsSandbox, body, tocUrl)?.absolute(tocUrl) ?: return@mapIndexedNotNull null
+-                Chapter(index, node.value(rule.string("chapterName"), jsSandbox, body, tocUrl) ?: "第 ${index + 1} 章", chUrl)
++                val chUrl = node.value(rule.string("chapterUrl"), jsSandbox, body, tocUrl, book)?.absolute(tocUrl) ?: return@mapIndexedNotNull null
++                bookContexts[sourceUrl to chUrl] = book
++                Chapter(index, node.value(rule.string("chapterName"), jsSandbox, body, tocUrl, book) ?: "第 ${index + 1} 章", chUrl)
+             }
+         }
+     }
+@@ -252,7 +274,8 @@
+                 body = fetchUrl(url, mergedOptions, null, sourceUrl, database)
+                 root = NodeValue.document(body)
+             }
+-            var text = root.value(rule.string("content"), jsSandbox, body, chapterUrl)?.cleanContent().orEmpty()
++            val book = bookContexts[sourceUrl to chapterUrl].orEmpty()
++            var text = root.value(rule.string("content"), jsSandbox, body, chapterUrl, book)?.cleanContent().orEmpty()
+             if (text.length < 500) {
+                 val paragraphs = Regex("(?i)<p[^>]*>([\\s\\S]*?)</p>").findAll(body)
+                     .map { it.groupValues[1].cleanContent() }
+@@ -275,7 +298,7 @@
+                 throw RuleExecutionException("正文规则未提取到内容$detail")
+             }
+ 
+-            val rawTitle = root.value(rule.string("title"), jsSandbox, body, chapterUrl)
++            val rawTitle = root.value(rule.string("title"), jsSandbox, body, chapterUrl, book)
+             val rawText = text
+             var cleanedTitle = rawTitle
+             var cleanedText = rawText
+@@ -448,11 +471,17 @@
  
      private fun parseSourceHeaders(source: JsonObject, sourceUrl: String? = null): Map<String, String> {
          val headers = mutableMapOf<String, String>()
@@ -49,7 +120,7 @@
          val db = database
          if (db != null && !sUrl.isNullOrBlank()) {
              val state = db.getSourceLoginState(sUrl)
-@@ -584,8 +597,7 @@
+@@ -584,8 +613,7 @@
      )
  
      private fun splitUrlOptions(value: String): Pair<String, UrlOptions?> {
@@ -59,7 +130,7 @@
          val optionsText = value.substring(jsonStart + 1).trim()
          val optionsObject = runCatching { Json.parseToJsonElement(optionsText).jsonObject }.getOrNull() ?: return value to null
          return value.substring(0, jsonStart) to UrlOptions(
-@@ -660,12 +672,20 @@
+@@ -660,12 +688,20 @@
              .timeout(Duration.ofSeconds(20))
              .header("User-Agent", "LegadoServer/0.1")
              .header("Accept-Encoding", "gzip, deflate")
@@ -83,7 +154,7 @@
          } else {
              builder.method(method, HttpRequest.BodyPublishers.noBody())
          }
-@@ -711,11 +731,11 @@
+@@ -711,11 +747,11 @@
          }
      }
  
@@ -99,7 +170,7 @@
          .replace("{{source.key}}", URLEncoder.encode(keyword, Charsets.UTF_8))
          .replace("{{source.bookSourceUrl}}", sourceUrl)
          .replace("{{cookie.removeCookie(source.key)}}", "")
-@@ -890,7 +910,7 @@
+@@ -890,7 +926,7 @@
  }
  
  internal class NodeValue private constructor(private val html: Element?, private val json: Any?) {
@@ -108,7 +179,7 @@
          if (rule.isNullOrBlank()) return null
          var trimmedRule = rule.trim()
  
-@@ -898,7 +918,10 @@
+@@ -898,7 +934,10 @@
              trimmedRule = Regex("\\{\\{(.*?)}}").replace(trimmedRule) { match ->
                  val inner = match.groupValues[1].trim()
                  if (inner.isBlank()) return@replace ""
@@ -120,3 +191,35 @@
                      runCatching { unwrapJsonValue(readJson(inner)) ?: "" }.getOrDefault("")
                  } else if (html != null) {
                      runCatching { valuePlain(inner) ?: "" }.getOrDefault("")
+@@ -911,7 +950,7 @@
+         if (trimmedRule.startsWith("@js:") || trimmedRule.startsWith("js:")) {
+             val jsCode = trimmedRule.removePrefix("@js:").removePrefix("js:").trim()
+             val contextVal = html?.html() ?: json?.toString() ?: rawBody ?: ""
+-            return jsSandbox?.eval(jsCode, mapOf("result" to contextVal, "src" to (rawBody ?: contextVal), "baseUrl" to (baseUrl ?: ""))) ?: contextVal
++            return jsSandbox?.eval(jsCode, mapOf("result" to contextVal, "src" to (rawBody ?: contextVal), "baseUrl" to (baseUrl ?: ""), "book" to book)) ?: contextVal
+         }
+ 
+         if (trimmedRule.contains("<js>") && trimmedRule.contains("</js>")) {
+@@ -924,12 +963,12 @@
+             else html?.html() ?: json ?: rawBody ?: ""
+             val evaluated = jsSandbox?.eval(
+                 jsCode,
+-                mapOf("result" to intermediate, "src" to (rawBody ?: intermediate), "baseUrl" to (baseUrl ?: "")),
++                mapOf("result" to intermediate, "src" to (rawBody ?: intermediate), "baseUrl" to (baseUrl ?: ""), "book" to book),
+             ) ?: (intermediate as? String ?: intermediate?.toString() ?: "")
+             if (postRule.isBlank()) return evaluated
+             // Legado 规则链：`<js>…</js>` 之后可以再接取值路径（如 `$.data` 或 CSS 选择器），
+             // 把 JS 的返回值当作新文档继续取值。聚合源大量使用这种写法。
+-            return NodeValue.document(evaluated).value(postRule, jsSandbox, evaluated, baseUrl)
++            return NodeValue.document(evaluated).value(postRule, jsSandbox, evaluated, baseUrl, book)
+         }
+ 
+         // ------------------------------------------------------------------
+@@ -957,6 +996,7 @@
+                         "result" to (intermediate ?: ""),
+                         "src" to (rawBody ?: intermediate ?: ""),
+                         "baseUrl" to (baseUrl ?: ""),
++                        "book" to book,
+                     ),
+                 )
+                 return evaluated ?: intermediate

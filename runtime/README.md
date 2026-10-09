@@ -12,6 +12,10 @@ and search URLs that use per-book metadata. The HTTP client retains control of
 the target host and connection framing. The patch is part of the runtime
 fingerprint; changing it invalidates previous reading evidence.
 
+Book variables stay within the disposable worker and follow their book, catalog
+and chapter addresses. They are isolated by source and address; response pages
+are not cached.
+
 Image builds run the focused compatibility tests and upstream rule and network
 security regression tests before producing the worker.
 
