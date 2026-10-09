@@ -33,7 +33,7 @@ jobs:
         run: |
           python -B scripts/source_inventory.py migrate
           python -B scripts/probe_runtime.py sample --count 60 --max-minutes 15
-          python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE" --require-ready
+          python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE"
       - name: Check two maintenance cycles without publication
         if: github.event_name != 'pull_request'
         run: |
@@ -50,6 +50,9 @@ jobs:
               if report['published'] or report.get('engine_incident') or not report.get('deep_checked'):
                   raise SystemExit(f'Maintenance cycle {cycle} did not complete a valid shadow check')
           PY
+      - name: Require runtime acceptance
+        if: github.event_name != 'pull_request'
+        run: python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE" --require-ready
       - uses: actions/upload-artifact@v4
         if: always()
         with:
