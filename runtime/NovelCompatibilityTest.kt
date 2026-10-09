@@ -94,6 +94,15 @@ class NovelCompatibilityTest {
     }
 
     @Test
+    fun `JavaScript book bindings retain fields and bridge methods`() {
+        val result = RuleRunner().jsSandbox.eval(
+            "book.kind + ':' + book.name + ':' + typeof book.getVariable",
+            mapOf("book" to mapOf("kind" to "123", "name" to "Example")),
+        )
+        assertEquals("123:Example:function", result)
+    }
+
+    @Test
     fun `source headers replace defaults without overriding transport framing`() {
         val request = request("""{"headers":{"user-agent":"Fixture/1","Connection":"keep-alive","Host":"127.0.0.1","Content-Length":"999"}}""")
         assertEquals(listOf("Fixture/1"), request.headers().allValues("User-Agent"))

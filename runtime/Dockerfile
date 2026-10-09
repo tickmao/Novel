@@ -12,6 +12,7 @@ COPY runtime/NovelCompatibilityTest.kt server/src/test/kotlin/io/legado/server/N
 RUN ./gradlew :server:test --tests io.legado.server.NovelCompatibilityTest \
     --tests io.legado.server.RuleRunnerTest --tests io.legado.server.RuleRunnerExtendedTest \
     --tests io.legado.server.RuleRunnerAdvancedFeaturesTest --tests io.legado.server.NetworkSecurityTest \
+    --tests io.legado.server.JsSandboxCompletionValueTest \
     :server:installDist -x :server:buildWeb --no-daemon
 
 FROM eclipse-temurin:17-jre-jammy

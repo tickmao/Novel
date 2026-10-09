@@ -224,3 +224,17 @@
                      ),
                  )
                  return evaluated ?: intermediate
+--- a/server/src/main/kotlin/io/legado/server/JsSandbox.kt
++++ b/server/src/main/kotlin/io/legado/server/JsSandbox.kt
+@@ -126,5 +126,10 @@
+
+             // Legado 的 book 对象：书源 JS 会用 book.getVariable('custom') 读取书籍级变量
+-            ScriptableObject.putProperty(scope, "book", createBookBridge(scope, context))
++            val book = createBookBridge(scope, context)
++            val bookFields = bindings["book"] as? Map<*, *>
++            for (key in listOf("name", "author", "kind", "bookUrl", "tocUrl")) {
++                bookFields?.get(key)?.let { ScriptableObject.putProperty(book, key, toJsValue(it, scope)) }
++            }
++            ScriptableObject.putProperty(scope, "book", book)
+             // chapter 对象：正文规则会引用 chapter.index / chapter.title
+             ScriptableObject.putProperty(scope, "chapter", createChapterBridge(scope, context))
