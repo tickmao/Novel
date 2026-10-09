@@ -14,4 +14,5 @@ def runtime_fingerprint():
     from source_store import digest
     root = Path(__file__).resolve().parents[1]
     return digest({name: (root / name).read_text() for name in (
-        'runtime/NovelProbe.kt', 'runtime/Dockerfile', 'scripts/runtime_validator.py', 'scripts/probe_runtime.py')})
+        'runtime/NovelProbe.kt', 'runtime/Dockerfile', 'runtime/legado-compatibility.patch',
+        'scripts/runtime_validator.py', 'scripts/probe_runtime.py')})

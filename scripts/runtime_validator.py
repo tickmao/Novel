@@ -154,6 +154,12 @@ class EngineSession:
             kind = 'rate_limit'
         elif re.search(r'HTTP 5\d\d', message):
             kind = 'server_error'
+        elif re.search(r'HTTP 403\b', message):
+            kind = 'http_forbidden'
+        elif re.search(r'HTTP 401\b', message):
+            kind = 'auth_required'
+        elif re.search(r'HTTP 4\d\d\b', message):
+            kind = 'http_error'
         elif re.search(r'timeout|timed out', message, re.I):
             kind = 'timeout'
         elif re.search(r'ConnectException|UnknownHost|无法解析|连接|DNS', message + response.get('error_type', ''), re.I):
@@ -215,6 +221,14 @@ class RuntimeReadingValidator:
     async def _probe(self, engine, source, mode, stages):
         pages, books, seen_books, checked_books = [], [], set(), []
 
+        async def request(operation, **kwargs):
+            try:
+                return await engine.request(operation, **kwargs)
+            except ProbeFailure as exc:
+                stages.append({'stage': operation, 'kind': exc.kind, 'error': str(exc),
+                               **{key: value for key, value in kwargs.items() if key in ('url', 'keyword')}})
+                raise
+
         def audit_page(kind, url, value):
             text = visible_text(value) if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
             pages.append({'kind': kind, 'url': url, 'text': text})
@@ -227,22 +241,25 @@ class RuntimeReadingValidator:
         explore = str(source.get('exploreUrl', '')).strip()
         if explore.startswith(('@js:', '<js>')):
             try:
-                categories = await engine.request('categories')
+                categories = await request('categories')
             except ProbeFailure as exc:
                 raise ProbeFailure('content_audit_incomplete', 'Dynamic discovery categories need review') from exc
             if flagged := audit_page('categories', source['bookSourceUrl'], category_text(categories)):
                 return flagged
 
         previous = [] if mode == 'spot' else source.get('_health', {}).get('reading_books', [])
+        check_keyword = (source.get('ruleSearch') or {}).get('checkKeyWord', '')
+        source_keywords = [check_keyword.strip()] if isinstance(check_keyword, str) and check_keyword.strip() else []
         offset = (int(digest(source.get('bookSourceUrl', ''))[:8], 16)
                   + datetime.now(timezone.utc).date().toordinal()) % len(self.keywords)
         keywords = list(dict.fromkeys([b['name'] for b in previous if b.get('name')]
-                                     + self.keywords[offset:] + self.keywords[:offset]))
+                                     + source_keywords + self.keywords[offset:] + self.keywords[:offset]))
         for keyword in keywords[:6]:
-            items = await engine.request('search', keyword=keyword)
+            items = await request('search', keyword=keyword)
             if not isinstance(items, list):
                 raise ValueError('Search response must be an array')
-            stages.append({'stage': 'search', 'keyword': keyword, 'count': len(items)})
+            stage = {'stage': 'search', 'keyword': keyword, 'count': len(items)}
+            stages.append(stage)
             if flagged := audit_page('search', source['bookSourceUrl'], items):
                 return flagged
             for item in items[:20]:
@@ -251,6 +268,7 @@ class RuntimeReadingValidator:
                     public_url(url)
                     seen_books.add(url)
                     books.append(item)
+            stage['distinct_books'] = len(books)
             if len(books) >= (1 if mode == 'light' else 2):
                 break
         if len(books) < (1 if mode == 'light' else 2):
@@ -259,14 +277,14 @@ class RuntimeReadingValidator:
             return {'status': 'valid', 'kind': 'search', 'book': books[0]}
         hashes = set()
         for book in books[:2]:
-            details = await engine.request('book', url=book['bookUrl'])
+            details = await request('book', url=book['bookUrl'])
             stages.append({'stage': 'book', 'url': book['bookUrl']})
             if not details.get('name') or not details.get('tocUrl'):
                 raise ProbeFailure('book_empty', 'Book details are incomplete')
             if flagged := audit_page('book', book['bookUrl'], details):
                 return flagged
             public_url(details['tocUrl'])
-            chapters = await engine.request('toc', url=details['tocUrl'])
+            chapters = await request('toc', url=details['tocUrl'])
             chapters = list({item['url']: item for item in chapters if item.get('url')}.values())
             stages.append({'stage': 'toc', 'url': details['tocUrl'], 'count': len(chapters)})
             if flagged := audit_page('toc', details['tocUrl'], chapters):
@@ -278,7 +296,7 @@ class RuntimeReadingValidator:
             selected = [chapters[0], chapters[chapter_index]]
             for chapter in selected:
                 public_url(chapter['url'])
-                value = await engine.request('content', url=chapter['url'], book_name=book['name'])
+                value = await request('content', url=chapter['url'], book_name=book['name'])
                 prose = visible_text(value.get('content', ''))
                 raw = value.get('rawContent') or prose
                 if flagged := audit_page('content', chapter['url'], raw):

@@ -5,6 +5,16 @@ The worker uses `lukelzlz/legado-server` at commit
 The upstream engine and `NovelProbe.kt` use GPL-3.0; see [LICENSE](LICENSE).
 Python communicates with a separate process through JSON lines.
 
+The image applies `legado-compatibility.patch` to that exact upstream commit.
+The patch preserves source JSON while fixing spaced request options, declared
+search encodings, JavaScript headers, header replacement, POST form content types,
+and search URLs that use per-book metadata. The HTTP client retains control of
+the target host and connection framing. The patch is part of the runtime
+fingerprint; changing it invalidates previous reading evidence.
+
+Image builds run the focused compatibility tests and upstream rule and network
+security regression tests before producing the worker.
+
 Each source revision gets a new JVM, temporary database and resource budget.
 The bridge calls `RuleRunner` directly. It does not use the reader's source
 normalization, catalog cache, chapter cache or user credentials. Source JSON
@@ -42,7 +52,8 @@ search alone cannot refresh reading evidence or clear a reading failure.
 The adapter records stage results, chapter hashes and sample counts.
 
 Fixtures cover CSS, legacy selectors, JSONPath, JavaScript content, dynamic
-search, a Java helper, dynamic discovery categories and adult-category rejection.
+search, a Java helper, dynamic discovery categories, adult-category rejection,
+spaced request options and per-book URL metadata.
 They do not prove compatibility with every Legado extension. Interactive
 browser rules remain unsupported. Rules that cannot provide enough evidence
 remain unverified; they are not confirmed site failures.

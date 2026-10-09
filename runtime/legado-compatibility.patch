@@ -1,0 +1,122 @@
+--- a/server/src/main/kotlin/io/legado/server/RuleRunner.kt
++++ b/server/src/main/kotlin/io/legado/server/RuleRunner.kt
+@@ -61,16 +61,23 @@
+             }
+             val (urlTemplate, options) = splitUrlOptions(searchUrl)
+             val mergedOptions = mergeOptions(parseSourceHeaders(source, sourceUrl), options)
+-            val rendered = renderUrl(urlTemplate, keyword, sourceUrl).absolute(sourceUrl)
++            val rendered = renderUrl(urlTemplate, keyword, sourceUrl, mergedOptions.charset).absolute(sourceUrl)
+             val body = fetchUrl(rendered, mergedOptions, keyword, sourceUrl, database)
+             val rule = source.objectValue("ruleSearch") ?: throw RuleExecutionException("该书源未配置 ruleSearch")
+             val items = nodes(body, rule.string("bookList") ?: throw RuleExecutionException("缺少 ruleSearch.bookList"))
+             items.mapNotNull { item ->
+-                val url = item.value(rule.string("bookUrl"), jsSandbox, body, sourceUrl)?.absolute(sourceUrl) ?: return@mapNotNull null
++                val name = item.value(rule.string("name"), jsSandbox, body, sourceUrl) ?: return@mapNotNull null
++                val author = item.value(rule.string("author"), jsSandbox, body, sourceUrl)
++                val book = mapOf(
++                    "name" to name, "author" to author.orEmpty(),
++                    "kind" to if (rule.string("bookUrl").orEmpty().contains("book.kind"))
++                        item.value(rule.string("kind"), jsSandbox, body, sourceUrl).orEmpty() else "",
++                )
++                val url = item.value(rule.string("bookUrl"), jsSandbox, body, sourceUrl, book)?.absolute(sourceUrl) ?: return@mapNotNull null
+                 SearchResult(
+                     sourceId = sourceUrl,
+-                    name = item.value(rule.string("name"), jsSandbox, body, sourceUrl) ?: return@mapNotNull null,
+-                    author = item.value(rule.string("author"), jsSandbox, body, sourceUrl),
++                    name = name,
++                    author = author,
+                     bookUrl = url,
+                     coverUrl = item.value(rule.string("coverUrl"), jsSandbox, body, sourceUrl)?.absolute(sourceUrl),
+                     intro = item.value(rule.string("intro"), jsSandbox, body, sourceUrl),
+@@ -448,11 +455,17 @@
+ 
+     private fun parseSourceHeaders(source: JsonObject, sourceUrl: String? = null): Map<String, String> {
+         val headers = mutableMapOf<String, String>()
++        val sUrl = sourceUrl ?: source.string("bookSourceUrl")
+         val headerStr = source.string("header")?.trim()
+         if (!headerStr.isNullOrBlank()) {
+-            headers.putAll(parseHeaderMap(headerStr))
+-        }
+-        val sUrl = sourceUrl ?: source.string("bookSourceUrl")
++            val rendered = if (headerStr.startsWith("@js:") || headerStr.startsWith("js:") || headerStr.startsWith("<js>")) {
++                val code = headerStr.removePrefix("@js:").removePrefix("js:")
++                    .removePrefix("<js>").removeSuffix("</js>")
++                jsSandbox.eval(code, mapOf("baseUrl" to sUrl, "sourceId" to sUrl), sourceContext(source, sUrl))
++                    ?: throw RuleExecutionException("Source header script did not return a value")
++            } else headerStr
++            headers.putAll(parseHeaderMap(rendered))
++        }
+         val db = database
+         if (db != null && !sUrl.isNullOrBlank()) {
+             val state = db.getSourceLoginState(sUrl)
+@@ -584,8 +597,7 @@
+     )
+ 
+     private fun splitUrlOptions(value: String): Pair<String, UrlOptions?> {
+-        val jsonStart = value.indexOf(",{")
+-        if (jsonStart < 0) return value to null
++        val jsonStart = Regex(",\\s*\\{").find(value)?.range?.first ?: return value to null
+         val optionsText = value.substring(jsonStart + 1).trim()
+         val optionsObject = runCatching { Json.parseToJsonElement(optionsText).jsonObject }.getOrNull() ?: return value to null
+         return value.substring(0, jsonStart) to UrlOptions(
+@@ -660,12 +672,20 @@
+             .timeout(Duration.ofSeconds(20))
+             .header("User-Agent", "LegadoServer/0.1")
+             .header("Accept-Encoding", "gzip, deflate")
+-        options?.headers?.forEach { (name, value) -> builder.header(name, value) }
++        // The HTTP client owns connection framing and the target host.
++        val transportHeaders = setOf("connection", "content-length", "expect", "host", "upgrade")
++        options?.headers?.forEach { (name, value) ->
++            if (name.lowercase() !in transportHeaders) builder.setHeader(name, value)
++        }
+         val method = options?.method?.uppercase() ?: "GET"
+         val body = options?.body
+         if (method != "GET" && body != null) {
+-            val rendered = keyword?.let { renderUrl(body, it, initial.toString()) } ?: body
+-            builder.method(method, HttpRequest.BodyPublishers.ofString(rendered, options?.charset ?: Charsets.UTF_8))
++            if (options?.headers?.keys?.none { it.equals("Content-Type", ignoreCase = true) } != false) {
++                builder.setHeader("Content-Type", "application/x-www-form-urlencoded")
++            }
++            val charset = options?.charset ?: Charsets.UTF_8
++            val rendered = keyword?.let { renderUrl(body, it, initial.toString(), charset) } ?: body
++            builder.method(method, HttpRequest.BodyPublishers.ofString(rendered, charset))
+         } else {
+             builder.method(method, HttpRequest.BodyPublishers.noBody())
+         }
+@@ -711,11 +731,11 @@
+         }
+     }
+ 
+-    private fun renderUrl(template: String, keyword: String, sourceUrl: String): String = template
+-        .replace("{{key}}", URLEncoder.encode(keyword, Charsets.UTF_8))
+-        .replace("{{keyword}}", URLEncoder.encode(keyword, Charsets.UTF_8))
++    private fun renderUrl(template: String, keyword: String, sourceUrl: String, charset: Charset = Charsets.UTF_8): String = template
++        .replace("{{key}}", URLEncoder.encode(keyword, charset))
++        .replace("{{keyword}}", URLEncoder.encode(keyword, charset))
+         .replace("{{page}}", "1")
+-        .replace("<key>", URLEncoder.encode(keyword, Charsets.UTF_8))
++        .replace("<key>", URLEncoder.encode(keyword, charset))
+         .replace("{{source.key}}", URLEncoder.encode(keyword, Charsets.UTF_8))
+         .replace("{{source.bookSourceUrl}}", sourceUrl)
+         .replace("{{cookie.removeCookie(source.key)}}", "")
+@@ -890,7 +910,7 @@
+ }
+ 
+ internal class NodeValue private constructor(private val html: Element?, private val json: Any?) {
+-    fun value(rule: String?, jsSandbox: JsSandbox? = null, rawBody: String? = null, baseUrl: String? = null): String? {
++    fun value(rule: String?, jsSandbox: JsSandbox? = null, rawBody: String? = null, baseUrl: String? = null, book: Map<String, String> = emptyMap()): String? {
+         if (rule.isNullOrBlank()) return null
+         var trimmedRule = rule.trim()
+ 
+@@ -898,7 +918,10 @@
+             trimmedRule = Regex("\\{\\{(.*?)}}").replace(trimmedRule) { match ->
+                 val inner = match.groupValues[1].trim()
+                 if (inner.isBlank()) return@replace ""
+-                if (json != null && (inner.startsWith("$") || inner.startsWith(".."))) {
++                if (inner.startsWith("book.")) {
++                    book[inner.removePrefix("book.")]?.takeIf { it.isNotBlank() }
++                        ?: throw RuleExecutionException("Book template value is missing: $inner")
++                } else if (json != null && (inner.startsWith("$") || inner.startsWith(".."))) {
+                     runCatching { unwrapJsonValue(readJson(inner)) ?: "" }.getOrDefault("")
+                 } else if (html != null) {
+                     runCatching { valuePlain(inner) ?: "" }.getOrDefault("")

@@ -61,6 +61,14 @@ class SourceInventory:
             source['_yckceo_title'] = ' '.join(titles)
         return source
 
+    @staticmethod
+    def scope_reason(source):
+        if source.get('enabled') is False:
+            return 'disabled'
+        if str(source.get('bookSourceType', 0)) != '0':
+            return 'non_novel'
+        return None
+
     def audit_all(self):
         from reading_validator import ReadingValidator
         from static_rules import UnsupportedRule
@@ -69,6 +77,13 @@ class SourceInventory:
         for record in self.store.records():
             for version in record['versions'].values():
                 payload = self.audit_payload(version)
+                reason = self.scope_reason(version['source'])
+                scope = {'eligible': reason is None, 'reason': reason}
+                if version.get('scope') != scope:
+                    version['scope'] = scope
+                    self.store.touch(record['source_id'])
+                if reason:
+                    stats[reason] += 1
                 result = self.policy.audit_source(payload)
                 previous = version.get('audit', {})
                 resolved = self.policy.auditor.resolve_review(previous, payload)
@@ -81,7 +96,7 @@ class SourceInventory:
                     version['audit'] = result
                     self.store.touch(record['source_id'])
                 stats[result['decision']] += 1
-                if result['decision'] == 'pass':
+                if result['decision'] == 'pass' and not reason:
                     try:
                         preflight.supports(version['source'])
                     except (UnsupportedRule, TypeError, ValueError) as exc:
@@ -195,6 +210,8 @@ class SourceInventory:
                 continue
             for revision in revisions:
                 version = record['versions'][revision]
+                if self.scope_reason(version['source']):
+                    continue
                 audit, health = version.get('audit', {}), version.get('validation', {})
                 next_attempt = parse_time(health.get('next_attempt_at'))
                 if next_attempt and next_attempt > now:

@@ -49,6 +49,33 @@ class InventoryTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_out_of_scope_sources_do_not_consume_validation_slots(self):
+        rejected = []
+        for index, fields in enumerate([{'enabled': False}, {'bookSourceType': 1}, {'bookSourceType': '2'}]):
+            rejected.append(self.inventory.store.ingest(
+                {**source(f'https://excluded{index}.example'), **fields}, {'provider': 'fixture'}))
+        valid = self.inventory.store.ingest(source('https://novel.example'), {'provider': 'fixture'})
+        stats = self.inventory.audit_all()
+        self.assertEqual(self.inventory.queue(limit=1), [valid])
+        self.assertEqual(stats['disabled'], 1)
+        self.assertEqual(stats['non_novel'], 2)
+        self.inventory.store.save()
+        loaded = SourceInventory(self.root)
+        for key, revision in rejected:
+            version = loaded.store.get(key)['versions'][revision]
+            self.assertFalse(version['scope']['eligible'])
+            self.assertIn(version['scope']['reason'], ('disabled', 'non_novel'))
+            self.assertEqual(version['validation']['status'], 'pending')
+
+    def test_enabled_new_revision_can_enter_the_queue(self):
+        item = {**source(), 'enabled': False}
+        old = self.inventory.store.ingest(item, {'provider': 'fixture'})
+        self.inventory.audit_all()
+        self.assertNotIn(old, self.inventory.queue())
+        new = self.inventory.store.ingest({**item, 'enabled': True}, {'provider': 'fixture'})
+        self.inventory.audit_all()
+        self.assertIn(new, self.inventory.queue())
+
     def test_publish_exact_target_and_consistent_mirrors(self):
         seed(self.inventory, 1010)
         report = self.inventory.publish()

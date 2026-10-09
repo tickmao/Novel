@@ -93,6 +93,11 @@ class DailyMaintenance:
         report[mode + '_kinds'] = dict(kinds)
         report[mode + '_examples'] = examples
         report[mode + '_checked'] = len(completed)
+        report[mode + '_results'] = [
+            {'source_id': key, 'revision': revision,
+             **{field: result[field] for field in ('status', 'kind', 'error', 'stages') if field in result}}
+            for (key, revision), result in completed
+        ]
 
     async def collect_sources(self, client, *, mode, deadline, save, fetch_cap, backfill_rounds, report):
         inventory, store = self.inventory, self.inventory.store

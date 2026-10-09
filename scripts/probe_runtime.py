@@ -35,6 +35,9 @@ def fixtures():
         for c in range(4):
             responses[f'{base}/book/{b}/chapter/{c}'] = f'<div id="content">Book {b} chapter {c}.{prose}</div>'
     cases = [('css', deepcopy(source), deepcopy(responses))]
+    options = deepcopy(source)
+    options['searchUrl'] += ', {"method":"GET","charset":"UTF-8"}'
+    cases.append(('spaced_request_options', options, deepcopy(responses)))
     legacy = deepcopy(source)
     legacy['ruleSearch']['bookList'] = 'class.book'
     legacy['ruleToc']['chapterList'] = 'class.chapter'
@@ -68,6 +71,12 @@ def fixtures():
         for c in range(4):
             pages[f'{base}/book/{b}/chapter/{c}'] = json.dumps({'content': f'Book {b} chapter {c}.' + prose})
     cases.append(('jsonpath', js_source, pages))
+    metadata = deepcopy(js_source)
+    metadata['ruleSearch'].update(kind='$.id', bookUrl=base + '/book/{{book.kind}}')
+    metadata_pages = deepcopy(pages)
+    metadata_pages[base + '/search?q=Example'] = json.dumps({'books': [
+        {'name': f'Example {b}', 'id': str(b)} for b in range(2)]})
+    cases.append(('book_metadata_url', metadata, metadata_pages))
     return cases
 
 

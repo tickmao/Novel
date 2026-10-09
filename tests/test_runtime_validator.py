@@ -1,7 +1,7 @@
 import asyncio
 import sys
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from copy import deepcopy
 from pathlib import Path
 
@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 from runtime_validator import RuntimeReadingValidator, EngineFailure, EngineSession
 from source_policy import SourcePolicy
 from test_maintenance_v2 import source
+from reading_validator import ProbeFailure
 
 
 class FakeEngine:
@@ -79,6 +80,44 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['kind'], 'search')
         self.assertNotIn('sample', result)
         self.assertFalse(result['audit']['complete'])
+
+    async def test_source_check_keyword_precedes_generic_keywords(self):
+        requested = []
+
+        class NicheEngine(FakeEngine):
+            async def request(self, op, **kwargs):
+                if op == 'search':
+                    requested.append(kwargs['keyword'])
+                    if kwargs['keyword'] != 'Rare Book':
+                        return []
+                return await super().request(op, **kwargs)
+
+        item = source()
+        item['ruleSearch']['checkKeyWord'] = 'Rare Book'
+        validator = RuntimeReadingValidator(SourcePolicy(ROOT), session_factory=NicheEngine)
+        result = await validator.probe(item)
+        self.assertEqual(result['status'], 'valid')
+        self.assertEqual(requested, ['Rare Book'])
+
+    async def test_forbidden_response_is_not_classified_as_a_rule_error(self):
+        session = EngineSession(source())
+        with patch.object(session, 'exchange', new=AsyncMock(return_value={
+                'ok': False, 'error': 'Upstream returned HTTP 403', 'error_type': 'RuleExecutionException'})):
+            with self.assertRaises(ProbeFailure) as raised:
+                await session.request('search', keyword='Example')
+        self.assertEqual(raised.exception.kind, 'http_forbidden')
+
+    async def test_failed_search_records_its_stage_and_keyword(self):
+        class ForbiddenEngine(FakeEngine):
+            async def request(self, op, **kwargs):
+                raise ProbeFailure('http_forbidden', 'Upstream returned HTTP 403')
+
+        validator = RuntimeReadingValidator(SourcePolicy(ROOT), session_factory=ForbiddenEngine, keywords=['Example'])
+        result = await validator.probe(source())
+        self.assertEqual(result['status'], 'unverified')
+        self.assertEqual(result['stages'][-1]['stage'], 'search')
+        self.assertEqual(result['stages'][-1]['keyword'], 'Example')
+        self.assertEqual(result['stages'][-1]['kind'], 'http_forbidden')
 
     async def test_worker_startup_failure_has_bounded_diagnostics(self):
         import json
