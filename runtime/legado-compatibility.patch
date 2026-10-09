@@ -9,7 +9,7 @@
 
      fun search(sourceJson: String, keyword: String): List<SearchResult> {
          val source = sourceJson.objectValue()
-@@ -61,16 +63,24 @@
+@@ -61,16 +63,25 @@
              }
              val (urlTemplate, options) = splitUrlOptions(searchUrl)
              val mergedOptions = mergeOptions(parseSourceHeaders(source, sourceUrl), options)
@@ -18,13 +18,14 @@
              val body = fetchUrl(rendered, mergedOptions, keyword, sourceUrl, database)
              val rule = source.objectValue("ruleSearch") ?: throw RuleExecutionException("该书源未配置 ruleSearch")
              val items = nodes(body, rule.string("bookList") ?: throw RuleExecutionException("缺少 ruleSearch.bookList"))
++            val needsBookKind = source.toString().contains("book.kind")
              items.mapNotNull { item ->
 -                val url = item.value(rule.string("bookUrl"), jsSandbox, body, sourceUrl)?.absolute(sourceUrl) ?: return@mapNotNull null
 +                val name = item.value(rule.string("name"), jsSandbox, body, sourceUrl) ?: return@mapNotNull null
 +                val author = item.value(rule.string("author"), jsSandbox, body, sourceUrl)
 +                val book = mapOf(
 +                    "name" to name, "author" to author.orEmpty(),
-+                    "kind" to if (rule.string("bookUrl").orEmpty().contains("book.kind"))
++                    "kind" to if (needsBookKind)
 +                        item.value(rule.string("kind"), jsSandbox, body, sourceUrl).orEmpty() else "",
 +                )
 +                val url = item.value(rule.string("bookUrl"), jsSandbox, body, sourceUrl, book)?.absolute(sourceUrl) ?: return@mapNotNull null
@@ -38,7 +39,7 @@
                      bookUrl = url,
                      coverUrl = item.value(rule.string("coverUrl"), jsSandbox, body, sourceUrl)?.absolute(sourceUrl),
                      intro = item.value(rule.string("intro"), jsSandbox, body, sourceUrl),
-@@ -159,14 +169,24 @@
+@@ -159,14 +170,24 @@
                      ?.takeIf { it.isNotBlank() }?.let { NodeValue.document(it) } ?: baseDoc
              else -> baseDoc.at(initRule)
          }
@@ -66,7 +67,7 @@
          )
      }
 
-@@ -191,9 +211,11 @@
+@@ -191,9 +212,11 @@
                  val baseDoc = NodeValue.document(body)
                  chapterNodes = if (isJsRule(listRule)) jsListNodes(baseDoc, listRule, body, tocUrl) else nodes(body, listRule)
              }
@@ -80,7 +81,7 @@
              }
          }
      }
-@@ -252,7 +274,8 @@
+@@ -252,7 +275,8 @@
                  body = fetchUrl(url, mergedOptions, null, sourceUrl, database)
                  root = NodeValue.document(body)
              }
@@ -90,7 +91,7 @@
              if (text.length < 500) {
                  val paragraphs = Regex("(?i)<p[^>]*>([\\s\\S]*?)</p>").findAll(body)
                      .map { it.groupValues[1].cleanContent() }
-@@ -275,7 +298,7 @@
+@@ -275,7 +299,7 @@
                  throw RuleExecutionException("正文规则未提取到内容$detail")
              }
 
@@ -99,7 +100,7 @@
              val rawText = text
              var cleanedTitle = rawTitle
              var cleanedText = rawText
-@@ -448,11 +471,17 @@
+@@ -448,11 +472,17 @@
 
      private fun parseSourceHeaders(source: JsonObject, sourceUrl: String? = null): Map<String, String> {
          val headers = mutableMapOf<String, String>()
@@ -120,7 +121,7 @@
          val db = database
          if (db != null && !sUrl.isNullOrBlank()) {
              val state = db.getSourceLoginState(sUrl)
-@@ -584,8 +613,7 @@
+@@ -584,8 +614,7 @@
      )
 
      private fun splitUrlOptions(value: String): Pair<String, UrlOptions?> {
@@ -130,7 +131,7 @@
          val optionsText = value.substring(jsonStart + 1).trim()
          val optionsObject = runCatching { Json.parseToJsonElement(optionsText).jsonObject }.getOrNull() ?: return value to null
          return value.substring(0, jsonStart) to UrlOptions(
-@@ -660,12 +688,20 @@
+@@ -660,12 +689,20 @@
              .timeout(Duration.ofSeconds(20))
              .header("User-Agent", "LegadoServer/0.1")
              .header("Accept-Encoding", "gzip, deflate")
@@ -154,7 +155,7 @@
          } else {
              builder.method(method, HttpRequest.BodyPublishers.noBody())
          }
-@@ -711,11 +747,11 @@
+@@ -711,11 +748,11 @@
          }
      }
 
@@ -170,7 +171,7 @@
          .replace("{{source.key}}", URLEncoder.encode(keyword, Charsets.UTF_8))
          .replace("{{source.bookSourceUrl}}", sourceUrl)
          .replace("{{cookie.removeCookie(source.key)}}", "")
-@@ -890,7 +926,7 @@
+@@ -890,7 +927,7 @@
  }
 
  internal class NodeValue private constructor(private val html: Element?, private val json: Any?) {
@@ -179,7 +180,7 @@
          if (rule.isNullOrBlank()) return null
          var trimmedRule = rule.trim()
 
-@@ -898,7 +934,10 @@
+@@ -898,7 +935,10 @@
              trimmedRule = Regex("\\{\\{(.*?)}}").replace(trimmedRule) { match ->
                  val inner = match.groupValues[1].trim()
                  if (inner.isBlank()) return@replace ""
@@ -191,7 +192,7 @@
                      runCatching { unwrapJsonValue(readJson(inner)) ?: "" }.getOrDefault("")
                  } else if (html != null) {
                      runCatching { valuePlain(inner) ?: "" }.getOrDefault("")
-@@ -911,7 +950,7 @@
+@@ -911,7 +951,7 @@
          if (trimmedRule.startsWith("@js:") || trimmedRule.startsWith("js:")) {
              val jsCode = trimmedRule.removePrefix("@js:").removePrefix("js:").trim()
              val contextVal = html?.html() ?: json?.toString() ?: rawBody ?: ""
@@ -200,7 +201,7 @@
          }
 
          if (trimmedRule.contains("<js>") && trimmedRule.contains("</js>")) {
-@@ -924,12 +963,12 @@
+@@ -924,12 +964,12 @@
              else html?.html() ?: json ?: rawBody ?: ""
              val evaluated = jsSandbox?.eval(
                  jsCode,
@@ -215,7 +216,7 @@
          }
 
          // ------------------------------------------------------------------
-@@ -957,6 +996,7 @@
+@@ -957,6 +997,7 @@
                          "result" to (intermediate ?: ""),
                          "src" to (rawBody ?: intermediate ?: ""),
                          "baseUrl" to (baseUrl ?: ""),
