@@ -6,7 +6,7 @@
      internal val jsSandbox = JsSandbox(this)
 +    // Keep book variables in this worker without caching any response pages.
 +    private val bookContexts = mutableMapOf<Pair<String?, String>, Map<String, String>>()
- 
+
      fun search(sourceJson: String, keyword: String): List<SearchResult> {
          val source = sourceJson.objectValue()
 @@ -61,16 +63,24 @@
@@ -65,7 +65,7 @@
 +            tocUrl = tocUrl,
          )
      }
- 
+
 @@ -191,9 +211,11 @@
                  val baseDoc = NodeValue.document(body)
                  chapterNodes = if (isJsRule(listRule)) jsListNodes(baseDoc, listRule, body, tocUrl) else nodes(body, listRule)
@@ -93,14 +93,14 @@
 @@ -275,7 +298,7 @@
                  throw RuleExecutionException("正文规则未提取到内容$detail")
              }
- 
+
 -            val rawTitle = root.value(rule.string("title"), jsSandbox, body, chapterUrl)
 +            val rawTitle = root.value(rule.string("title"), jsSandbox, body, chapterUrl, book)
              val rawText = text
              var cleanedTitle = rawTitle
              var cleanedText = rawText
 @@ -448,11 +471,17 @@
- 
+
      private fun parseSourceHeaders(source: JsonObject, sourceUrl: String? = null): Map<String, String> {
          val headers = mutableMapOf<String, String>()
 +        val sUrl = sourceUrl ?: source.string("bookSourceUrl")
@@ -122,7 +122,7 @@
              val state = db.getSourceLoginState(sUrl)
 @@ -584,8 +613,7 @@
      )
- 
+
      private fun splitUrlOptions(value: String): Pair<String, UrlOptions?> {
 -        val jsonStart = value.indexOf(",{")
 -        if (jsonStart < 0) return value to null
@@ -157,7 +157,7 @@
 @@ -711,11 +747,11 @@
          }
      }
- 
+
 -    private fun renderUrl(template: String, keyword: String, sourceUrl: String): String = template
 -        .replace("{{key}}", URLEncoder.encode(keyword, Charsets.UTF_8))
 -        .replace("{{keyword}}", URLEncoder.encode(keyword, Charsets.UTF_8))
@@ -172,13 +172,13 @@
          .replace("{{cookie.removeCookie(source.key)}}", "")
 @@ -890,7 +926,7 @@
  }
- 
+
  internal class NodeValue private constructor(private val html: Element?, private val json: Any?) {
 -    fun value(rule: String?, jsSandbox: JsSandbox? = null, rawBody: String? = null, baseUrl: String? = null): String? {
 +    fun value(rule: String?, jsSandbox: JsSandbox? = null, rawBody: String? = null, baseUrl: String? = null, book: Map<String, String> = emptyMap()): String? {
          if (rule.isNullOrBlank()) return null
          var trimmedRule = rule.trim()
- 
+
 @@ -898,7 +934,10 @@
              trimmedRule = Regex("\\{\\{(.*?)}}").replace(trimmedRule) { match ->
                  val inner = match.groupValues[1].trim()
@@ -198,7 +198,7 @@
 -            return jsSandbox?.eval(jsCode, mapOf("result" to contextVal, "src" to (rawBody ?: contextVal), "baseUrl" to (baseUrl ?: ""))) ?: contextVal
 +            return jsSandbox?.eval(jsCode, mapOf("result" to contextVal, "src" to (rawBody ?: contextVal), "baseUrl" to (baseUrl ?: ""), "book" to book)) ?: contextVal
          }
- 
+
          if (trimmedRule.contains("<js>") && trimmedRule.contains("</js>")) {
 @@ -924,12 +963,12 @@
              else html?.html() ?: json ?: rawBody ?: ""
@@ -213,7 +213,7 @@
 -            return NodeValue.document(evaluated).value(postRule, jsSandbox, evaluated, baseUrl)
 +            return NodeValue.document(evaluated).value(postRule, jsSandbox, evaluated, baseUrl, book)
          }
- 
+
          // ------------------------------------------------------------------
 @@ -957,6 +996,7 @@
                          "result" to (intermediate ?: ""),
