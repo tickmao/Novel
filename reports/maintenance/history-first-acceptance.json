@@ -1,0 +1,21 @@
+{
+  "checked_at": "2026-10-10T03:13:21.852369+00:00",
+  "code_commit": "fbed37f30b9a96c0e1e46e7aaeaf00ffcd0aea7a",
+  "runs": [
+    "https://github.com/tickmao/Novel/actions/runs/38015749897",
+    "https://github.com/tickmao/Novel/actions/runs/38019287949"
+  ],
+  "raw_sources": 17161,
+  "checked_revisions": 600,
+  "overlapping_revisions": 0,
+  "continuation_matches": true,
+  "completed_deep_checks": 598,
+  "pending_revisions": 12106,
+  "healthy_count": 18,
+  "reserve_count": 2,
+  "reading_success_revisions": 25,
+  "collected_sources": 0,
+  "publication_ready": false,
+  "python_tests": 94,
+  "fixture_count": 10
+}

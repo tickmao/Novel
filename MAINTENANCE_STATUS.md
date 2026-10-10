@@ -2,110 +2,104 @@
 
 Updated: 2026-10-10
 
-## Current direction
+## Operating policy
 
-Maintain about 1,000 readable Legado sources and 500 eligible reserves through
-an automated collection, validation, exclusion and replacement loop. Availability
-takes priority over count. Explicit adult sites and adult sections are excluded;
-ambiguous evidence is quarantined for contextual review.
+Validate the existing archive before collecting more source feeds. Previously
+readable revisions receive priority, followed by other untested revisions.
+Old success labels guide scheduling; only current complete reading and content
+checks qualify a source for publication.
 
-Existing raw sources and newly collected sources feed the same inventory.
-Collection runs alongside validation. Failed sources leave the eligible inventory,
-qualified reserves fill the gaps, and scheduled runs keep checking upstream
-revisions after the target count is reached. Raw records and failure evidence
-remain available for later checks.
+The archive contains 17,161 source identities. Scope and content checks leave
+about 12,704 initial candidate revisions for runtime validation. Disabled,
+non-novel and excluded content remain archived with their reasons.
 
-## Acceptance result
+Collection stays off while untested candidate revisions remain. Once the
+eligible archive has been checked, collection can fill a qualified inventory
+shortage. The target remains about 1,000 public sources and 500 reserves.
 
-**The technical checks pass, but the 1,000-source objective has not passed
-acceptance.** The latest two maintenance cycles produced one eligible source.
-No public source files were published by these runs.
+## Persistent validation result
 
-Runtime checked: `2ee5977b957031bb7556c1eaf7f716cc520e8d3e`.
-The Python suite ran at `71955ed86f9ce6eec00d5a6adaa6a174fefd7af4`; the files in
-`scripts/` and `tests/` are identical between those two commits.
+Two independent GitHub Actions runs checked 500 and then 100 archived revisions.
+The second run loaded the exact progress saved by the first, and the two batches
+had no overlapping revisions. Both runs persisted their results to the branch.
+No source feed was collected.
 
-| Check | Observed result |
+| Measure | Result after the second run |
 | --- | --- |
-| Python regression suite, local Python 3.14.6 and Actions Python 3.11 | 88 tests passed |
-| JVM request, book-state, rule and network security regression tests | Passed during image build |
-| Container reading fixtures | 10 passed, 0 failed |
-| Separate live compatibility sample | 60 attempted, 1 complete reading success |
-| Two maintenance cycles | 40 checks each, 1 complete reading success |
-| Out-of-scope runtime attempts | 0 of 80, down from 19 of 80 in the baseline |
-| Final shadow inventory | 1 healthy source, 0 eligible reserves; baseline was 0 and 0 |
-| External feed collection | 5 files, 5,632 source definitions, 3,905 new revisions |
-| YCKCEO collection | Reached the bounded collection time limit |
-| Publication gate | Blocked by healthy and reserve counts |
-| Seven-day operational acceptance | Not started |
+| Archived source identities | 17,161 |
+| Distinct revisions attempted | 600 |
+| Completed deep attempts | 598; two runtime timeouts remain pending |
+| Reading-success revisions | 25 |
+| Selected healthy sources | 18 |
+| Eligible reserves | 2 |
+| Remaining candidate revisions | 12,106 |
+| New source collection | 0 |
+| Public source publication | Blocked by inventory thresholds |
 
-The eligible source is Midureader. Its check completed two distinct books and
-four distinct chapters. The separate compatibility sample does not insert its
-successful source into the inventory. These two counts must not be combined.
+Reading-success revisions can share a site or identical rules. Deduplication and
+site limits reduce them to the selected inventory. Completed attempts include
+unverified and failed results; they are not all usable sources.
 
-Source definitions can repeat across feeds. New revisions are not a count of
-unique sites or readable sources. The development acceptance job retains reports
-only; its collected raw records are not imported into the production inventory.
+The 1,000-source objective and seven-day availability acceptance are not complete.
 
-- [Python pipeline run](https://github.com/tickmao/Novel/actions/runs/37948001065)
-- [Container and maintenance run](https://github.com/tickmao/Novel/actions/runs/37953472900)
-- [Previous baseline run](https://github.com/tickmao/Novel/actions/runs/37875758758)
-- [Acceptance summary](reports/runtime/acceptance.json)
-- [Compatibility evidence](reports/runtime/compatibility.json)
-- [Live sample](reports/runtime/sample.json)
-- [First cycle](reports/runtime/maintenance-cycle-1.json)
-- [Second cycle](reports/runtime/maintenance-cycle-2.json)
-- [Shadow inventory](reports/runtime/maintenance-shadow.json)
+- [First persistent scan: 500 revisions](https://github.com/tickmao/Novel/actions/runs/38015749897)
+- [Independent continuation: 100 revisions](https://github.com/tickmao/Novel/actions/runs/38019287949)
+- [Checkpoint acceptance summary](reports/maintenance/history-first-acceptance.json)
+- [Latest maintenance report](sources/legado/main/maintenance_report.json)
+- [Current shadow inventory](sources/legado/main/shadow.json)
 
-## Completed fixes
+## Automation and validation
 
-- Disabled and non-novel revisions are excluded before runtime scheduling. Their
-  payloads and reasons remain in the raw store; an eligible new revision can
-  enter the queue.
-- Request parsing accepts spaced options and applies the declared search charset.
-  JavaScript headers are evaluated, custom headers replace defaults, and the HTTP
-  client retains control of host and connection framing. POST forms receive a
-  content type when none is supplied.
-- Book metadata is available to search URL templates and follows the book,
-  catalog and chapter stages. JavaScript receives these fields without losing
-  the book bridge methods. Source and address keys keep book contexts separate.
-- Searches use prior successful book names and a source's `checkKeyWord` before
-  generic titles. HTTP rejection is reported separately from rule errors.
-- Maintenance reports retain each checked revision and its stage evidence.
+The **Maintain Sources** workflow supports daily and catchup runs. Daily runs
+check existing selected sources; catchup runs continue the raw backlog. Shadow
+sources retain maintenance priority before the first public release. Raw records,
+deep-check markers and shadow stock persist between runs.
 
-The upstream compatibility patch is pinned and included in the runtime
-fingerprint. Raw source rules are not rewritten to fit the validator.
+Scheduled production maintenance runs at 02:00 Beijing time, with catchup runs
+at 08:00, 14:00 and 20:00. Manual runs expose batch and time budgets. Development
+branches can persist validation state but cannot publish public source files.
 
-## Remaining findings
+The first release requires at least 950 healthy sources and 300 eligible reserves.
+It then continues toward 1,000 and 500. Publication updates all mirrors together.
+Seven consecutive daily observations and the configured spot checks are still
+required for operational acceptance.
 
-The latest 80 maintenance attempts produced 65 unverified results, 8 transient
-failures, 4 invalid results, 1 unsupported rule, 1 review result and 1 valid result.
-Unverified and unsupported results do not prove a site fails in a user's app.
+Validation completed for this change:
 
-The QQ Browser source now extracts distinct books, resolves a catalog with
-1,865 chapters, and reads a 1,913-character first chapter. A later sampled chapter
-is empty or too short, so the source remains outside the eligible inventory.
-Successful parsing alone cannot replace complete reading evidence.
+- 94 Python regression tests passed locally and on GitHub Actions.
+- The pinned JVM image passed its rule, book-state and network security tests.
+- All 10 complete reading fixtures passed.
+- Two persistent historical scans completed without new collection.
+- The second run proved checkpoint continuity and no repeated batch.
 
-Three representative HTTP 403 endpoints still rejected requests with both the
-engine and browser User-Agent values. There is no evidence that changing the
-default User-Agent alone resolves those failures.
+## GitHub Actions failure review
 
-## Remaining rollout work
+The recent failure notifications came from development-branch runs:
 
-1. Investigate the remaining source-specific rule and access failures using
-   exact revisions and stage reports. Expand validation across both archived and
-   newly collected sources without padding the inventory with unverified entries.
-2. Accumulate qualified stock through persistent maintenance runs. Keep the
-   first public release gated until at least 950 healthy sources and 300 eligible
-   reserves are available; continue toward 1,000 and 500.
-3. Verify the public snapshot and its mirrors, then observe seven consecutive
-   daily runs with at least 950 healthy sources and at least 95% success in each
-   50-source spot check.
+- Runs [37948001063](https://github.com/tickmao/Novel/actions/runs/37948001063) and
+  [37948395105](https://github.com/tickmao/Novel/actions/runs/37948395105) failed
+  book metadata regression tests during image construction.
+- Run [37949375963](https://github.com/tickmao/Novel/actions/runs/37949375963) failed
+  the complete reading fixture because the JavaScript book bridge replaced
+  supplied metadata. The compatibility fixes resolved these regressions.
+- Run [37874597774](https://github.com/tickmao/Novel/actions/runs/37874597774) had
+  zero complete live reading successes; its strict acceptance step correctly
+  failed. Live-site variability remains distinct from code regression failures.
 
-GitHub CLI login is verified for `tickmao`. The production branch still uses the
-previous maintenance workflow. At fetched commit `ce5c639`, its actual public
-import file contains 194 entries while its internal file contains 1,000. These
-counts are not readability evidence. The local 45-entry experimental snapshot
-remains outside these commits. Historical inventories remain archived in
-[the legacy audit](reports/legacy-audit/README.md).
+The subsequent [runtime check](https://github.com/tickmao/Novel/actions/runs/38014331116),
+[Python check](https://github.com/tickmao/Novel/actions/runs/38014331081), both
+persistent scans, and the latest checked legacy production maintenance run
+[37999262598](https://github.com/tickmao/Novel/actions/runs/37999262598) succeeded.
+See the [audit record](reports/maintenance/actions-audit.json).
+
+## Remaining work
+
+Continue the archived-source scan and keep selected sources fresh. Investigate
+unverified rules and isolated runtime failures using exact revisions and stage
+reports. Collect new feeds only after the eligible historical backlog has been
+checked and qualified stock remains short. Preserve the original payloads and
+keep unsupported results separate from confirmed site failures.
+
+Historical inventories remain available in [the legacy audit](reports/legacy-audit/README.md).
+The original workspace's uncommitted experimental source files are not part of
+these acceptance commits.
