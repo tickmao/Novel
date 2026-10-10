@@ -25,6 +25,9 @@ def apply_result(version, result):
         health['next_deep_check_at'] = health['next_check_at']
     health.update({key: deepcopy(result[key]) for key in ('status', 'kind', 'error', 'response_ms', 'validator_version', 'runtime_fingerprint', 'stages', 'sample', 'engine') if key in result})
     health['last_check_at'] = checked
+    if result.get('mode') == 'deep':
+        health['deep_check'] = {key: deepcopy(result.get(key)) for key in (
+            'checked_at', 'validator_version', 'runtime_fingerprint', 'status', 'kind')}
     if result.get('status') == 'valid':
         if result.get('mode') == 'light' and (
                 prior.get('validator_version') != result.get('validator_version')

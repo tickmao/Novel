@@ -49,6 +49,8 @@ jobs:
               report = json.loads(Path(f'reports/runtime/maintenance-cycle-{cycle}.json').read_text())
               if report['published'] or report.get('engine_incident') or not report.get('deep_checked'):
                   raise SystemExit(f'Maintenance cycle {cycle} did not complete a valid shadow check')
+              if report.get('raw_progress_before', {}).get('pending_revisions', 0) > report.get('deep_checked', 0) and report['providers']:
+                  raise SystemExit(f'Maintenance cycle {cycle} collected before checking the raw backlog')
           PY
       - name: Require runtime acceptance
         if: github.event_name != 'pull_request'

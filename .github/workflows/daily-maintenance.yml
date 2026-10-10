@@ -16,6 +16,14 @@ on:
       publish:
         type: boolean
         default: false
+      batch_size:
+        description: Maximum candidate revisions to check
+        type: number
+        default: 500
+      max_minutes:
+        description: Maintenance time budget
+        type: number
+        default: 30
 
 permissions:
   contents: write
@@ -28,7 +36,7 @@ concurrency:
 
 jobs:
   maintain:
-    if: github.ref == 'refs/heads/master'
+    if: github.ref_type == 'branch' && (github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 100
     outputs:
@@ -75,19 +83,23 @@ jobs:
           REQUESTED_MODE: ${{ inputs.mode }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
           DRY_RUN: ${{ inputs.dry_run }}
+          REQUESTED_BATCH: ${{ inputs.batch_size }}
+          REQUESTED_MINUTES: ${{ inputs.max_minutes }}
           PUBLISH: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || inputs.publish) }}
         run: |
           MODE="${REQUESTED_MODE:-daily}"
           if [ "$EVENT_SCHEDULE" = '0 0,6,12 * * *' ]; then MODE=catchup; fi
           BATCH=300
           if [ "$MODE" = catchup ]; then BATCH=1000; fi
+          BATCH="${REQUESTED_BATCH:-$BATCH}"
+          MINUTES="${REQUESTED_MINUTES:-60}"
           FLAGS=()
           if [ "$DRY_RUN" = true ]; then
             FLAGS+=(--dry-run)
           elif [ "$PUBLISH" = true ]; then
             FLAGS+=(--publish)
           fi
-          python -B scripts/daily_maintenance.py --mode "$MODE" --batch-size "$BATCH" --max-minutes 60 "${FLAGS[@]}"
+          python -B scripts/daily_maintenance.py --mode "$MODE" --batch-size "$BATCH" --max-minutes "$MINUTES" "${FLAGS[@]}"
       - name: Verify the publication
         id: verify
         env:
@@ -102,6 +114,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PUBLISHED: ${{ steps.maintenance.outputs.published }}
           VERIFIED: ${{ steps.verify.outcome == 'success' }}
+          TARGET_BRANCH: ${{ github.ref_name }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
@@ -117,7 +130,7 @@ jobs:
           fi
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'chore: maintain source inventory and publication'
-          git push origin HEAD:master
+          git push origin "HEAD:$TARGET_BRANCH"
       - name: Preserve recovery data
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -133,6 +146,19 @@ jobs:
         if: ${{ always() }}
         run: |
           python scripts/check_publication.py --summary --allow-bootstrap >> "$GITHUB_STEP_SUMMARY"
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          path = Path('sources/legado/main/maintenance_report.json')
+          if path.exists():
+              report = json.loads(path.read_text())
+              progress = report.get('raw_progress', {})
+              print('\n## Raw inventory validation\n')
+              for key in ('raw_sources', 'eligible_revisions', 'attempted_revisions', 'pending_revisions'):
+                  print(f'- {key}: {progress.get(key, "unknown")}')
+              print(f'- healthy_sources: {report.get("inventory", {}).get("healthy_count", 0)}')
+              print(f'- collection: {report.get("collection_decision", {}).get("reason", "unknown")}')
+          PY
 
   deploy:
     needs: maintain

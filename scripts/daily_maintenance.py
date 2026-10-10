@@ -15,7 +15,7 @@ from pathlib import Path
 
 from reading_validator import HTTPClient, ProbeFailure
 from runtime_validator import RuntimeReadingValidator as ReadingValidator
-from runtime_config import ENVIRONMENT_FAILURES
+from runtime_config import ENVIRONMENT_FAILURES, VALIDATOR_VERSION, runtime_fingerprint
 from maintenance_lock import writer_lock
 from source_collector import collect_into
 from source_inventory import SourceInventory
@@ -33,7 +33,14 @@ class DailyMaintenance:
 
     async def validate(self, validator, refs, *, mode, deadline, save, report):
         inventory, store = self.inventory, self.inventory.store
-        known = {ref for ref in refs if store.get(ref[0])['versions'][ref[1]].get('validation', {}).get('last_deep_success_at')}
+        known = set()
+        recent = datetime.now(timezone.utc) - timedelta(days=inventory.max_age_days)
+        for ref in refs:
+            health = store.get(ref[0])['versions'][ref[1]].get('validation', {})
+            checked = parse_time(health.get('last_deep_success_at'))
+            if (checked and checked >= recent and health.get('validator_version') == VALIDATOR_VERSION
+                    and health.get('runtime_fingerprint') == runtime_fingerprint()):
+                known.add(ref)
         baseline, completed = {}, []
         counts, kinds, examples = Counter(), Counter(), {}
         for offset in range(0, len(refs), 20):
@@ -172,10 +179,10 @@ class DailyMaintenance:
             report['static_audit'] = inventory.audit_all()
             if not dry_run:
                 store.save()
-            # Fix this run's validation queue before collectors add new revisions.
-            # Fresh arrivals remain durable and join the next scheduled run.
-            refs = inventory.queue(limit=batch_size) if mode != 'backfill' else []
-            export, _, _ = inventory.select()
+            report['raw_progress_before'] = inventory.revalidation_progress()
+            export, _, initial = inventory.select()
+            candidate_limit = batch_size if initial['needs_replenishment'] else 0
+            refs = inventory.queue(limit=candidate_limit) if mode != 'backfill' else []
             scheduled = set(refs)
             light_refs = [(item['_source_id'], item['_revision']) for item in export
                           if (item['_source_id'], item['_revision']) not in scheduled]
@@ -197,23 +204,32 @@ class DailyMaintenance:
                     await self.validate(validator, spot_refs, mode='spot', deadline=deadline,
                                         save=not dry_run, report=report)
 
-            async with HTTPClient(concurrency, timeout, max_bytes=32 * 1024 * 1024) as client:
-                async with asyncio.TaskGroup() as tasks:
-                    if collect:
-                        collection_deadline = (deadline if mode == 'backfill' else
-                                               min(deadline, time.monotonic() + min(600, max_minutes * 60 * 0.15)))
-                        tasks.create_task(self.collect_sources(
-                            client, mode=mode, deadline=collection_deadline, save=not dry_run,
-                            fetch_cap=fetch_cap, backfill_rounds=backfill_rounds, report=report))
-                    if mode != 'backfill':
-                        tasks.create_task(check_inventory())
+            if mode != 'backfill':
+                await check_inventory()
+            progress = inventory.revalidation_progress()
+            decision = inventory.collection_decision(progress, inventory.select()[2])
+            if not collect:
+                decision = {'allowed': False, 'reason': 'collection_disabled'}
+            elif report.get('engine_incident') or report.get('network_incident'):
+                decision = {'allowed': False, 'reason': 'validation_incident'}
+            elif time.monotonic() >= deadline:
+                decision = {'allowed': False, 'reason': 'run_budget_exhausted'}
+            report['collection_decision'] = decision
+            if decision['allowed']:
+                collection_deadline = (deadline if mode == 'backfill' else
+                                       min(deadline, time.monotonic() + min(600, max_minutes * 60 * 0.15)))
+                async with HTTPClient(concurrency, timeout, max_bytes=32 * 1024 * 1024) as client:
+                    await self.collect_sources(client, mode=mode, deadline=collection_deadline, save=not dry_run,
+                                               fetch_cap=fetch_cap, backfill_rounds=backfill_rounds, report=report)
             # A newly collected exclusion must apply before selecting the release.
             report['static_audit'] = inventory.audit_all()
+            report['raw_progress'] = inventory.revalidation_progress()
             _, _, current = inventory.select()
             report['inventory'] = current
             report['publication_gate'] = inventory.publication_gate(current)
             report['finished_at'] = utcnow()
-            store.state.setdefault('runs', []).append({key: value for key, value in report.items() if key != 'providers'})
+            store.state.setdefault('runs', []).append({key: value for key, value in report.items()
+                                                       if key != 'providers' and not key.endswith('_results')})
             store.state['runs'] = store.state['runs'][-30:]
             if not dry_run:
                 store.save()
@@ -241,7 +257,8 @@ class DailyMaintenance:
                     else:
                         report['publication_skipped'] = 'Bootstrap has no verified sources yet'
                 report['release_active'] = read_json(self.base_dir / 'main/publication.json', {}).get('schema_version') == 3
-                store.state['runs'][-1] = {key: value for key, value in report.items() if key != 'providers'}
+                store.state['runs'][-1] = {key: value for key, value in report.items()
+                                         if key != 'providers' and not key.endswith('_results')}
                 report['acceptance'] = acceptance_status(store.state['runs'])
                 store.save()
                 atomic_bundle({self.base_dir / 'main' / 'maintenance_report.json': json_bytes(report)})

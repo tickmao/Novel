@@ -76,6 +76,41 @@ class InventoryTests(unittest.TestCase):
         self.inventory.audit_all()
         self.assertIn(new, self.inventory.queue())
 
+    def test_prior_readable_revision_is_revalidated_before_untried_sources(self):
+        item = source('https://known.example')
+        known = self.inventory.store.ingest(item, {'provider': 'legacy'})
+        result = ready_result(self.inventory.policy)
+        result.update(validator_version='static-reading-v2', runtime_fingerprint='old-engine')
+        self.inventory.record_result(*known, result)
+        newer = self.inventory.store.ingest({**item, 'searchUrl': '/changed?q={{key}}'}, {'provider': 'legacy'})
+        unknown = self.inventory.store.ingest(source('https://unknown.example'), {'provider': 'legacy'})
+        self.assertEqual(self.inventory.queue(limit=1), [known])
+        self.assertIn(newer, self.inventory.queue(limit=3))
+        self.assertIn(unknown, self.inventory.queue(limit=3))
+
+    def test_coverage_requires_a_deep_attempt_with_the_current_engine(self):
+        ref = self.inventory.store.ingest(source(), {'provider': 'legacy'})
+        result = ready_result(self.inventory.policy)
+        result['mode'] = 'light'
+        self.inventory.record_result(*ref, result)
+        self.assertEqual(self.inventory.revalidation_progress()['pending_revisions'], 1)
+        result.update(mode='deep', status='unverified', kind='http_forbidden')
+        self.inventory.record_result(*ref, result)
+        self.assertEqual(self.inventory.revalidation_progress()['checked_revisions'], 1)
+        self.assertEqual(self.inventory.revalidation_progress()['pending_revisions'], 0)
+        self.assertEqual(self.inventory.select()[2]['healthy_count'], 0)
+        with patch('source_inventory.runtime_fingerprint', return_value='changed-engine'):
+            self.assertEqual(self.inventory.revalidation_progress()['pending_revisions'], 1)
+
+    def test_shadow_sources_remain_a_maintenance_priority_before_first_release(self):
+        now = datetime.now(timezone.utc)
+        known = seed(self.inventory, 1, now)[0]
+        self.inventory.write_shadow()
+        fresh = self.inventory.store.ingest(source('https://untried.example'), {'provider': 'legacy'})
+        queued = self.inventory.queue(limit=1, now=now + timedelta(days=8))
+        self.assertEqual(queued[0], known)
+        self.assertIn(fresh, queued)
+
     def test_publish_exact_target_and_consistent_mirrors(self):
         seed(self.inventory, 1010)
         report = self.inventory.publish()

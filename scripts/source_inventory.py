@@ -191,17 +191,72 @@ class SourceInventory:
         }
         return export, reserve, report
 
+    def candidate_revisions(self, record):
+        latest = record['latest_revision']
+        revisions = {latest}
+        if not self.scope_reason(record['versions'][latest]['source']):
+            revisions.update(revision for revision, version in record['versions'].items()
+                             if version.get('validation', {}).get('last_deep_success_at'))
+        return revisions
+
+    @staticmethod
+    def deep_checked(version):
+        check = version.get('validation', {}).get('deep_check', {})
+        return (check.get('validator_version') == VALIDATOR_VERSION
+                and check.get('runtime_fingerprint') == runtime_fingerprint()
+                and bool(check.get('checked_at')))
+
+    def revalidation_progress(self):
+        sources = eligible_sources = eligible = checked = attempted = 0
+        outcomes = Counter()
+        for record in self.store.records():
+            sources += 1
+            attempted += sum(self.deep_checked(version) for version in record['versions'].values())
+            latest = record['versions'][record['latest_revision']]
+            audit = latest.get('audit', {})
+            if audit.get('decision') in ('block', 'review') and audit.get('policy_version') == self.policy.auditor.version:
+                continue
+            count = 0
+            for revision in self.candidate_revisions(record):
+                version = record['versions'][revision]
+                audit = version.get('audit', {})
+                if self.scope_reason(version['source']) or (
+                        audit.get('decision') in ('block', 'review')
+                        and audit.get('policy_version') == self.policy.auditor.version):
+                    continue
+                count += 1
+                if self.deep_checked(version):
+                    checked += 1
+                    outcomes[version['validation']['deep_check']['status']] += 1
+            eligible += count
+            eligible_sources += bool(count)
+        return {'raw_sources': sources, 'eligible_sources': eligible_sources, 'attempted_revisions': attempted,
+                'eligible_revisions': eligible, 'checked_revisions': checked,
+                'pending_revisions': eligible - checked, 'outcomes': dict(outcomes)}
+
+    def collection_decision(self, progress, inventory):
+        if not inventory['needs_replenishment']:
+            reason = 'inventory_sufficient'
+        elif progress['pending_revisions']:
+            reason = 'raw_inventory_pending'
+        else:
+            reason = 'qualified_inventory_shortage'
+        return {'allowed': reason == 'qualified_inventory_shortage', 'reason': reason}
+
     def queue(self, limit=300, now=None):
         now = now or datetime.now(timezone.utc)
         export, reserve, _ = self.select(now)
         publication = read_json(self.base_dir / 'main/publication.json', {})
-        published = {item['source_id']: item['revision'] for item in publication.get('sources', [])}
+        shadow = read_json(self.base_dir / 'main/shadow.json', {})
+        published = {item['source_id']: item['revision'] for item in shadow.get('sources', [])}
+        published.update({item['source_id']: item['revision'] for item in publication.get('sources', [])})
         published.update({item['_source_id']: item['_revision'] for item in export})
-        standby = {item['_source_id']: item['_revision'] for item in reserve}
+        standby = {item['source_id']: item['revision'] for item in shadow.get('reserve', [])}
+        standby.update({item['_source_id']: item['_revision'] for item in reserve})
         pending = []
         for record in self.store.records():
             key = record['source_id']
-            revisions = {record['latest_revision']}
+            revisions = self.candidate_revisions(record)
             for mapping in (published, standby):
                 if key in mapping and mapping[key] in record['versions']:
                     revisions.add(mapping[key])
@@ -220,21 +275,23 @@ class SourceInventory:
                     continue
                 same_runtime = (health.get('validator_version') == VALIDATOR_VERSION
                                 and health.get('runtime_fingerprint') == runtime_fingerprint())
-                if health.get('status') == 'unsupported' and same_runtime:
+                checked = self.deep_checked(version)
+                if health.get('status') == 'unsupported' and same_runtime and checked:
                     continue
                 next_check = parse_time(health.get('next_deep_check_at', health.get('next_check_at')))
-                if next_check and next_check > now and same_runtime:
+                if next_check and next_check > now and same_runtime and checked:
                     continue
                 last_deep = parse_time(health.get('last_deep_success_at'))
                 category = 0 if published.get(key) == revision else 1 if standby.get(key) == revision else 2
                 last_check = parse_time(health.get('last_check_at')) if category == 2 else last_deep
-                pending.append((category, last_check or datetime.min.replace(tzinfo=timezone.utc),
+                priority = (2 if checked else 0 if last_deep else 1) if category == 2 else 0
+                pending.append((category, priority, last_check or datetime.min.replace(tzinfo=timezone.utc),
                                 -self.policy.enrich_source(version['source'])['selectionScore'], key, revision))
         pending.sort()
         cfg = self.config.get('inventory', {})
         quotas = {0: int(cfg.get('published_deep_batch', 250)), 1: int(cfg.get('reserve_deep_batch', 125)), 2: limit}
         selected = []
-        for category, _, _, key, revision in pending:
+        for category, _, _, _, key, revision in pending:
             if quotas[category] > 0:
                 selected.append((key, revision))
                 quotas[category] -= 1
@@ -282,6 +339,7 @@ class SourceInventory:
     def inventory_status(self):
         export, reserve, report = self.select()
         report['raw_count'] = self.store.manifest['count']
+        report['raw_progress'] = self.revalidation_progress()
         report['validation_statuses'] = dict(Counter(
             (record['versions'][record['latest_revision']].get('validation', {}).get('status', 'pending')
              if record['versions'][record['latest_revision']].get('validation', {}).get('validator_version') == VALIDATOR_VERSION

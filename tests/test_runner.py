@@ -5,6 +5,7 @@ import sys
 import tempfile
 import time
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -30,7 +31,7 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):
         self.tmp.cleanup()
 
-    async def test_collection_and_existing_inventory_validation_overlap(self):
+    async def test_existing_inventory_is_checked_before_collection(self):
         old = self.runner.inventory.store.ingest(source(), {'provider': 'legacy'})
         self.runner.inventory.store.save()
         collecting, validating = asyncio.Event(), asyncio.Event()
@@ -43,8 +44,8 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
             return {'fetched_ids': 1, 'pending_count': 0}
 
         async def probe(item, mode='deep'):
+            self.assertFalse(collecting.is_set())
             validating.set()
-            await asyncio.wait_for(collecting.wait(), 1)
             return {**ready_result(self.runner.inventory.policy), 'mode': mode}
 
         with patch('daily_maintenance.collect_submissions', new=AsyncMock(return_value={})), \
@@ -57,12 +58,12 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(loaded.get(old[0])['versions'][old[1]]['validation']['status'], 'valid')
         self.assertEqual(loaded.get(added[0][0])['versions'][added[0][1]]['validation']['status'], 'pending')
 
-        with patch('daily_maintenance.ReadingValidator.probe', side_effect=probe):
+        with patch('daily_maintenance.ReadingValidator.probe', new=AsyncMock(return_value=ready_result(self.runner.inventory.policy))):
             report = await self.runner.maintain(mode='catchup', collect=False, publish=True)
         self.assertEqual(report['inventory']['healthy_count'], 2)
         self.assertTrue(report['published'])
 
-    async def test_full_inventory_still_collects_upstream_revisions(self):
+    async def test_full_inventory_does_not_collect_more_sources(self):
         self.runner.inventory.export_target = 1
         self.runner.inventory.reserve_target = 0
         seed(self.runner.inventory, 1)
@@ -71,8 +72,48 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
                 patch('daily_maintenance.collect_into', new=AsyncMock(return_value={'files': 0, 'errors': []})), \
                 patch('daily_maintenance.YckceoHarvester.sync', new=AsyncMock(return_value={})) as collect:
             report = await self.runner.maintain(mode='catchup')
-        collect.assert_awaited_once()
+        collect.assert_not_awaited()
         self.assertFalse(report['inventory']['needs_replenishment'])
+
+    async def test_pending_raw_inventory_prevents_collection_and_resumes(self):
+        for index in range(3):
+            self.runner.inventory.store.ingest(source(f'https://old{index}.example'), {'provider': 'legacy'})
+        self.runner.inventory.store.save()
+        seen = []
+
+        async def probe(item, mode='deep'):
+            seen.append(item['bookSourceUrl'])
+            result = ready_result(self.runner.inventory.policy)
+            result.update(status='unverified', kind='http_forbidden')
+            return result
+
+        with patch('daily_maintenance.DailyMaintenance.collect_sources', new=AsyncMock()) as collect, \
+                patch('daily_maintenance.ReadingValidator.probe', side_effect=probe):
+            first = await self.runner.maintain(mode='catchup', batch_size=1)
+            collect.assert_not_awaited()
+            restarted = DailyMaintenance(self.root)
+            second = await restarted.maintain(mode='catchup', batch_size=1)
+            collect.assert_not_awaited()
+            third = await restarted.maintain(mode='catchup', batch_size=1)
+            collect.assert_awaited_once()
+        self.assertEqual(len(set(seen)), 3)
+        self.assertEqual(first['raw_progress']['pending_revisions'], 2)
+        self.assertEqual(second['raw_progress']['pending_revisions'], 1)
+        self.assertEqual(third['raw_progress']['pending_revisions'], 0)
+        self.assertEqual(first['collection_decision']['reason'], 'raw_inventory_pending')
+        self.assertEqual(third['collection_decision']['reason'], 'qualified_inventory_shortage')
+        self.assertNotIn('deep_results', restarted.inventory.store.state['runs'][-1])
+        self.assertEqual(len(third['deep_results']), 1)
+
+    async def test_engine_failure_does_not_unlock_collection(self):
+        self.runner.inventory.store.ingest(source(), {'provider': 'legacy'})
+        self.runner.inventory.store.save()
+        result = {**ready_result(self.runner.inventory.policy), 'status': 'unverified', 'kind': 'engine_unavailable'}
+        with patch('daily_maintenance.DailyMaintenance.collect_sources', new=AsyncMock()) as collect, \
+                patch('daily_maintenance.ReadingValidator.probe', new=AsyncMock(return_value=result)):
+            report = await self.runner.maintain(mode='catchup')
+        collect.assert_not_awaited()
+        self.assertEqual(report['raw_progress']['pending_revisions'], 1)
 
     async def test_provider_failure_does_not_stop_validation_or_other_providers(self):
         self.runner.inventory.store.ingest(source(), {'provider': 'legacy'})
@@ -237,6 +278,17 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         loaded = SourceStore(self.runner.inventory.store.root)
         for key, revision in refs:
             self.assertEqual(loaded.get(key)['versions'][revision]['validation']['status'], 'valid')
+
+    async def test_stale_successes_are_not_network_health_controls(self):
+        refs = seed(self.runner.inventory, 20, datetime.now(timezone.utc) - timedelta(days=30))
+        result = {**ready_result(self.runner.inventory.policy), 'status': 'transient', 'kind': 'network'}
+        validator = AsyncMock()
+        validator.probe.return_value = result
+        report = {}
+        await self.runner.validate(validator, refs, mode='deep', deadline=time.monotonic() + 10,
+                                   save=True, report=report)
+        self.assertFalse(report.get('network_incident', False))
+        self.assertEqual(report['deep_checked'], 20)
 
     async def test_checkpoint_restores_results_and_checks_input_identity(self):
         path = self.root / 'checkpoints'
