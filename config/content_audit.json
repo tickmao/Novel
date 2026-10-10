@@ -1,38 +1,51 @@
 {
-  "text_patterns": [
+  "schema_version": 2,
+  "block_domains": [
+    "po18.tw",
+    "po18.com",
+    "po18xs.com",
+    "po18book.com",
+    "woo18.com",
+    "cool18.com",
+    "jmshuwu.net",
+    "yuwangshe.net",
+    "haitang123.com",
+    "18comic.org"
+  ],
+  "domain_label_patterns": [
+    "po18[a-z0-9-]*",
+    "woo18[a-z0-9-]*",
+    "cool18",
+    "yushuwu[a-z0-9-]*",
+    "18comic[a-z0-9-]*"
+  ],
+  "text_rules": [
     {
-      "pattern": "(?i)\\bpo\\s*18\\b|po18|woo18|18mh",
-      "reason": "命中成人站点标识"
+      "id": "explicit_adult_label",
+      "pattern": "🔞|18\\s*(?:禁|\\+)|\\bR\\s*-?18\\b|成人(?:文学|小说|漫画|视频|专区|内容|网站)|色情|情色|肉文|肉漫|高\\s*H(?:文|小说|专区|分类)|H文专区",
+      "decision": "block",
+      "body": true,
+      "body_decision": "review"
     },
     {
-      "pattern": "18禁|成人|情色|色情|色文|欲书|欲望社|辣文|肉文|肉漫|肉欲|淫文|淫书|艳情|春宫|污文|污漫|成人视频|成人文学|御书屋|海棠|十八言情|桃色",
-      "reason": "命中成人内容关键词"
+      "id": "adult_source_brand",
+      "pattern": "御书屋|海棠书屋|新欲望社|欲书屋|禁漫|(?<![A-Za-z0-9])(?:PO18|WOO18|COOL18)(?![A-Za-z0-9])",
+      "decision": "block"
     },
     {
-      "pattern": "肉书屋|肉肉屋|污书屋|鲤鱼乡|废文网|一起色|逼事阁",
-      "reason": "命中高风险成人站点名"
-    },
-    {
-      "pattern": "(?i)bl|耽美|腐向|腐文|腐小说|同志文|双男主|书耽",
-      "reason": "命中耽美/BL 关键词"
+      "id": "ambiguous_adult_promotion",
+      "pattern": "擦边|福利专区|绅士专区|桃色小说|肉欲|高\\s*H(?:\\b|$)",
+      "decision": "review"
     }
   ],
-  "url_patterns": [
-    {
-      "pattern": "(?i)po18|woo18|haitang|yushuwu|shudan|danmei|fuxiang|blnovel|blbook",
-      "reason": "命中高风险域名特征"
-    }
+  "body_review_terms": [
+    "性交",
+    "乱伦",
+    "阴茎",
+    "阴道",
+    "精液",
+    "射精",
+    "口交"
   ],
-  "allow_patterns": [
-    "特色",
-    "色彩",
-    "本色",
-    "情节",
-    "剧情",
-    "情怀",
-    "青春",
-    "书房",
-    "房间",
-    "小姐姐"
-  ]
+  "body_review_threshold": 2
 }

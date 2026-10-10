@@ -11,7 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from clean import normalize_source_name  # noqa: E402
+from source_health import apply_result
+from test_inventory_v2 import ready_result
 from safe_updater import SafeUpdater  # noqa: E402
+from publication_fixture import enable_test_publication
 
 
 class CleanNameTests(unittest.TestCase):
@@ -51,10 +54,11 @@ class SafeUpdaterTests(unittest.TestCase):
     def test_safe_update_syncs_compatibility_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             base_dir = Path(temp_dir)
+            enable_test_publication(base_dir)
             legado_dir = base_dir / "sources" / "legado"
             updater = SafeUpdater(legado_dir)
 
-            sources = [
+            seeds = [
                 {
                     "bookSourceName": "💵 起点自用",
                     "bookSourceUrl": "https://example.com/qidian",
@@ -74,8 +78,22 @@ class SafeUpdaterTests(unittest.TestCase):
                     "ruleContent": {"content": "x"},
                 },
             ]
+            sources = []
+            digit_map = str.maketrans("0123456789", "零一二三四五六七八九")
+            for idx in range(1000):
+                item = dict(seeds[idx % 2])
+                item["bookSourceUrl"] = f"https://example{idx}.com"
+                item["score"] = 60
+                item["selectionScore"] = 60
+                if idx >= 2:
+                    item["bookSourceName"] = f"测试书站{str(idx).translate(digit_map)}"
+                version = {'validation': {}, 'audit': {}}
+                apply_result(version, ready_result(updater.policy))
+                item['_audit'] = version['audit']
+                item['_health'] = version['validation']
+                sources.append(item)
 
-            self.assertTrue(updater.safe_update(sources, skip_validation=True))
+            self.assertTrue(updater.safe_update(sources))
 
             main_file = legado_dir / "main" / "full.json"
             compatibility_file = legado_dir / "full.json"

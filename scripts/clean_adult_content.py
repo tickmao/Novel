@@ -34,6 +34,8 @@ def clean_adult_sources(input_file: Path, output_file: Path | None = None) -> tu
             kept.append(source)
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
+    from validate import assert_report_output
+    assert_report_output(Path(output_file))
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(kept, f, ensure_ascii=False, indent=2)
 

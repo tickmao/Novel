@@ -1,132 +1,13 @@
-name: 更新书源数量和站点数据
+name: Update Readme (Unified Runner)
 
 on:
-  schedule:
-    # 每天凌晨1点UTC执行
-    - cron: '0 1 * * *'
   workflow_dispatch:
-    inputs:
-      force_update:
-        description: '强制更新站点和README'
-        required: false
-        default: 'false'
-        type: boolean
+
+permissions:
+  contents: read
 
 jobs:
-  update-sources:
+  guidance:
     runs-on: ubuntu-latest
-
     steps:
-    - name: 检出代码
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: 设置Python环境
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: 统计书源数量并更新站点和README
-      run: |
-        # 检查文件结构
-        echo "当前目录结构:"
-        ls -la
-        echo "scripts目录内容:"
-        ls -la scripts/
-
-        # 确保脚本有执行权限
-        chmod +x scripts/update_sources.py
-
-        # 检查Python版本
-        python3 --version
-
-        # 运行脚本
-        cd scripts
-        echo "运行更新脚本..."
-        python3 update_sources.py --base-dir .. || {
-          echo "脚本执行失败，错误信息:"
-          python3 update_sources.py --base-dir .. 2>&1
-          exit 1
-        }
-
-    - name: 检查是否有更改
-      id: check_changes
-      run: |
-        if git diff --quiet README.md docs/index.html; then
-          echo "has_changes=false" >> $GITHUB_OUTPUT
-          echo "没有检测到文件更改"
-        else
-          echo "has_changes=true" >> $GITHUB_OUTPUT
-          echo "检测到文件更改"
-        fi
-
-    - name: 提交更改
-      if: steps.check_changes.outputs.has_changes == 'true' || github.event.inputs.force_update == 'true'
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-
-        # 获取当前书源数量
-        cd scripts
-        LEGADO_COUNT=$(python3 -c "import json; f=open('../sources/legado/main/full.json','r',encoding='utf-8'); print(len(json.load(f)))" 2>/dev/null || python3 -c "import json; f=open('../sources/legado/full.json','r',encoding='utf-8'); print(len(json.load(f)))" 2>/dev/null || echo "0")
-        XSREADER_COUNT=$(python3 -c "import os; print(os.path.getsize('../sources/xsreader/full.xbs')//(9*1024))" 2>/dev/null || echo "0")
-        cd ..
-
-        # 提交更改
-        git add README.md docs/index.html STATS.md 2>/dev/null || git add README.md docs/index.html
-
-        # 检查是否有文件被添加
-        if git diff --cached --quiet; then
-          echo "::notice::没有文件需要提交"
-          exit 0
-        fi
-
-        git commit -m "docs: 自动更新书源数量和站点数据
-
-        - 阅读书源: ${LEGADO_COUNT} 个
-        - 香色闺阁: ${XSREADER_COUNT} 个
-        - 更新时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-        - 自动化更新: 站点首页 + README"
-
-        # 推送更改（带重试机制）
-        for i in 1 2 3; do
-          if git push; then
-            echo "::notice::推送成功"
-            break
-          else
-            if [ $i -lt 3 ]; then
-              echo "::warning::推送失败，等待 $((i*5)) 秒后重试..."
-              sleep $((i*5))
-            else
-              echo "::error::推送失败，已重试3次"
-              exit 1
-            fi
-          fi
-        done
-
-    - name: 生成更新报告
-      if: steps.check_changes.outputs.has_changes == 'true'
-      run: |
-        echo "## 📊 书源数量和站点数据更新报告" > update_report.md
-        echo "" >> update_report.md
-        echo "**更新时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> update_report.md
-        echo "" >> update_report.md
-
-        # 运行统计脚本获取详细信息
-        cd scripts
-        python3 update_sources.py --dry-run --base-dir .. >> ../update_report.md
-
-        echo "" >> ../update_report.md
-        echo "## 更新内容" >> ../update_report.md
-        echo "- ✅ 站点首页书源数量" >> ../update_report.md
-        echo "- ✅ README.md 支持平台表格" >> ../update_report.md
-        echo "- ✅ README.md 书源导入说明" >> ../update_report.md
-        echo "- ✅ 元数据描述信息" >> ../update_report.md
-
-    - name: 上传更新报告
-      if: steps.check_changes.outputs.has_changes == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: update-report
-        path: update_report.md
+      - run: echo 'Use the Maintain Sources workflow. All source changes use the unified runner.'

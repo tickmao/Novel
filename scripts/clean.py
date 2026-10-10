@@ -89,6 +89,15 @@ GROUP_MAPPING = {
 }
 
 
+def numeric_value(value, default=0):
+    try:
+        import math
+        number = float(value)
+        return number if math.isfinite(number) else default
+    except (ValueError, TypeError):
+        return default
+
+
 def calculate_quality_score(source: dict) -> int:
     """计算书源质量评分（满分约 60）"""
     score = 0
@@ -100,7 +109,7 @@ def calculate_quality_score(source: dict) -> int:
         score += 2
 
     # 响应时间 (0-15)
-    rt = source.get('respondTime', 99999)
+    rt = numeric_value(source.get('respondTime'), 99999)
     if rt < 1000:
         score += 15
     elif rt < 3000:
@@ -123,7 +132,7 @@ def calculate_quality_score(source: dict) -> int:
         score += 2
 
     # 更新时间 (0-10)
-    last = source.get('lastUpdateTime', 0)
+    last = numeric_value(source.get('lastUpdateTime'))
     if last:
         days = max(0, (time.time() * 1000 - last) / 86400000)
         if days < 30:
@@ -136,7 +145,7 @@ def calculate_quality_score(source: dict) -> int:
             score += 2
 
     # 权重 (0-5)
-    score += min(source.get('weight', 0) // 100, 5)
+    score += max(0, min(numeric_value(source.get('weight')) // 100, 5))
 
     return score
 
@@ -314,6 +323,8 @@ def main():
 
     # 输出
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    from validate import assert_report_output
+    assert_report_output(Path(output_path))
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(cleaned, f, ensure_ascii=False, indent=2)
 

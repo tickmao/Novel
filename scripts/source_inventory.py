@@ -1,375 +1,394 @@
-#!/usr/bin/env python3
-"""
-候选池、工作库存与对外导出的统一管理器。
-"""
+"""Select verified source versions and publish one consistent snapshot."""
 
 from __future__ import annotations
 
 import json
-import os
+from collections import Counter
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from urllib.parse import urlsplit
 
-from legado_paths import (
-    candidate_pool_file,
-    candidate_report_file,
-    canonical_source_file,
-    metadata_file,
-    raw_pool_file,
-    resolve_legado_dir,
-    screened_pool_file,
-    screened_report_file,
-    working_source_file,
-)
-from safe_updater import SafeUpdater
+import tldextract
+
+from safe_updater import SafeUpdater, legado_dir
+from source_health import apply_result, eligibility, VALIDATOR_VERSION
 from source_policy import SourcePolicy
-from source_selector import SourceSelector
-from update_sources import SourceUpdater
+from source_store import SourceStore, json_bytes, parse_time, read_json, rule_fingerprint, utcnow
+from source_store import atomic_bundle, digest, source_id, source_payload
+from publication_gate import publication_gate
+from maintenance_lock import writer_lock
+from runtime_config import runtime_fingerprint
 
-
-def _load_json(path: Path, default):
-    if not path.exists():
-        return deepcopy(default)
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+SUFFIXES = tldextract.TLDExtract(suffix_list_urls=(), cache_dir=None, include_psl_private_domains=True)
 
 
 class SourceInventory:
-    """维护 screened/candidates/working/export 四层数据。"""
-
-    def __init__(self, base_dir: Path | str | None = None):
-        self.base_dir = resolve_legado_dir(base_dir)
+    def __init__(self, base_dir=None):
+        self.base_dir = legado_dir(base_dir)
         self.project_root = self.base_dir.parent.parent
-
         self.policy = SourcePolicy(self.project_root)
         self.updater = SafeUpdater(self.base_dir)
+        self.store = SourceStore(self.base_dir / 'pool' / 'raw')
+        self.config = read_json(self.project_root / 'config' / 'supplement_config.json', {})
+        cfg = self.config.get('inventory', {})
+        self.export_target = int(cfg.get('export_target', 1000))
+        self.reserve_target = int(cfg.get('reserve_target', 500))
+        self.reserve_min = int(cfg.get('reserve_min', 300))
+        self.max_age_days = int(cfg.get('export_max_age_days', 7))
+        self.grace_hours = int(cfg.get('grace_hours', 72))
+        self.grace_limit = int(cfg.get('grace_limit', 50))
+        self.max_per_domain = int(self.config.get('supplement', {}).get('max_per_domain', 2))
+        self.metadata_file = self.base_dir / 'main' / 'metadata.json'
+        self.export_file = self.base_dir / 'main' / 'full.json'
+        self.working_file = self.base_dir / 'main' / 'working.json'
+        self.candidate_file = self.base_dir / 'pool' / 'candidates.json'
 
-        self.raw_file = raw_pool_file(self.base_dir)
-        self.screened_file = screened_pool_file(self.base_dir)
-        self.screened_report = screened_report_file(self.base_dir)
-        self.candidate_file = candidate_pool_file(self.base_dir)
-        self.candidate_report = candidate_report_file(self.base_dir)
-        self.working_file = working_source_file(self.base_dir)
-        self.export_file = canonical_source_file(self.base_dir)
-        self.metadata_file = metadata_file(self.base_dir)
+    def ensure_migrated(self):
+        if not self.store.exists:
+            return self.store.migrate([
+                self.base_dir / 'pool' / 'raw.json', self.candidate_file,
+                self.export_file, self.base_dir / 'full.json',
+            ])
+        return {'records': self.store.manifest['count']}
 
-        config = _load_json(self.project_root / "config" / "supplement_config.json", {})
-        inventory_cfg = config.get("inventory", {})
-        supplement_cfg = config.get("supplement", {})
+    def audit_payload(self, version):
+        source = deepcopy(version['source'])
+        source['_review_payload_hash'] = digest(source_payload(source))
+        source['_health'] = deepcopy(version.get('validation', {}))
+        titles = [item.get('title', '') for item in version.get('provenance', []) if item.get('title')]
+        if titles:
+            source['_yckceo_title'] = ' '.join(titles)
+        return source
 
-        self.export_target = int(inventory_cfg.get("export_target", supplement_cfg.get("target_sources", 1000)))
-        self.working_target = int(inventory_cfg.get("working_target", self.export_target + 30))
-        self.min_working_sources = int(inventory_cfg.get("min_working_sources", 950))
-        self.max_working_sources = int(inventory_cfg.get("max_working_sources", 1050))
-        self.min_candidate_sources = int(inventory_cfg.get("min_candidate_sources", 1800))
-        self.screened_validation_batch = int(inventory_cfg.get("screened_validation_batch", 360))
-        self.validation_oversample_factor = int(inventory_cfg.get("validation_oversample_factor", 3))
-        self.max_per_domain = int(supplement_cfg.get("max_per_domain", 2))
+    @staticmethod
+    def scope_reason(source):
+        if source.get('enabled') is False:
+            return 'disabled'
+        if str(source.get('bookSourceType', 0)) != '0':
+            return 'non_novel'
+        return None
 
-    def load_raw_sources(self) -> List[Dict]:
-        return _load_json(self.raw_file, [])
+    def audit_all(self):
+        from reading_validator import ReadingValidator
+        from static_rules import UnsupportedRule
+        preflight = ReadingValidator(None, self.policy)
+        stats = Counter()
+        for record in self.store.records():
+            for version in record['versions'].values():
+                payload = self.audit_payload(version)
+                reason = self.scope_reason(version['source'])
+                scope = {'eligible': reason is None, 'reason': reason}
+                if version.get('scope') != scope:
+                    version['scope'] = scope
+                    self.store.touch(record['source_id'])
+                if reason:
+                    stats[reason] += 1
+                result = self.policy.audit_source(payload)
+                previous = version.get('audit', {})
+                resolved = self.policy.auditor.resolve_review(previous, payload)
+                if resolved != previous:
+                    version['audit'] = resolved
+                    version.setdefault('validation', {})['next_deep_check_at'] = utcnow()
+                    self.store.touch(record['source_id'])
+                if (result['decision'] != 'pass' or previous.get('policy_version') != result['policy_version']
+                        or result.get('review') and previous.get('decision') == 'review'):
+                    version['audit'] = result
+                    self.store.touch(record['source_id'])
+                stats[result['decision']] += 1
+                if result['decision'] == 'pass' and not reason:
+                    try:
+                        preflight.supports(version['source'])
+                    except (UnsupportedRule, TypeError, ValueError) as exc:
+                        capabilities = {'static': False, 'reason': str(exc)}
+                        if version.get('capabilities') != capabilities:
+                            version['capabilities'] = capabilities
+                            self.store.touch(record['source_id'])
+                        stats['unsupported'] += 1
+        return dict(stats)
 
-    def load_screened_sources(self) -> List[Dict]:
-        return _load_json(self.screened_file, [])
+    def site(self, source):
+        host = (urlsplit(source.get('bookSourceUrl', '')).hostname or '').lower()
+        aliases = self.config.get('domain_aliases', {})
+        parsed = SUFFIXES(host)
+        return aliases.get(host, parsed.top_domain_under_public_suffix or host or source_id(source))
 
-    def load_candidate_sources(self) -> List[Dict]:
-        return _load_json(self.candidate_file, [])
-
-    def load_working_sources(self) -> List[Dict]:
-        if self.working_file.exists():
-            return _load_json(self.working_file, [])
-        return _load_json(self.export_file, [])
-
-    def _write_json(self, path: Path, payload) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-
-    def _stage_json(self, path: Path, payload) -> Path:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temp_path = path.with_name(f"{path.name}.tmp")
-        with open(temp_path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-        return temp_path
-
-    def _commit_staged_json(self, temp_path: Path, final_path: Path) -> None:
-        os.replace(temp_path, final_path)
-
-    def _discard_staged_json(self, temp_path: Optional[Path]) -> None:
-        if temp_path and temp_path.exists():
-            temp_path.unlink()
-
-    def _dedupe_by_url(self, sources: List[Dict]) -> List[Dict]:
-        best_by_url: Dict[str, Dict] = {}
-        for source in sources:
-            url = str(source.get("bookSourceUrl", "")).strip()
-            if not url:
+    def ready_versions(self, now=None, allowed=None):
+        now = now or datetime.now(timezone.utc)
+        result = []
+        previous = read_json(self.base_dir / 'main' / 'publication.json', {})
+        published = {item['source_id'] for item in previous.get('sources', [])}
+        excluded = set()
+        for record in self.store.records():
+            latest = record['versions'][record['latest_revision']]
+            audit = latest.get('audit', {})
+            if audit.get('decision') == 'block' and audit.get('policy_version') == self.policy.auditor.version:
+                excluded.add(self.site(latest['source']))
+        for record in self.store.records():
+            latest = record['versions'][record['latest_revision']]
+            latest_audit = latest.get('audit', {})
+            # A revised adult source must not fall back to an older approved version.
+            if latest_audit.get('decision') in ('block', 'review') or self.site(latest['source']) in excluded:
                 continue
-            score = float(source.get("selectionScore") or source.get("score") or 0)
-            existing = best_by_url.get(url)
-            existing_score = float(existing.get("selectionScore") or existing.get("score") or 0) if existing else -1
-            if not existing or score >= existing_score:
-                best_by_url[url] = source
-        return list(best_by_url.values())
+            candidates = []
+            for revision, version in record['versions'].items():
+                if allowed is not None and (record['source_id'], revision) not in allowed:
+                    continue
+                state = eligibility(version, self.policy.auditor.version, now, self.max_age_days, self.grace_hours)
+                if not state:
+                    continue
+                source = self.audit_payload(version)
+                if self.policy.audit_source(source)['decision'] != 'pass':
+                    continue
+                if source.get('enabled') is False or str(source.get('bookSourceType', 0)) != '0':
+                    continue
+                enriched = self.policy.enrich_source(source)
+                enriched.update({
+                    '_source_id': record['source_id'], '_revision': revision,
+                    '_audit': deepcopy(version['audit']), '_health': deepcopy(version['validation']),
+                    '_eligibility': state,
+                })
+                successes = sum(item.get('status') == 'valid' and item.get('mode') == 'deep'
+                                for item in version.get('attempts', []))
+                latency = min(float(version.get('validation', {}).get('response_ms') or 0), 20000)
+                enriched['_rank'] = (enriched['selectionScore'] + min(successes, 10) * 2
+                                     + (5 if record['source_id'] in published else 0) - latency / 5000)
+                candidates.append((state == 'grace', revision != record['latest_revision'], enriched))
+            if candidates:
+                candidates.sort(key=lambda value: value[:2])
+                result.append(candidates[0][2])
+        return sorted(result, key=lambda item: (item['_eligibility'] == 'grace', -item['_rank'], item['_source_id']))
 
-    def _sort_sources(self, sources: List[Dict]) -> List[Dict]:
-        return sorted(
-            sources,
-            key=lambda item: (
-                -(float(item.get("selectionScore") or item.get("score") or 0)),
-                item.get("bookSourceName", ""),
-            ),
-        )
-
-    def refresh_screened_pool(self, sources: Optional[List[Dict]] = None, save: bool = True) -> Tuple[List[Dict], Dict]:
-        source_list = deepcopy(sources if sources is not None else self.load_raw_sources())
-        accepted, rejected, stats = self.policy.screen_sources(source_list)
-        screened_sources = self._sort_sources(self._dedupe_by_url(accepted))
-
+    def select(self, now=None, allowed=None):
+        ready = self.ready_versions(now, allowed)
+        export, reserve, seen_urls, seen_rules = [], [], set(), set()
+        domains = Counter()
+        reserve_domains = Counter()
+        grace = 0
+        for source in ready:
+            url, fingerprint = source['bookSourceUrl'], rule_fingerprint(source)
+            if url in seen_urls or fingerprint in seen_rules:
+                continue
+            state, domain = source['_eligibility'], self.site(source)
+            grace_allowed = grace < self.grace_limit and (grace + 1) * 20 <= len(export) + 1
+            if len(export) < self.export_target and domains[domain] < self.max_per_domain and (state != 'grace' or grace_allowed):
+                export.append(source)
+                domains[domain] += 1
+                grace += state == 'grace'
+                seen_urls.add(url)
+                seen_rules.add(fingerprint)
+            elif state == 'ready' and len(reserve) < self.reserve_target and reserve_domains[domain] < self.max_per_domain:
+                reserve_domains[domain] += 1
+                reserve.append(source)
+                seen_urls.add(url)
+                seen_rules.add(fingerprint)
         report = {
-            "timestamp": datetime.now().isoformat(),
-            "input": len(source_list),
-            "screened": len(screened_sources),
-            "rejected": len(rejected),
-            "reasons": stats.get("reasons", {}),
+            'timestamp': utcnow(), 'export_count': len(export), 'reserve_count': len(reserve),
+            'grace_count': grace, 'ready_versions': len(ready), 'unique_sites': len(domains),
+            'healthy_count': len(export) - grace,
+            'needs_replenishment': len(export) < self.export_target or len(reserve) < self.reserve_target,
+            'status': 'healthy' if len(export) - grace >= 950 else 'degraded',
         }
+        return export, reserve, report
 
-        if save:
-            self._write_json(self.screened_file, screened_sources)
-            self._write_json(self.screened_report, report)
+    def candidate_revisions(self, record):
+        latest = record['latest_revision']
+        revisions = {latest}
+        if not self.scope_reason(record['versions'][latest]['source']):
+            revisions.update(revision for revision, version in record['versions'].items()
+                             if version.get('validation', {}).get('last_deep_success_at'))
+        return revisions
 
-        return screened_sources, report
+    @staticmethod
+    def deep_checked(version):
+        check = version.get('validation', {}).get('deep_check', {})
+        return (check.get('validator_version') == VALIDATOR_VERSION
+                and check.get('runtime_fingerprint') == runtime_fingerprint()
+                and bool(check.get('checked_at')))
 
-    def refresh_candidate_pool(self, sources: Optional[List[Dict]] = None, save: bool = True) -> Tuple[List[Dict], Dict]:
-        source_list = deepcopy(sources if sources is not None else self.load_candidate_sources())
-        accepted, rejected, stats = self.policy.screen_sources(source_list)
-        candidates = self._sort_sources(self._dedupe_by_url(accepted))
+    def revalidation_progress(self):
+        sources = eligible_sources = eligible = checked = attempted = 0
+        outcomes = Counter()
+        for record in self.store.records():
+            sources += 1
+            attempted += sum(self.deep_checked(version) for version in record['versions'].values())
+            latest = record['versions'][record['latest_revision']]
+            audit = latest.get('audit', {})
+            if audit.get('decision') in ('block', 'review') and audit.get('policy_version') == self.policy.auditor.version:
+                continue
+            count = 0
+            for revision in self.candidate_revisions(record):
+                version = record['versions'][revision]
+                audit = version.get('audit', {})
+                if self.scope_reason(version['source']) or (
+                        audit.get('decision') in ('block', 'review')
+                        and audit.get('policy_version') == self.policy.auditor.version):
+                    continue
+                count += 1
+                if self.deep_checked(version):
+                    checked += 1
+                    outcomes[version['validation']['deep_check']['status']] += 1
+            eligible += count
+            eligible_sources += bool(count)
+        return {'raw_sources': sources, 'eligible_sources': eligible_sources, 'attempted_revisions': attempted,
+                'eligible_revisions': eligible, 'checked_revisions': checked,
+                'pending_revisions': eligible - checked, 'outcomes': dict(outcomes)}
 
-        report = {
-            "timestamp": datetime.now().isoformat(),
-            "input": len(source_list),
-            "candidates": len(candidates),
-            "rejected": len(rejected),
-            "reasons": stats.get("reasons", {}),
+    def collection_decision(self, progress, inventory):
+        if not inventory['needs_replenishment']:
+            reason = 'inventory_sufficient'
+        elif progress['pending_revisions']:
+            reason = 'raw_inventory_pending'
+        else:
+            reason = 'qualified_inventory_shortage'
+        return {'allowed': reason == 'qualified_inventory_shortage', 'reason': reason}
+
+    def queue(self, limit=300, now=None):
+        now = now or datetime.now(timezone.utc)
+        export, reserve, _ = self.select(now)
+        publication = read_json(self.base_dir / 'main/publication.json', {})
+        shadow = read_json(self.base_dir / 'main/shadow.json', {})
+        published = {item['source_id']: item['revision'] for item in shadow.get('sources', [])}
+        published.update({item['source_id']: item['revision'] for item in publication.get('sources', [])})
+        published.update({item['_source_id']: item['_revision'] for item in export})
+        standby = {item['source_id']: item['revision'] for item in shadow.get('reserve', [])}
+        standby.update({item['_source_id']: item['_revision'] for item in reserve})
+        pending = []
+        for record in self.store.records():
+            key = record['source_id']
+            revisions = self.candidate_revisions(record)
+            for mapping in (published, standby):
+                if key in mapping and mapping[key] in record['versions']:
+                    revisions.add(mapping[key])
+            latest_audit = record['versions'][record['latest_revision']].get('audit', {})
+            if latest_audit.get('decision') in ('block', 'review') and latest_audit.get('policy_version') == self.policy.auditor.version:
+                continue
+            for revision in revisions:
+                version = record['versions'][revision]
+                if self.scope_reason(version['source']):
+                    continue
+                audit, health = version.get('audit', {}), version.get('validation', {})
+                next_attempt = parse_time(health.get('next_attempt_at'))
+                if next_attempt and next_attempt > now:
+                    continue
+                if audit.get('decision') in ('block', 'review') and audit.get('policy_version') == self.policy.auditor.version:
+                    continue
+                same_runtime = (health.get('validator_version') == VALIDATOR_VERSION
+                                and health.get('runtime_fingerprint') == runtime_fingerprint())
+                checked = self.deep_checked(version)
+                if health.get('status') == 'unsupported' and same_runtime and checked:
+                    continue
+                next_check = parse_time(health.get('next_deep_check_at', health.get('next_check_at')))
+                if next_check and next_check > now and same_runtime and checked:
+                    continue
+                last_deep = parse_time(health.get('last_deep_success_at'))
+                category = 0 if published.get(key) == revision else 1 if standby.get(key) == revision else 2
+                last_check = parse_time(health.get('last_check_at')) if category == 2 else last_deep
+                priority = (2 if checked else 0 if last_deep else 1) if category == 2 else 0
+                pending.append((category, priority, last_check or datetime.min.replace(tzinfo=timezone.utc),
+                                -self.policy.enrich_source(version['source'])['selectionScore'], key, revision))
+        pending.sort()
+        cfg = self.config.get('inventory', {})
+        quotas = {0: int(cfg.get('published_deep_batch', 250)), 1: int(cfg.get('reserve_deep_batch', 125)), 2: limit}
+        selected = []
+        for category, _, _, _, key, revision in pending:
+            if quotas[category] > 0:
+                selected.append((key, revision))
+                quotas[category] -= 1
+        return selected
+
+    def record_result(self, key, revision, result):
+        record = self.store.get(key)
+        result = {**result, 'source_id': key, 'revision': revision}
+        apply_result(record['versions'][revision], result)
+        self.store.touch(key)
+
+    def publication_gate(self, report=None):
+        previous = read_json(self.base_dir / 'main/publication.json', {})
+        return publication_gate(self.project_root, report or self.select()[2], previous)
+
+    def write_shadow(self):
+        export, reserve, report = self.select()
+        summary = {
+            'schema_version': 3, 'generated_at': utcnow(), 'inventory': report,
+            'gate': self.publication_gate(report),
+            'sources': [{'source_id': item['_source_id'], 'revision': item['_revision']}
+                        for item in export],
+            'reserve': [{'source_id': item['_source_id'], 'revision': item['_revision']}
+                        for item in reserve],
         }
+        atomic_bundle({self.base_dir / 'main/shadow.json': json_bytes(summary)})
+        return summary
 
-        if save:
-            self._write_json(self.candidate_file, candidates)
-            self._write_json(self.candidate_report, report)
+    def publish(self, *, allowed=None, allow_empty=False):
+        with writer_lock(self.base_dir):
+            return self._publish(allowed=allowed, allow_empty=allow_empty)
 
-        return candidates, report
-
-    def merge_validated_candidates(
-        self,
-        valid_sources: List[Dict],
-        invalid_sources: Optional[List[Dict]] = None,
-        *,
-        save: bool = True,
-    ) -> Tuple[List[Dict], Dict]:
-        existing = self.load_candidate_sources()
-        invalid_urls = {str(item.get("bookSourceUrl", "")).strip() for item in (invalid_sources or [])}
-
-        merged = [source for source in existing if str(source.get("bookSourceUrl", "")).strip() not in invalid_urls]
-        now = datetime.now().isoformat()
-        for source in valid_sources:
-            candidate = deepcopy(source)
-            candidate["_validation_status"] = "valid"
-            candidate["_last_validated_at"] = now
-            merged.append(candidate)
-
-        return self.refresh_candidate_pool(merged, save=save)
-
-    def select_screened_validation_batch(
-        self,
-        existing_urls: Optional[set] = None,
-        target_gap: int = 0,
-        screened_sources: Optional[List[Dict]] = None,
-    ) -> List[Dict]:
-        existing_urls = existing_urls or set()
-        screened = screened_sources or self.load_screened_sources()
-
-        batch_size = max(self.screened_validation_batch, target_gap * self.validation_oversample_factor)
-        available = [
-            deepcopy(source)
-            for source in screened
-            if str(source.get("bookSourceUrl", "")).strip() not in existing_urls
-        ]
-        return self._sort_sources(available)[:batch_size]
-
-    def _apply_existing_bonus(self, current_sources: List[Dict], candidate_sources: List[Dict]) -> List[Dict]:
-        current_urls = {str(item.get("bookSourceUrl", "")).strip() for item in current_sources}
-        boosted: List[Dict] = []
-        for source in candidate_sources:
-            entry = deepcopy(source)
-            if str(entry.get("bookSourceUrl", "")).strip() in current_urls:
-                base = float(entry.get("selectionScore") or entry.get("score") or 0)
-                entry["selectionScore"] = round(base + 5, 2)
-            boosted.append(entry)
-        return boosted
-
-    def build_inventory(
-        self,
-        current_sources: Optional[List[Dict]] = None,
-        candidate_sources: Optional[List[Dict]] = None,
-        *,
-        save: bool = True,
-    ) -> Tuple[List[Dict], List[Dict], Dict]:
-        current = deepcopy(current_sources if current_sources is not None else self.load_working_sources())
-        candidates = deepcopy(candidate_sources if candidate_sources is not None else self.load_candidate_sources())
-
-        screened_current, _, _ = self.policy.screen_sources(current)
-        screened_candidates, _ = self.refresh_candidate_pool(candidates, save=False)
-
-        merged = self._dedupe_by_url(screened_current + screened_candidates)
-        boosted = self._apply_existing_bonus(screened_current, merged)
-
-        working_selector = SourceSelector(
-            max_per_domain=self.max_per_domain,
-            target_count=min(self.working_target, self.max_working_sources),
-        )
-        working_sources, working_stats = working_selector.select(boosted, strategy="domain_diversity")
-
-        export_selector = SourceSelector(
-            max_per_domain=self.max_per_domain,
-            target_count=self.export_target,
-        )
-        export_sources, export_stats = export_selector.select(working_sources, strategy="domain_diversity")
-
-        report = {
-            "timestamp": datetime.now().isoformat(),
-            "current_input": len(current),
-            "candidate_input": len(candidates),
-            "working_count": len(working_sources),
-            "export_count": len(export_sources),
-            "working_stats": working_stats,
-            "export_stats": export_stats,
-            "needs_replenishment": len(working_sources) < self.min_working_sources,
+    def _publish(self, *, allowed=None, allow_empty=False):
+        export, reserve, report = self.select(allowed=allowed)
+        metadata = read_json(self.metadata_file, {})
+        metadata.update(last_maintenance=utcnow(), inventory=report, schema_version=3)
+        working = export + reserve[:self.reserve_target]
+        extras = {
+            self.working_file: json_bytes(working), self.candidate_file: json_bytes(reserve),
+            self.metadata_file: json_bytes(metadata),
         }
+        self.updater.safe_update(export, report=report, extra_files=extras, allow_empty=allow_empty)
+        return report
 
-        if save:
-            working_temp: Optional[Path] = None
-            metadata_temp: Optional[Path] = None
-            try:
-                working_temp = self._stage_json(self.working_file, working_sources)
+    def inventory_status(self):
+        export, reserve, report = self.select()
+        report['raw_count'] = self.store.manifest['count']
+        report['raw_progress'] = self.revalidation_progress()
+        report['validation_statuses'] = dict(Counter(
+            (record['versions'][record['latest_revision']].get('validation', {}).get('status', 'pending')
+             if record['versions'][record['latest_revision']].get('validation', {}).get('validator_version') == VALIDATOR_VERSION
+             else 'unverified')
+            for record in self.store.records()))
+        report['content_statuses'] = dict(Counter(
+            record['versions'][record['latest_revision']].get('audit', {}).get('decision', 'pending')
+            for record in self.store.records()))
+        report['gate'] = self.publication_gate(report)
+        channels = Counter()
+        for item in export + reserve:
+            version = self.store.get(item['_source_id'])['versions'][item['_revision']]
+            for channel in {p.get('channel', p.get('provider', 'unknown')) for p in version.get('provenance', [])}:
+                channels[channel] += 1
+        report['qualified_by_channel'] = dict(channels)
+        return report
 
-                export_success = self.updater.safe_update(
-                    export_sources,
-                    skip_validation=len(export_sources) < self.updater.MIN_SOURCES
-                )
-                if not export_success:
-                    raise RuntimeError("导出书源更新失败")
+    def load_raw_sources(self):
+        if self.store.exists:
+            return [record['versions'][record['latest_revision']]['source'] for record in self.store.records()]
+        return read_json(self.base_dir / 'pool' / 'raw.json', [])
 
-                self._commit_staged_json(working_temp, self.working_file)
-                working_temp = None
+    def load_working_sources(self):
+        return read_json(self.working_file, read_json(self.export_file, []))
 
-                stats_sync = self.sync_public_stats()
-                report["stats_sync"] = stats_sync
-                metadata_payload = self.prepare_metadata(report, stats_sync)
-                metadata_temp = self._stage_json(self.metadata_file, metadata_payload)
-                self._commit_staged_json(metadata_temp, self.metadata_file)
-                metadata_temp = None
-
-                if not stats_sync["success"]:
-                    raise RuntimeError(stats_sync["error"] or "README/站点统计同步失败")
-
-            finally:
-                self._discard_staged_json(working_temp)
-                self._discard_staged_json(metadata_temp)
-
-        return working_sources, export_sources, report
-
-    def prepare_metadata(self, inventory_report: Dict, stats_sync: Optional[Dict] = None) -> Dict:
-        metadata = _load_json(self.metadata_file, {})
-        metadata["inventory"] = inventory_report
-        now = datetime.now().isoformat()
-        metadata["last_maintenance"] = now
-        metadata["last_inventory_rebuild"] = inventory_report.get("timestamp", now)
-        if stats_sync is not None:
-            metadata["last_stats_sync"] = stats_sync.get("updated_at")
-            metadata["last_stats_sync_status"] = stats_sync.get("status")
-            metadata["last_stats_sync_error"] = stats_sync.get("error")
-        return metadata
-
-    def update_metadata(self, inventory_report: Dict, stats_sync: Optional[Dict] = None) -> Dict:
-        metadata = self.prepare_metadata(inventory_report, stats_sync)
-        self._write_json(self.metadata_file, metadata)
-        return metadata
-
-    def sync_public_stats(self) -> Dict[str, Optional[str]]:
-        updated_at = datetime.now().isoformat()
-        try:
-            success = SourceUpdater(self.project_root).run_update()
-            if success:
-                return {
-                    "success": True,
-                    "status": "success",
-                    "updated_at": updated_at,
-                    "error": None,
-                }
-            return {
-                "success": False,
-                "status": "failed",
-                "updated_at": updated_at,
-                "error": "README 或站点统计同步失败",
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "status": "failed",
-                "updated_at": updated_at,
-                "error": str(e),
-            }
-
-    def inventory_status(self) -> Dict:
-        working = self.load_working_sources()
-        candidates = self.load_candidate_sources()
-        screened = self.load_screened_sources()
-
-        return {
-            "working_count": len(working),
-            "candidate_count": len(candidates),
-            "screened_count": len(screened),
-            "min_working_sources": self.min_working_sources,
-            "working_target": self.working_target,
-            "export_target": self.export_target,
-            "candidate_buffer_ok": len(candidates) >= self.min_candidate_sources,
-        }
+    def load_candidate_sources(self):
+        return read_json(self.candidate_file, [])
 
 
 def main():
     import argparse
-
-    parser = argparse.ArgumentParser(description="候选池与工作库存管理器")
-    parser.add_argument("--base-dir", type=Path, help="项目根目录或 sources/legado 目录")
-    parser.add_argument(
-        "action",
-        choices=["status", "refresh-candidates", "refresh-screened", "rebuild"],
-        help="执行动作",
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=['status', 'migrate', 'audit', 'rebuild'])
+    parser.add_argument('--base-dir', type=Path)
     args = parser.parse_args()
-
     inventory = SourceInventory(args.base_dir)
-
-    if args.action == "status":
-        print(json.dumps(inventory.inventory_status(), ensure_ascii=False, indent=2))
-        return 0
-
-    if args.action == "refresh-screened":
-        _, report = inventory.refresh_screened_pool(save=True)
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-        return 0
-
-    if args.action == "refresh-candidates":
-        _, report = inventory.refresh_candidate_pool(save=True)
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-        return 0
-
-    _, _, report = inventory.build_inventory(save=True)
-    print(json.dumps(report, ensure_ascii=False, indent=2))
-    return 0
+    if args.action == 'status':
+        result = inventory.inventory_status()
+    else:
+        with writer_lock(inventory.base_dir):
+            if args.action == 'migrate':
+                result = inventory.ensure_migrated()
+            elif args.action == 'audit':
+                result = inventory.audit_all()
+                inventory.store.save()
+            else:
+                result = inventory.publish()
+    print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__ == '__main__':
+    main()

@@ -1,4 +1,8 @@
 {
+  "publication": {
+    "initial_healthy_min": 950,
+    "initial_reserve_min": 300
+  },
   "supplement": {
     "target_sources": 1000,
     "min_sources_trigger": 800,
@@ -8,19 +12,35 @@
   },
   "inventory": {
     "export_target": 1000,
-    "working_target": 1030,
-    "min_working_sources": 950,
-    "max_working_sources": 1050,
-    "min_candidate_sources": 1800,
-    "screened_validation_batch": 360,
-    "validation_oversample_factor": 3,
-    "candidate_stale_days": 14
+    "reserve_target": 500,
+    "reserve_min": 300,
+    "export_max_age_days": 7,
+    "grace_hours": 72,
+    "grace_limit": 50,
+    "published_deep_batch": 250,
+    "reserve_deep_batch": 125,
+    "daily_candidate_batch": 300,
+    "catchup_candidate_batch": 1000
+  },
+  "yckceo": {
+    "base_url": "https://www.yckceo.com",
+    "list_path": "/yuedu/shuyuan/index.html",
+    "json_path_template": "/yuedu/shuyuan/json/id/{id}.json",
+    "daily_pages": 5,
+    "daily_fetch_cap": 150,
+    "emergency_fetch_cap": 300,
+    "request_delay": 1.0,
+    "max_seen_ids": 20000
   },
   "recovery": {
     "timeout": 15,
     "max_retries": 3,
     "concurrency": 10,
-    "retry_delays": [300, 1800, 7200],
+    "retry_delays": [
+      300,
+      1800,
+      7200
+    ],
     "user_agents": [
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -51,9 +71,9 @@
       },
       "availability_rate": {
         "excellent": 0.95,
-        "good": 0.90,
-        "warning": 0.80,
-        "critical": 0.70
+        "good": 0.9,
+        "warning": 0.8,
+        "critical": 0.7
       },
       "average_score": {
         "excellent": 50,

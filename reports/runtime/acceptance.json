@@ -1,0 +1,50 @@
+{
+  "checked_at": "2026-10-09T15:50:39.636371+00:00",
+  "commit": "2ee5977b957031bb7556c1eaf7f716cc520e8d3e",
+  "runtime_run": "https://github.com/tickmao/Novel/actions/runs/37953472900",
+  "pipeline_run": "https://github.com/tickmao/Novel/actions/runs/37948001065",
+  "pipeline_commit": "71955ed86f9ce6eec00d5a6adaa6a174fefd7af4",
+  "python_tests": 88,
+  "container_fixtures": {
+    "passed": 10,
+    "failed": 0
+  },
+  "live_sample": {
+    "checked": 60,
+    "valid": 1
+  },
+  "collection": {
+    "source_definitions": 5632,
+    "new_revisions": 3905,
+    "yckceo": "budget_exhausted"
+  },
+  "maintenance": {
+    "cycles": 2,
+    "checked": 80,
+    "statuses": {
+      "invalid": 4,
+      "review": 1,
+      "transient": 8,
+      "unsupported": 1,
+      "unverified": 65,
+      "valid": 1
+    },
+    "valid": 1,
+    "healthy_inventory": 1,
+    "reserve_inventory": 0,
+    "out_of_scope_attempts": 0,
+    "published": false
+  },
+  "baseline": {
+    "runtime_run": "https://github.com/tickmao/Novel/actions/runs/37875758758",
+    "checked": 80,
+    "healthy_inventory": 0,
+    "out_of_scope_attempts": 19
+  },
+  "objective_met": false,
+  "remaining": [
+    "qualified_inventory",
+    "first_publication",
+    "seven_day_acceptance"
+  ]
+}

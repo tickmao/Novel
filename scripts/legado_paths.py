@@ -98,21 +98,5 @@ def mirror_source_files(base_dir: Path | str | None = None) -> List[Path]:
     return [canonical, compatibility]
 
 
-def write_source_mirror(
-    sources: list,
-    base_dir: Path | str | None = None,
-    *,
-    indent: int = 2
-) -> List[Path]:
-    """
-    同步写入主库文件和兼容文件。
-    """
-    payload = json.dumps(sources, ensure_ascii=False, indent=indent)
-    written: List[Path] = []
-
-    for path in mirror_source_files(base_dir):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(payload, encoding="utf-8")
-        written.append(path)
-
-    return written
+def write_source_mirror(sources: list, base_dir=None, *, indent=2):
+    raise RuntimeError("Use the maintenance publisher; direct source writes are disabled")

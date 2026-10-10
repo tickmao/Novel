@@ -1,59 +1,22 @@
-name: Validate Submission
+name: Check Submission Format
 
 on:
   pull_request:
-    paths:
-      - 'sources/legado/submissions/**'
+    paths: ['sources/legado/submissions/**']
+
+permissions:
+  contents: read
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install aiohttp
-
-      - name: Check submissions directory
-        id: check_dir
-        run: |
-          if [ -d "sources/legado/submissions" ] && [ "$(ls -A sources/legado/submissions/*.json 2>/dev/null)" ]; then
-            echo "has_files=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_files=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Validate submission
-        id: validate
-        if: steps.check_dir.outputs.has_files == 'true'
-        run: |
-          python scripts/validate.py --input sources/legado/submissions/*.json
-        continue-on-error: true
-
-      - name: Comment on PR
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const hasFiles = '${{ steps.check_dir.outputs.has_files }}';
-            const outcome = '${{ steps.validate.outcome }}';
-
-            let body;
-            if (hasFiles === 'false') {
-              body = '⚠️ 未找到待校验的书源文件。';
-            } else if (outcome === 'success') {
-              body = '✅ 书源校验通过，等待合并。';
-            } else {
-              body = '❌ 书源校验失败，请检查格式是否正确。';
-            }
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+      - run: pip install -r scripts/requirements.txt
+      - run: python -B scripts/submissions.py --directory sources/legado/submissions
+      - run: echo 'Format validation only. Merged submissions enter the normal content and reading checks.' >> "$GITHUB_STEP_SUMMARY"

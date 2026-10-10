@@ -1,0 +1,36 @@
+{
+  "reviewed_at": "2026-10-10",
+  "failures": [
+    {
+      "run_id": 37948001063,
+      "stage": "Build runtime",
+      "cause": "Book metadata compatibility regression",
+      "fixed_by": "2ee5977"
+    },
+    {
+      "run_id": 37948395105,
+      "stage": "Build runtime",
+      "cause": "The same book metadata regression before its fix",
+      "fixed_by": "2ee5977"
+    },
+    {
+      "run_id": 37949375963,
+      "stage": "Reading fixtures",
+      "cause": "JavaScript book bridge overwrote supplied fields",
+      "fixed_by": "2ee5977"
+    },
+    {
+      "run_id": 37874597774,
+      "stage": "Live compatibility sample",
+      "cause": "No complete live reading success; strict acceptance correctly failed",
+      "latest_runtime_run": 38014331116
+    }
+  ],
+  "successful_runs": {
+    "runtime_regression": 38014331116,
+    "python_regression": 38014331081,
+    "persistent_scan": 38015749897,
+    "checkpoint_resume": 38019287949,
+    "last_legacy_production_maintenance": 37999262598
+  }
+}

@@ -1,0 +1,62 @@
+name: Check Pinned Runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: [master]
+    paths: ['runtime/**', 'scripts/runtime*.py', 'scripts/probe_runtime.py', '.github/workflows/runtime-check.yml']
+  pull_request:
+    paths: ['runtime/**', 'scripts/runtime*.py', 'scripts/probe_runtime.py', '.github/workflows/runtime-check.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r scripts/requirements.txt
+      - name: Build runtime
+        run: |
+          docker build -f runtime/Dockerfile -t novel-runtime:ci .
+          printf 'NOVEL_ENGINE_IMAGE=%s\n' "$(docker image inspect novel-runtime:ci --format '{{.Id}}')" >> "$GITHUB_ENV"
+      - run: python -B scripts/probe_runtime.py fixtures
+      - name: Check a bounded live sample
+        if: github.event_name != 'pull_request'
+        run: |
+          python -B scripts/source_inventory.py migrate
+          python -B scripts/probe_runtime.py sample --count 60 --max-minutes 15
+          python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE"
+      - name: Check two maintenance cycles without publication
+        if: github.event_name != 'pull_request'
+        run: |
+          python -B scripts/daily_maintenance.py --mode catchup --batch-size 40 --fetch-cap 10 --max-minutes 5
+          cp sources/legado/main/maintenance_report.json reports/runtime/maintenance-cycle-1.json
+          python -B scripts/daily_maintenance.py --mode catchup --batch-size 40 --no-collect --max-minutes 5
+          cp sources/legado/main/maintenance_report.json reports/runtime/maintenance-cycle-2.json
+          cp sources/legado/main/shadow.json reports/runtime/maintenance-shadow.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for cycle in (1, 2):
+              report = json.loads(Path(f'reports/runtime/maintenance-cycle-{cycle}.json').read_text())
+              if report['published'] or report.get('engine_incident') or not report.get('deep_checked'):
+                  raise SystemExit(f'Maintenance cycle {cycle} did not complete a valid shadow check')
+              if report.get('raw_progress_before', {}).get('pending_revisions', 0) > report.get('deep_checked', 0) and report['providers']:
+                  raise SystemExit(f'Maintenance cycle {cycle} collected before checking the raw backlog')
+          PY
+      - name: Require runtime acceptance
+        if: github.event_name != 'pull_request'
+        run: python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE" --require-ready
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-fixtures
+          path: reports/runtime/
