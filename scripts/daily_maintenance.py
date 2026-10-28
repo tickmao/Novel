@@ -17,10 +17,12 @@ from reading_validator import HTTPClient, ProbeFailure
 from runtime_validator import RuntimeReadingValidator as ReadingValidator
 from runtime_config import ENVIRONMENT_FAILURES, VALIDATOR_VERSION, runtime_fingerprint
 from maintenance_lock import writer_lock
+from safe_updater import SafeUpdateError
 from source_collector import collect_into
 from source_inventory import SourceInventory
 from source_store import atomic_bundle, digest, json_bytes, parse_time, read_json, utcnow
 from maintenance_acceptance import acceptance_status
+from maintenance_plan import explain, plan
 from yckceo_harvester import YckceoHarvester
 from submissions import collect_submissions
 
@@ -33,14 +35,6 @@ class DailyMaintenance:
 
     async def validate(self, validator, refs, *, mode, deadline, save, report):
         inventory, store = self.inventory, self.inventory.store
-        known = set()
-        recent = datetime.now(timezone.utc) - timedelta(days=inventory.max_age_days)
-        for ref in refs:
-            health = store.get(ref[0])['versions'][ref[1]].get('validation', {})
-            checked = parse_time(health.get('last_deep_success_at'))
-            if (checked and checked >= recent and health.get('validator_version') == VALIDATOR_VERSION
-                    and health.get('runtime_fingerprint') == runtime_fingerprint()):
-                known.add(ref)
         baseline, completed = {}, []
         counts, kinds, examples = Counter(), Counter(), {}
         for offset in range(0, len(refs), 20):
@@ -79,14 +73,15 @@ class DailyMaintenance:
                 if save:
                     store.save()
                 break
-            prior = [(ref, result) for ref, result in completed if ref in known]
-            sites = {inventory.site(store.get(ref[0])['versions'][ref[1]]['source']) for ref, _ in prior}
-            network_failures = sum(result['kind'] in ('network', 'timeout') for _, result in prior)
-            if len(prior) >= 20 and len(sites) >= 5 and network_failures / len(prior) >= 0.5:
+            recent_sites = {inventory.site(store.get(ref[0])['versions'][ref[1]]['source']) for ref, _ in completed}
+            network_kinds = ('network', 'timeout', 'server_error', 'tls_error')
+            network_failures = sum(result['kind'] in network_kinds for _, result in completed)
+            # Fresh candidates carry no history, so the guard measures this run only.
+            if len(completed) >= 20 and len(recent_sites) >= 5 and network_failures / len(completed) >= 0.6:
                 report['network_incident'] = True
                 for (key, revision), result in completed:
                     version = store.get(key)['versions'][revision]
-                    if (result['kind'] in ('network', 'timeout')
+                    if (result['kind'] in network_kinds
                             and result.get('audit', {}).get('decision') not in ('block', 'review')):
                         version['validation'], version['audit'] = baseline[key, revision]
                     store.touch(key)
@@ -163,8 +158,9 @@ class DailyMaintenance:
             if save:
                 store.save()
 
-    async def maintain(self, batch_size=300, concurrency=20, timeout=10, dry_run=False,
-                       mode='daily', collect=True, publish=False, max_minutes=90, fetch_cap=None, backfill_rounds=1):
+    async def maintain(self, batch_size=None, concurrency=20, timeout=10, dry_run=False,
+                       mode='daily', collect=True, publish=False, max_minutes=90, fetch_cap=None,
+                       backfill_rounds=1, publish_extended=True):
         with writer_lock(self.base_dir):
             inventory = self.inventory
             inventory.store = __import__('source_store').SourceStore(inventory.store.root)
@@ -173,7 +169,7 @@ class DailyMaintenance:
                 if dry_run:
                     raise RuntimeError('Run source_inventory.py migrate before a dry run')
                 inventory.ensure_migrated()
-            report = {'schema_version': 3, 'started_at': utcnow(), 'mode': mode, 'dry_run': dry_run,
+            report = {'schema_version': 4, 'started_at': utcnow(), 'mode': mode, 'dry_run': dry_run,
                       'published': False, 'providers': {}}
             deadline = time.monotonic() + max_minutes * 60
             report['static_audit'] = inventory.audit_all()
@@ -181,6 +177,15 @@ class DailyMaintenance:
                 store.save()
             report['raw_progress_before'] = inventory.revalidation_progress()
             export, _, initial = inventory.select()
+            decision = plan(verified_count=initial.get('verified_count', 0),
+                            extended_count=initial.get('extended_count', 0),
+                            reserve_count=initial.get('reserve_count', 0),
+                            pending_revisions=report['raw_progress_before']['pending_revisions'],
+                            config=inventory.config.get('inventory', {}), forced_mode=mode)
+            report['plan'] = decision
+            report['plan_summary'] = explain(decision, initial)
+            if batch_size is None:
+                batch_size = decision['batch_size']
             candidate_limit = batch_size if initial['needs_replenishment'] else 0
             refs = inventory.queue(limit=candidate_limit) if mode != 'backfill' else []
             scheduled = set(refs)
@@ -188,7 +193,8 @@ class DailyMaintenance:
                           if (item['_source_id'], item['_revision']) not in scheduled]
 
             async def check_inventory():
-                validator = ReadingValidator(inventory.policy, concurrency=min(concurrency, 4))
+                limit = int(inventory.config.get('inventory', {}).get('validation_concurrency', 6))
+                validator = ReadingValidator(inventory.policy, concurrency=max(1, min(concurrency, limit)))
                 async with asyncio.TaskGroup() as checks:
                     checks.create_task(self.validate(validator, refs, mode='deep', deadline=deadline,
                                                      save=not dry_run, report=report))
@@ -196,7 +202,7 @@ class DailyMaintenance:
                         checks.create_task(self.validate(validator, light_refs, mode='light', deadline=deadline,
                                                          save=not dry_run, report=report))
                 previous = read_json(inventory.base_dir / 'main/publication.json', {})
-                if (mode == 'daily' and previous.get('schema_version') == 3
+                if (mode == 'daily' and previous.get('schema_version') in (3, 4)
                         and not report.get('network_incident') and not report.get('engine_incident')):
                     day = datetime.now(timezone.utc).date().isoformat()
                     selected = sorted(previous.get('sources', []), key=lambda item: digest([day, item['source_id']]))[:50]
@@ -222,11 +228,13 @@ class DailyMaintenance:
                     await self.collect_sources(client, mode=mode, deadline=collection_deadline, save=not dry_run,
                                                fetch_cap=fetch_cap, backfill_rounds=backfill_rounds, report=report)
             # A newly collected exclusion must apply before selecting the release.
+            # A newly collected exclusion must apply before selecting the release.
             report['static_audit'] = inventory.audit_all()
             report['raw_progress'] = inventory.revalidation_progress()
             _, _, current = inventory.select()
             report['inventory'] = current
-            report['publication_gate'] = inventory.publication_gate(current)
+            report['publication_gate'] = {'verified': inventory.publication_gate(current),
+                                          'extended': inventory.publication_gate(current, extended=True)}
             report['finished_at'] = utcnow()
             store.state.setdefault('runs', []).append({key: value for key, value in report.items()
                                                        if key != 'providers' and not key.endswith('_results')})
@@ -237,26 +245,36 @@ class DailyMaintenance:
                 if publish and mode != 'backfill':
                     # A network incident can remove a confirmed adult source, but cannot certify new availability.
                     has_prior = (inventory.base_dir / 'main/publication.json').exists()
-                    if not report['publication_gate']['ready']:
-                        report['publication_skipped'] = 'Gate: ' + ', '.join(report['publication_gate']['missing'])
-                    elif report.get('engine_incident'):
+                    verified_gate = report['publication_gate']['verified']
+                    extended_gate = report['publication_gate']['extended']
+                    if report.get('engine_incident'):
                         report['publication_skipped'] = 'Runtime incident; existing snapshot retained'
                     elif report.get('network_incident'):
                         prior = read_json(inventory.base_dir / 'main/publication.json', {})
                         allowed = {(item['source_id'], item['revision']) for item in prior.get('sources', [])}
                         safe, _, _ = inventory.select(allowed=allowed)
                         if has_prior and len(safe) < prior.get('count', 0):
-                            inventory.publish(allowed=allowed, allow_empty=True)
+                            inventory.publish(allowed=allowed, allow_empty=True,
+                                             publish_extended=publish_extended)
                             report['published'] = True
                             report['safety_prune'] = True
                         else:
                             report['publication_skipped'] = 'Shared network failure; existing snapshot retained'
-                    elif current['export_count'] or has_prior:
-                        inventory.publish(allow_empty=has_prior)
-                        report['published'] = True
+                    elif verified_gate['ready'] or extended_gate['ready'] or has_prior:
+                        try:
+                            inventory.publish(allow_empty=has_prior, publish_extended=publish_extended)
+                            report['published'] = True
+                            report['published_tiers'] = {
+                                'verified': verified_gate['ready'],
+                                'verified_skipped': None if verified_gate['ready'] else verified_gate['missing'],
+                                'extended': extended_gate['ready'],
+                            }
+                        except SafeUpdateError as exc:
+                            report['publication_skipped'] = str(exc)
                     else:
-                        report['publication_skipped'] = 'Bootstrap has no verified sources yet'
-                report['release_active'] = read_json(self.base_dir / 'main/publication.json', {}).get('schema_version') == 3
+                        report['publication_skipped'] = ('Neither tier is publishable: '
+                                                        + ', '.join(extended_gate['missing']))
+                report['release_active'] = read_json(self.base_dir / 'main/publication.json', {}).get('schema_version') in (3, 4)
                 store.state['runs'][-1] = {key: value for key, value in report.items()
                                          if key != 'providers' and not key.endswith('_results')}
                 report['acceptance'] = acceptance_status(store.state['runs'])
@@ -270,7 +288,7 @@ async def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--base-dir', type=Path)
     parser.add_argument('--mode', choices=['daily', 'catchup', 'backfill'], default='daily')
-    parser.add_argument('--batch-size', type=int, default=300)
+    parser.add_argument('--batch-size', type=int)
     parser.add_argument('--concurrency', type=int, default=20)
     parser.add_argument('--timeout', type=int, default=10)
     parser.add_argument('--max-minutes', type=float, default=90)
@@ -279,8 +297,11 @@ async def main():
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--no-collect', action='store_true')
     parser.add_argument('--publish', action='store_true')
+    parser.add_argument('--publish-extended', action=argparse.BooleanOptionalAction, default=True)
     args = parser.parse_args()
-    if args.batch_size < 0 or args.concurrency < 1 or args.timeout <= 0 or args.max_minutes <= 0 or args.backfill_rounds < 1 or (args.fetch_cap is not None and args.fetch_cap < 0):
+    if ((args.batch_size is not None and args.batch_size < 0) or args.concurrency < 1
+            or args.timeout <= 0 or args.max_minutes <= 0 or args.backfill_rounds < 1
+            or (args.fetch_cap is not None and args.fetch_cap < 0)):
         parser.error('Budgets and concurrency must be positive')
     if args.dry_run and args.publish:
         parser.error('--dry-run and --publish cannot be combined')

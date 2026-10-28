@@ -22,6 +22,18 @@ from runtime_config import runtime_fingerprint
 
 SUFFIXES = tldextract.TLDExtract(suffix_list_urls=(), cache_dir=None, include_psl_private_domains=True)
 
+# The extended package keeps verified sources first and fills the rest with
+# sources that have never been shown to be dead. Nothing here proves readability.
+TIERS = ('verified', 'grace', 'stale_verified', 'unverified', 'never_checked')
+TIER_ORDER = {tier: index for index, tier in enumerate(TIERS)}
+UNVERIFIED_KINDS = frozenset({
+    'unsupported', 'rule_error', 'search_empty', 'toc_empty', 'book_empty', 'content_empty',
+    'http_error', 'http_forbidden', 'auth_required', 'network', 'timeout', 'server_error',
+    'rate_limit', 'tls_error', 'redirect_limit', 'challenge',
+    'engine_timeout', 'engine_protocol', 'engine_crash', 'engine_unavailable',
+})
+EXCLUDED_KINDS = frozenset({'disabled', 'invalid_url', 'content_locked', 'content_audit'})
+
 
 class SourceInventory:
     def __init__(self, base_dir=None):
@@ -39,8 +51,16 @@ class SourceInventory:
         self.grace_hours = int(cfg.get('grace_hours', 72))
         self.grace_limit = int(cfg.get('grace_limit', 50))
         self.max_per_domain = int(self.config.get('supplement', {}).get('max_per_domain', 2))
+        self.extended_target = int(cfg.get('extended_target', self.export_target))
+        self.extended_min = int(cfg.get('extended_min', 200))
+        self.extended_max = int(cfg.get('extended_max', 1200))
+        self.verified_target = int(cfg.get('verified_target', 950))
+        self.max_per_domain_extended = int(cfg.get('max_per_domain_extended',
+                                                   self.config.get('supplement', {}).get('max_per_domain_extended', 3)))
+        self.stale_verified_days = int(cfg.get('stale_verified_days', 30))
         self.metadata_file = self.base_dir / 'main' / 'metadata.json'
         self.export_file = self.base_dir / 'main' / 'full.json'
+        self.extended_file = self.base_dir / 'main' / 'full-extended.json'
         self.working_file = self.base_dir / 'main' / 'working.json'
         self.candidate_file = self.base_dir / 'pool' / 'candidates.json'
 
@@ -182,15 +202,94 @@ class SourceInventory:
                 reserve.append(source)
                 seen_urls.add(url)
                 seen_rules.add(fingerprint)
+        extended = self.extended_versions(export, now)
+        extended_only = extended[len(export):]
         report = {
             'timestamp': utcnow(), 'export_count': len(export), 'reserve_count': len(reserve),
             'grace_count': grace, 'ready_versions': len(ready), 'unique_sites': len(domains),
             'healthy_count': len(export) - grace,
-            'needs_replenishment': len(export) < self.export_target or len(reserve) < self.reserve_target,
-            'status': 'healthy' if len(export) - grace >= 950 else 'degraded',
+            'verified_count': len(export), 'extended_count': len(extended),
+            'extended_only_count': len(extended_only),
+            'unverified_count': sum(item['_tier'] in ('unverified', 'never_checked') for item in extended_only),
+            'verified_share': round(len(export) / len(extended), 4) if extended else 0.0,
+            'tiers': dict(Counter(item.get('_tier', 'verified') for item in extended)),
+            'needs_replenishment': (len(extended) < self.extended_target
+                                    or len(reserve) < self.reserve_target),
+            'status': 'healthy' if len(export) - grace >= self.verified_target else 'degraded',
         }
         return export, reserve, report
 
+    def extended_versions(self, export, now=None):
+        """Verified sources first, then the best available unverified candidates."""
+        now = now or datetime.now(timezone.utc)
+        verified = {(item['_source_id'], item['_revision']) for item in export}
+        verified_ids = {item['_source_id'] for item in export}
+        stale_after = now - timedelta(days=self.stale_verified_days)
+        candidates = []
+        for record in self.store.records():
+            latest = record['versions'][record['latest_revision']]
+            source = latest['source']
+            if self.scope_reason(source):
+                continue
+            if source.get('webView') or 'startBrowser' in json.dumps(source):
+                continue
+            latest_audit = latest.get('audit', {})
+            if (latest_audit.get('decision') in ('block', 'review')
+                    and latest_audit.get('policy_version') == self.policy.auditor.version):
+                continue
+            health = latest.get('validation', {})
+            if health.get('kind') in EXCLUDED_KINDS:
+                continue
+            state = eligibility(latest, self.policy.auditor.version, now, self.max_age_days, self.grace_hours)
+            if (record['source_id'], record['latest_revision']) in verified:
+                tier = 'verified'
+            elif record['source_id'] in verified_ids:
+                tier = 'verified'
+            elif state == 'grace':
+                tier = 'grace'
+            elif parse_time(health.get('last_deep_success_at')) and parse_time(
+                    health.get('last_deep_success_at')) >= stale_after:
+                tier = 'stale_verified'
+            elif health.get('kind') in UNVERIFIED_KINDS or health.get('status') in (
+                    'transient', 'unverified', 'unsupported', 'invalid'):
+                tier = 'unverified'
+            else:
+                tier = 'never_checked'
+            payload = self.audit_payload(latest)
+            if self.policy.audit_source(payload)['decision'] != 'pass':
+                continue
+            enriched = self.policy.enrich_source(payload)
+            candidates.append({
+                '_source_id': record['source_id'], '_revision': record['latest_revision'],
+                '_tier': tier, '_rank': enriched['selectionScore'],
+                '_failures': int(health.get('consecutive_failures') or 0),
+                '_checked': health.get('last_check_at') or '',
+                '_source': payload,
+            })
+        candidates.sort(key=lambda item: (TIER_ORDER[item['_tier']], item['_failures'], -item['_rank'],
+                                          item['_checked'], item['_source_id']), reverse=False)
+        result = list(export)
+        seen_urls = {item['bookSourceUrl'].split('#', 1)[0] for item in result}
+        seen_rules = {rule_fingerprint(item) for item in result}
+        domains = Counter(self.site(item) for item in result)
+        for item in candidates:
+            if len(result) >= self.extended_max:
+                break
+            payload = item['_source']
+            url, fingerprint = payload['bookSourceUrl'], rule_fingerprint(payload)
+            domain = self.site(payload)
+            limit = self.max_per_domain_extended if item['_tier'] != 'verified' else self.max_per_domain
+            key = url.split('#', 1)[0]
+            if key in seen_urls or fingerprint in seen_rules or domains[domain] >= limit:
+                continue
+            payload['_tier'] = item['_tier']
+            payload['_source_id'] = item['_source_id']
+            payload['_revision'] = item['_revision']
+            result.append(payload)
+            seen_urls.add(key)
+            seen_rules.add(fingerprint)
+            domains[domain] += 1
+        return result
     def candidate_revisions(self, record):
         latest = record['latest_revision']
         revisions = {latest}
@@ -303,37 +402,56 @@ class SourceInventory:
         apply_result(record['versions'][revision], result)
         self.store.touch(key)
 
-    def publication_gate(self, report=None):
+    def publication_gate(self, report=None, *, extended=False):
         previous = read_json(self.base_dir / 'main/publication.json', {})
-        return publication_gate(self.project_root, report or self.select()[2], previous)
+        return publication_gate(self.project_root, report or self.select()[2], previous, extended=extended)
 
     def write_shadow(self):
         export, reserve, report = self.select()
+        extended = self.extended_versions(export)
         summary = {
-            'schema_version': 3, 'generated_at': utcnow(), 'inventory': report,
+            'schema_version': 4, 'generated_at': utcnow(), 'inventory': report,
             'gate': self.publication_gate(report),
+            'extended_gate': self.publication_gate(report, extended=True),
             'sources': [{'source_id': item['_source_id'], 'revision': item['_revision']}
                         for item in export],
+            'extended_only': [{'source_id': item['_source_id'], 'revision': item['_revision'],
+                               'tier': item.get('_tier', 'verified')}
+                              for item in extended[len(export):]],
             'reserve': [{'source_id': item['_source_id'], 'revision': item['_revision']}
                         for item in reserve],
         }
         atomic_bundle({self.base_dir / 'main/shadow.json': json_bytes(summary)})
         return summary
 
-    def publish(self, *, allowed=None, allow_empty=False):
+    def publish(self, *, allowed=None, allow_empty=False, publish_extended=True):
         with writer_lock(self.base_dir):
-            return self._publish(allowed=allowed, allow_empty=allow_empty)
+            return self._publish(allowed=allowed, allow_empty=allow_empty,
+                                 publish_extended=publish_extended)
 
-    def _publish(self, *, allowed=None, allow_empty=False):
+    def _publish(self, *, allowed=None, allow_empty=False, publish_extended=True):
         export, reserve, report = self.select(allowed=allowed)
+        extended = self.extended_versions(export)
+        report['extended_count'] = len(extended)
+        report['extended_only_count'] = len(extended) - len(export)
         metadata = read_json(self.metadata_file, {})
-        metadata.update(last_maintenance=utcnow(), inventory=report, schema_version=3)
+        metadata.update(last_maintenance=utcnow(), inventory=report, schema_version=4)
         working = export + reserve[:self.reserve_target]
         extras = {
             self.working_file: json_bytes(working), self.candidate_file: json_bytes(reserve),
             self.metadata_file: json_bytes(metadata),
         }
-        self.updater.safe_update(export, report=report, extra_files=extras, allow_empty=allow_empty)
+        blocked_urls = set()
+        if not export:
+            for record in self.store.records():
+                latest = record['versions'][record['latest_revision']]
+                audit = latest.get('audit', {})
+                if (audit.get('decision') in ('block', 'review')
+                        and audit.get('policy_version') == self.policy.auditor.version):
+                    blocked_urls.add(str(latest['source'].get('bookSourceUrl', '')).split('#', 1)[0])
+        self.updater.safe_update(export, extended_sources=extended, report=report, extra_files=extras,
+                                 allow_empty=allow_empty, publish_extended=publish_extended,
+                                 blocked_urls=blocked_urls)
         return report
 
     def inventory_status(self):
@@ -348,7 +466,8 @@ class SourceInventory:
         report['content_statuses'] = dict(Counter(
             record['versions'][record['latest_revision']].get('audit', {}).get('decision', 'pending')
             for record in self.store.records()))
-        report['gate'] = self.publication_gate(report)
+        report['gate'] = {'verified': self.publication_gate(report),
+                          'extended': self.publication_gate(report, extended=True)}
         channels = Counter()
         for item in export + reserve:
             version = self.store.get(item['_source_id'])['versions'][item['_revision']]
@@ -372,12 +491,19 @@ class SourceInventory:
 def main():
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['status', 'migrate', 'audit', 'rebuild'])
+    parser.add_argument('action', choices=['status', 'migrate', 'audit', 'rebuild', 'extended-status'])
     parser.add_argument('--base-dir', type=Path)
     args = parser.parse_args()
     inventory = SourceInventory(args.base_dir)
     if args.action == 'status':
         result = inventory.inventory_status()
+    elif args.action == 'extended-status':
+        export, reserve, report = inventory.select()
+        extended = inventory.extended_versions(export)
+        result = {'inventory': report,
+                  'verified': [item['_source_id'] for item in export],
+                  'extended_only': [{'source_id': item['_source_id'], 'tier': item.get('_tier', 'verified')}
+                                    for item in extended[len(export):]]}
     else:
         with writer_lock(inventory.base_dir):
             if args.action == 'migrate':

@@ -168,13 +168,26 @@ class EngineSession:
             kind = 'unsupported'
         raise ProbeFailure(kind, message[:240])
 
+# Reading admission is unchanged: the profile only widens how many candidates are
+# tried before a source is written off. Text length, distinctness, access-gate and
+# content-audit rules stay exactly as they were.
+PROFILE = {
+    'keywords': 10,
+    'max_books': 4,
+    'required_books': 2,
+    'chapters_per_book': 2,
+    'min_content_chars': 200,
+    'min_distinct_chars': 20,
+}
+
 
 class RuntimeReadingValidator:
     def __init__(self, policy, *, session_factory=EngineSession, concurrency=4, keywords=None):
         self.policy, self.session_factory = policy, session_factory
         self.limit = asyncio.Semaphore(concurrency)
         self.sites = defaultdict(lambda: asyncio.Semaphore(2))
-        self.keywords = keywords or ['斗罗大陆', '凡人修仙传', '三国演义', '遮天', '西游记', '完美世界']
+        self.keywords = keywords or ['斗罗大陆', '凡人修仙传', '三国演义', '遮天', '西游记', '完美世界',
+                                     '武动乾坤', '诡秘之主', '斗破苍穹', '庆余年']
 
     async def probe(self, source, mode='deep'):
         audit = self.policy.audit_source(source)
@@ -220,6 +233,8 @@ class RuntimeReadingValidator:
 
     async def _probe(self, engine, source, mode, stages):
         pages, books, seen_books, checked_books = [], [], set(), []
+        required_books = 1 if mode == 'light' else PROFILE['required_books']
+        category_value = None
 
         async def request(operation, **kwargs):
             try:
@@ -241,27 +256,20 @@ class RuntimeReadingValidator:
         explore = str(source.get('exploreUrl', '')).strip()
         if explore.startswith(('@js:', '<js>')):
             try:
-                categories = await request('categories')
+                category_value = await request('categories')
             except ProbeFailure as exc:
                 raise ProbeFailure('content_audit_incomplete', 'Dynamic discovery categories need review') from exc
-            if flagged := audit_page('categories', source['bookSourceUrl'], category_text(categories)):
+            if flagged := audit_page('categories', source['bookSourceUrl'], category_text(category_value)):
                 return flagged
 
-        previous = [] if mode == 'spot' else source.get('_health', {}).get('reading_books', [])
-        check_keyword = (source.get('ruleSearch') or {}).get('checkKeyWord', '')
-        source_keywords = [check_keyword.strip()] if isinstance(check_keyword, str) and check_keyword.strip() else []
-        offset = (int(digest(source.get('bookSourceUrl', ''))[:8], 16)
-                  + datetime.now(timezone.utc).date().toordinal()) % len(self.keywords)
-        keywords = list(dict.fromkeys([b['name'] for b in previous if b.get('name')]
-                                     + source_keywords + self.keywords[offset:] + self.keywords[:offset]))
-        for keyword in keywords[:6]:
+        async def search(keyword):
             items = await request('search', keyword=keyword)
             if not isinstance(items, list):
                 raise ValueError('Search response must be an array')
             stage = {'stage': 'search', 'keyword': keyword, 'count': len(items)}
             stages.append(stage)
             if flagged := audit_page('search', source['bookSourceUrl'], items):
-                return flagged
+                return flagged, len(books)
             for item in items[:20]:
                 url, name = item.get('bookUrl'), item.get('name')
                 if url and name and url not in seen_books:
@@ -269,48 +277,118 @@ class RuntimeReadingValidator:
                     seen_books.add(url)
                     books.append(item)
             stage['distinct_books'] = len(books)
-            if len(books) >= (1 if mode == 'light' else 2):
+            return None, len(books)
+
+        keywords = self._keywords(source, mode)
+        for keyword in keywords[:PROFILE['keywords']]:
+            flagged, count = await search(keyword)
+            if flagged:
+                return flagged
+            if count >= required_books:
                 break
-        if len(books) < (1 if mode == 'light' else 2):
+        if len(books) < required_books:
+            # Discovery titles are the only engine-native second search channel:
+            # they cost one request and often match a source's own catalogue words.
+            for keyword in self._category_keywords(category_value, keywords + list(seen_books)):
+                flagged, count = await search(keyword)
+                if flagged:
+                    return flagged
+                if count >= required_books:
+                    break
+        if len(books) < required_books:
             raise ProbeFailure('search_empty', 'Too few distinct books were extracted; failure is unconfirmed')
         if mode == 'light':
             return {'status': 'valid', 'kind': 'search', 'book': books[0]}
-        hashes = set()
-        for book in books[:2]:
-            details = await request('book', url=book['bookUrl'])
-            stages.append({'stage': 'book', 'url': book['bookUrl']})
-            if not details.get('name') or not details.get('tocUrl'):
-                raise ProbeFailure('book_empty', 'Book details are incomplete')
-            if flagged := audit_page('book', book['bookUrl'], details):
-                return flagged
-            public_url(details['tocUrl'])
-            chapters = await request('toc', url=details['tocUrl'])
-            chapters = list({item['url']: item for item in chapters if item.get('url')}.values())
-            stages.append({'stage': 'toc', 'url': details['tocUrl'], 'count': len(chapters)})
-            if flagged := audit_page('toc', details['tocUrl'], chapters):
-                return flagged
-            if len(chapters) < 2:
-                raise ProbeFailure('toc_empty', 'Too few distinct chapters were extracted')
-            chapter_index = (datetime.now(timezone.utc).date().toordinal() % (len(chapters) - 1) + 1
-                             if mode == 'spot' else len(chapters) // 2)
-            selected = [chapters[0], chapters[chapter_index]]
-            for chapter in selected:
-                public_url(chapter['url'])
-                value = await request('content', url=chapter['url'], book_name=book['name'])
-                prose = visible_text(value.get('content', ''))
-                raw = value.get('rawContent') or prose
-                if flagged := audit_page('content', chapter['url'], raw):
+        hashes, failures = set(), []
+        for book in books[:PROFILE['max_books']]:
+            if len(checked_books) >= PROFILE['required_books']:
+                break
+            try:
+                details = await request('book', url=book['bookUrl'])
+                stages.append({'stage': 'book', 'url': book['bookUrl']})
+                if not details.get('name') or not details.get('tocUrl'):
+                    raise ProbeFailure('book_empty', 'Book details are incomplete')
+                if flagged := audit_page('book', book['bookUrl'], details):
                     return flagged
-                reading_text = re.sub(r'https?://\S+', '', prose)
-                if len(re.sub(r'\s', '', reading_text)) < 200 or len(set(reading_text)) < 20:
-                    raise ProbeFailure('content_empty', 'Chapter text is empty or too short')
-                if re.search(r'请(?:先)?登录后(?:阅读|查看)|购买本章|章节内容不存在|暂无正文|验证码|Access denied', prose, re.I):
-                    raise ProbeFailure('content_locked', 'Chapter contains an access gate')
-                content_hash = digest(re.sub(r'\s', '', prose))
-                if content_hash in hashes:
-                    raise ProbeFailure('content_duplicate', 'Different chapters returned identical content')
+                public_url(details['tocUrl'])
+                chapters = await request('toc', url=details['tocUrl'])
+                chapters = list({item['url']: item for item in chapters if item.get('url')}.values())
+                stages.append({'stage': 'toc', 'url': details['tocUrl'], 'count': len(chapters)})
+                if flagged := audit_page('toc', details['tocUrl'], chapters):
+                    return flagged
+                if len(chapters) < 2:
+                    raise ProbeFailure('toc_empty', 'Too few distinct chapters were extracted')
+            except (ProbeFailure, ValueError) as exc:
+                failures.append(exc)
+                continue
+            book_hashes = 0
+            for chapter in self._chapter_candidates(chapters, mode):
+                if book_hashes >= PROFILE['chapters_per_book']:
+                    break
+                try:
+                    public_url(chapter['url'])
+                    value = await request('content', url=chapter['url'], book_name=book['name'])
+                    prose = visible_text(value.get('content', ''))
+                    raw = value.get('rawContent') or prose
+                    if flagged := audit_page('content', chapter['url'], raw):
+                        return flagged
+                    reading_text = re.sub(r'https?://\S+', '', prose)
+                    if (len(re.sub(r'\s', '', reading_text)) < PROFILE['min_content_chars']
+                            or len(set(reading_text)) < PROFILE['min_distinct_chars']):
+                        raise ProbeFailure('content_empty', 'Chapter text is empty or too short')
+                    if re.search(r'请(?:先)?登录后(?:阅读|查看)|购买本章|章节内容不存在|暂无正文|验证码|Access denied', prose, re.I):
+                        raise ProbeFailure('content_locked', 'Chapter contains an access gate')
+                    content_hash = digest(re.sub(r'\s', '', prose))
+                    if content_hash in hashes:
+                        raise ProbeFailure('content_duplicate', 'Different chapters returned identical content')
+                except (ProbeFailure, ValueError) as exc:
+                    failures.append(exc)
+                    continue
                 hashes.add(content_hash)
+                book_hashes += 1
                 stages.append({'stage': 'content', 'url': chapter['url'], 'length': len(prose), 'sha256': content_hash})
-            checked_books.append({'name': book['name'], 'url': book['bookUrl']})
+            if book_hashes >= PROFILE['chapters_per_book']:
+                checked_books.append({'name': book['name'], 'url': book['bookUrl']})
+        if len(checked_books) < PROFILE['required_books']:
+            raise failures[-1] if failures else ProbeFailure('content_empty', 'No chapter could be read')
         return {'status': 'valid', 'kind': 'reading', 'audit': self.policy.audit_source(source, pages),
                 'books': checked_books, 'sample': {'books': len(checked_books), 'chapters': len(hashes)}}
+
+    def _keywords(self, source, mode):
+        previous = [] if mode == 'spot' else source.get('_health', {}).get('reading_books', [])
+        check_keyword = (source.get('ruleSearch') or {}).get('checkKeyWord', '')
+        source_keywords = [check_keyword.strip()] if isinstance(check_keyword, str) and check_keyword.strip() else []
+        offset = (int(digest(source.get('bookSourceUrl', ''))[:8], 16)
+                  + datetime.now(timezone.utc).date().toordinal()) % len(self.keywords)
+        return list(dict.fromkeys([b['name'] for b in previous if b.get('name')]
+                                 + source_keywords + self.keywords[offset:] + self.keywords[:offset]))
+
+    @staticmethod
+    def _chapter_candidates(chapters, mode):
+        count = len(chapters)
+        if mode == 'spot':
+            index = datetime.now(timezone.utc).date().toordinal() % (count - 1) + 1
+            order = [0, index]
+        else:
+            order = [0, count // 2, count - 1, 1]
+        return [chapters[index] for index in dict.fromkeys(order) if 0 <= index < count]
+
+    @staticmethod
+    def _category_keywords(category_value, tried):
+        if isinstance(category_value, str):
+            try:
+                category_value = json.loads(category_value)
+            except ValueError:
+                return []
+        if not isinstance(category_value, list):
+            return []
+        names = []
+        for item in category_value:
+            if not isinstance(item, dict):
+                continue
+            for key in ('title', 'name', 'kind'):
+                text = item.get(key)
+                if isinstance(text, str) and 1 < len(text.strip()) <= 12:
+                    names.append(text.strip())
+                    break
+        return [name for name in dict.fromkeys(names) if name not in tried][:3]

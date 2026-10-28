@@ -5,42 +5,42 @@
       "description": "知名阅读书源仓库",
       "priority": "high",
       "file_patterns": ["书源", "shuyuan", "source", "legado"],
-      "max_files": 3
+      "max_files": 4
     },
     {
       "name": "aoaostar/legado",
       "description": "Legado书源收集",
       "priority": "high",
       "file_patterns": ["书源", "source", "legado"],
-      "max_files": 3
+      "max_files": 4
     },
     {
       "name": "shidahuilang/shuyuan",
       "description": "书源分享仓库",
       "priority": "medium",
       "file_patterns": ["书源", "shuyuan"],
-      "max_files": 2
+      "max_files": 3
     },
     {
       "name": "vpei/Free-Novel-Source",
       "description": "免费小说书源",
       "priority": "medium",
       "file_patterns": ["source", "novel"],
-      "max_files": 2
+      "max_files": 3
     },
     {
       "name": "yeyulingfeng01/yuedu.github.io",
       "description": "阅读书源网站",
       "priority": "low",
       "file_patterns": ["书源", "yuedu"],
-      "max_files": 1
+      "max_files": 2
     },
     {
       "name": "CNAD666/MyAction",
       "description": "自动化书源收集",
       "priority": "low",
       "file_patterns": ["书源", "source"],
-      "max_files": 1
+      "max_files": 2
     }
   ],
   "source_websites": [
@@ -58,22 +58,36 @@
       "url": "https://legado.aoaostar.com/",
       "description": "aoaostar书源站",
       "priority": "high",
-      "max_links": 5,
+      "max_links": 6,
       "link_patterns": ["*.json"]
     },
     {
       "url": "https://shuyuan.miaogongzi.net/",
       "description": "喵公子书源网",
       "priority": "medium",
-      "max_links": 3,
+      "max_links": 4,
+      "link_patterns": ["*.json"]
+    },
+    {
+      "url": "https://list.yiove.com/",
+      "description": "yiove书源列表站",
+      "priority": "medium",
+      "max_links": 4,
+      "link_patterns": ["*.json"]
+    },
+    {
+      "url": "https://shuyuan.yiove.com/",
+      "description": "yiove书源站",
+      "priority": "medium",
+      "max_links": 4,
       "link_patterns": ["*.json"]
     }
   ],
   "large_files": [
     {
       "path": "sources/legado/yiove_new.json",
-      "description": "yiove大型书源文件",
-      "max_sample": 1000,
+      "description": "yiove大型书源文件（本地可选，仓库不跟踪）",
+      "optional": true,
       "priority": "high"
     }
   ],

@@ -84,6 +84,19 @@ def fixtures():
         for c in range(4):
             metadata_pages[f'{base}/book/{b}/chapter/{c}?book={b}'] = pages[f'{base}/book/{b}/chapter/{c}']
     cases.append(('book_metadata_url', metadata, metadata_pages))
+    fallback = deepcopy(source)
+    fallback['exploreUrl'] = '@js:JSON.stringify([{title:"History",url:"/history"}])'
+    fallback_pages = deepcopy(pages)
+    fallback_pages[base + '/search?q=Example'] = '<html><body></body></html>'
+    fallback_pages[base + '/search?q=History'] = fallback_pages[base + '/search?q=Example']
+    fallback_pages[base + '/search?q=History'] = ''.join(
+        f'<div class="book"><a href="/book/{b}">Example {b}</a></div>' for b in range(2))
+    cases.append(('discovery_title_fallback', fallback, fallback_pages))
+    retry = deepcopy(source)
+    retry_pages = deepcopy(pages)
+    retry_pages[f'{base}/book/0/chapter/2'] = '<div id="content">short</div>'
+    retry_pages[f'{base}/book/0/chapter/3'] = f'<div id="content">Book 0 chapter 3.{prose}</div>'
+    cases.append(('chapter_candidate_retry', retry, retry_pages))
     return cases
 
 
