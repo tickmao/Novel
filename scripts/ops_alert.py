@@ -37,14 +37,16 @@ def summarize(root):
     }
 
 
-def abnormal(summary, *, extended_target=1000):
-    return bool(summary['incidents']) or summary['extended'] < extended_target
+def abnormal(summary, *, extended_target=1000, verified_target=950):
+    return (bool(summary['incidents']) or summary['extended'] < extended_target
+            or summary['verified'] < verified_target)
 
 
-def body_of(summary, run_url=None, extended_target=1000):
+def body_of(summary, run_url=None, extended_target=1000, verified_target=950):
     lines = [
-        f"Delivery: verified **{summary['verified']}** / extended **{summary['extended']}**"
-        f" (target {extended_target}, unverified {summary['unverified']}).",
+        f"Delivery: verified **{summary['verified']}** / {verified_target}"
+        f", extended **{summary['extended']}** / {extended_target}"
+        f" (unverified {summary['unverified']}).",
         '',
         f"- verified share: {summary['verified_share']:.0%}",
         f"- last run conversion: {summary['valid']}/{summary['attempts']} = {summary['conversion']:.2%}",
@@ -62,7 +64,7 @@ def gh(args, *, stdin=None, runner=None):
     return runner(['gh', *args], input=stdin, capture_output=True, text=True, check=False)
 
 
-def sync_alert(summary, *, repo, run_url=None, extended_target=1000, runner=None):
+def sync_alert(summary, *, repo, run_url=None, extended_target=1000, verified_target=950, runner=None):
     """Create, update or close the single degraded-maintenance issue."""
     result = gh(['issue', 'list', '--repo', repo, '--label', LABEL, '--state', 'open', '--json', 'number'],
                 runner=runner)
@@ -71,12 +73,12 @@ def sync_alert(summary, *, repo, run_url=None, extended_target=1000, runner=None
     except ValueError:
         open_issues = []
     number = open_issues[0]['number'] if open_issues else None
-    if not abnormal(summary, extended_target=extended_target):
+    if not abnormal(summary, extended_target=extended_target, verified_target=verified_target):
         if number is None:
             return {'action': 'none', 'reason': 'healthy'}
         gh(['issue', 'close', str(number), '--repo', repo, '--comment', 'Delivery is back on target.'], runner=runner)
         return {'action': 'closed', 'number': number}
-    body = body_of(summary, run_url, extended_target)
+    body = body_of(summary, run_url, extended_target, verified_target)
     if number is not None:
         gh(['issue', 'comment', str(number), '--repo', repo, '--body-file', '-'], stdin=body, runner=runner)
         return {'action': 'commented', 'number': number}
@@ -91,15 +93,19 @@ def main():
     parser.add_argument('--repo', required=True)
     parser.add_argument('--run-url')
     parser.add_argument('--extended-target', type=int, default=1000)
+    parser.add_argument('--verified-target', type=int, default=950)
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
     summary = summarize(args.base_dir)
     if args.dry_run:
-        print(json.dumps({'summary': summary, 'abnormal': abnormal(summary, extended_target=args.extended_target)},
+        print(json.dumps({'summary': summary,
+                          'abnormal': abnormal(summary, extended_target=args.extended_target,
+                                               verified_target=args.verified_target)},
                          ensure_ascii=False, indent=2))
         return
     print(json.dumps(sync_alert(summary, repo=args.repo, run_url=args.run_url,
-                                extended_target=args.extended_target), ensure_ascii=False))
+                                extended_target=args.extended_target,
+                                verified_target=args.verified_target), ensure_ascii=False))
 
 
 if __name__ == '__main__':
