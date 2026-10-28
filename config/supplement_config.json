@@ -1,17 +1,27 @@
 {
   "publication": {
     "initial_healthy_min": 950,
-    "initial_reserve_min": 300
+    "initial_reserve_min": 300,
+    "extended_min": 200
   },
   "supplement": {
     "target_sources": 1000,
     "min_sources_trigger": 800,
     "emergency_trigger": 700,
     "min_score_threshold": 35,
-    "max_per_domain": 2
+    "max_per_domain": 2,
+    "max_per_domain_extended": 3
   },
   "inventory": {
     "export_target": 1000,
+    "extended_target": 1000,
+    "verified_target": 950,
+    "extended_min": 200,
+    "extended_max": 1200,
+    "max_per_domain_extended": 3,
+    "validation_concurrency": 6,
+    "catchup_batch": 1500,
+    "daily_batch": 300,
     "reserve_target": 500,
     "reserve_min": 300,
     "export_max_age_days": 7,
@@ -20,15 +30,15 @@
     "published_deep_batch": 250,
     "reserve_deep_batch": 125,
     "daily_candidate_batch": 300,
-    "catchup_candidate_batch": 1000
+    "catchup_candidate_batch": 1500
   },
   "yckceo": {
     "base_url": "https://www.yckceo.com",
     "list_path": "/yuedu/shuyuan/index.html",
     "json_path_template": "/yuedu/shuyuan/json/id/{id}.json",
-    "daily_pages": 5,
-    "daily_fetch_cap": 150,
-    "emergency_fetch_cap": 300,
+    "daily_pages": 10,
+    "daily_fetch_cap": 300,
+    "emergency_fetch_cap": 600,
     "request_delay": 1.0,
     "max_seen_ids": 20000
   },
@@ -51,8 +61,8 @@
   "collection": {
     "timeout": 30,
     "concurrency": 5,
-    "max_sources_per_repo": 1000,
-    "max_sources_per_website": 500
+    "max_sources_per_repo": 1500,
+    "max_sources_per_website": 800
   },
   "validation": {
     "timeout": 10,

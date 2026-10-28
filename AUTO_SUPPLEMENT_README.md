@@ -23,7 +23,14 @@ GitHub Actions 定时重复此流程，采集游标、检测结果和影子库�
 
 每个来源保留原始内容、修订版本、出处、审核结果和验证状态。抓取同一 ID 的新版不会直接覆盖旧版；新版通过验证后才参与选择。原始库中的数量不代表可交付数量。
 
-公开文件 `sources/legado/full.json` 和 `sources/legado/main/full.json` 由同一发布器生成。`main/publication.json`、网站和 README 的数量与这份快照保持一致。
+交付分两层，由同一发布器在同一事务内写出：
+
+- `full.json`（`main/full.json` 为镜像）：只放本轮通过完整阅读验证、内容审核且证据在有效期内的源。数量不足目标时如实少于 1000，不补齐。
+- `full-extended.json`（`main/full-extended.json` 为镜像）：前段与 `full.json` 完全相同，后段按证据分层补充未验证候选，补到 `extended_target`（默认 1000）。
+- `manifest.json`：按 `bookSourceUrl` 记录每条的层级、修订和最近检查时间。
+- `main/publication.json`：两个包的 sha256、分层计数和来源修订引用；网站与 README 的数量取自这份快照。
+
+`full.json` 不会因为数量未达 950 就保留旧的未验证快照；本轮没有可交付验证源时，旧文件只在内容审核仍为 pass 的情况下保留，并把这类条目记为 `legacy`，不计入验证数量。任何被新审核判定为禁止的源都会在下一次发布中从两个包移除。
 
 ## 内容与可用性标准
 
@@ -78,8 +85,16 @@ python3 -m venv .venv
 
 `--dry-run` 不写原始记录、验证状态或公开快照；运行锁仍会使用临时目录。`--publish` 才允许更新用户交付文件。首个合格快照尚未建立时，空验证结果不会覆盖旧文件。
 
-不传 `--publish` 的持久化运行会保存检查结果和 `main/shadow.json`，便于累积候选库存。即使显式传入 `--publish`，发布器仍会检查引擎证据和首发数量门槛。
+运行前先看本轮决策，它会解释为什么进入 catchup、是否允许采集、以及两个 tier 是否能发布：
 
+```bash
+.venv/bin/python -B scripts/maintenance_plan.py --explain
+.venv/bin/python -B scripts/network_selfcheck.py
+```
+
+`network_selfcheck.py` 在维护前确认出网可用，失败时直接结束且不写任何状态。不传 `--publish` 的持久化运行会保存检查结果和 `main/shadow.json`，便于累积候选库存。即使显式传入 `--publish`，发布器仍会检查引擎证据；`full.json` 只放验证源，`full-extended.json` 补到目标数量。
+
+`scripts/ops_alert.py` 维护唯一一条 `maintenance-degraded` issue：交付量低于目标或出现引擎/网络事故时创建或更新，恢复达标后自动关闭。工作流每轮结束时调用。
 导出待复核证据：
 
 ```bash

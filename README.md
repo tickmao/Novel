@@ -16,10 +16,19 @@
 
 打开 App -> 我的 -> 书源管理 -> 右上角菜单 -> 网络导入 -> 粘贴链接
 
-**全量书源 (1000 个)**
+**严格验证书源 (1000 个)**
 ```
 https://cdn.jsdelivr.net/gh/tickmao/Novel@master/sources/legado/full.json
 ```
+
+每一条都通过固定版本 Legado 引擎的完整阅读验证（搜索、书籍、目录、两本书各两章正文）和内容审核，且证据在有效期内。
+
+**扩展书源 (1000 个，其中未验证 0 个)**
+```
+https://cdn.jsdelivr.net/gh/tickmao/Novel@master/sources/legado/full-extended.json
+```
+
+扩展包前段与严格验证文件完全一致，后段补充尚未完成完整阅读验证的候选源。未验证源可能返回空章节或已失效，逐条状态见 `sources/legado/manifest.json`。**建议优先使用严格验证文件。**
 
 **净化规则**
 ```

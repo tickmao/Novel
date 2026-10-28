@@ -65,6 +65,7 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_full_inventory_does_not_collect_more_sources(self):
         self.runner.inventory.export_target = 1
+        self.runner.inventory.extended_target = 1
         self.runner.inventory.reserve_target = 0
         seed(self.runner.inventory, 1)
         self.runner.inventory.store.save()
@@ -279,7 +280,7 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         for key, revision in refs:
             self.assertEqual(loaded.get(key)['versions'][revision]['validation']['status'], 'valid')
 
-    async def test_stale_successes_are_not_network_health_controls(self):
+    async def test_mass_network_failure_needs_no_healthy_control_group(self):
         refs = seed(self.runner.inventory, 20, datetime.now(timezone.utc) - timedelta(days=30))
         result = {**ready_result(self.runner.inventory.policy), 'status': 'transient', 'kind': 'network'}
         validator = AsyncMock()
@@ -287,7 +288,7 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         report = {}
         await self.runner.validate(validator, refs, mode='deep', deadline=time.monotonic() + 10,
                                    save=True, report=report)
-        self.assertFalse(report.get('network_incident', False))
+        self.assertTrue(report.get('network_incident', False))
         self.assertEqual(report['deep_checked'], 20)
 
     async def test_checkpoint_restores_results_and_checks_input_identity(self):

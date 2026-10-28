@@ -92,6 +92,46 @@ persistent scans, and the latest checked legacy production maintenance run
 [37999262598](https://github.com/tickmao/Novel/actions/runs/37999262598) succeeded.
 See the [audit record](reports/maintenance/actions-audit.json).
 
+## Tiered delivery and unattended loop
+
+Yielding 0.85% reading successes per deep attempt cannot reach 1,000 published
+sources by waiting longer: the archive would have to be re-checked roughly twenty
+times. Delivery is therefore split by evidence instead of padded with unverified
+entries.
+
+- `full.json` holds only sources with current reading and content evidence. It
+  stays below 1,000 while evidence is thin; it never falls back to an older
+  unverified payload, and entries the current policy blocks are removed.
+- `full-extended.json` repeats `full.json` byte for byte as its prefix, then
+  fills toward `extended_target` with candidates ordered by
+  `verified → grace → stale_verified → unverified → never_checked`. Disabled,
+  non-novel, `invalid_url`, interactive-browser and access-gated revisions are
+  excluded from both packages.
+- `manifest.json` and `main/publication.json` record the per-source tier, the
+  revision, both SHA-256 digests and the tier counts. `check_publication.py`
+  rejects a release when the prefix invariant, the mirrors or the visible counts
+  disagree.
+
+The loop is deficit-driven rather than count-driven: `maintenance_plan.py`
+chooses catchup or daily, the batch size and whether collection is allowed from
+the current verified/extended gap and the remaining backlog. `network_selfcheck.py`
+stops a run before it writes state when the runner has no outbound access, and the
+incident guard now measures the current batch instead of requiring a healthy
+control group. `ops_alert.py` keeps one `maintenance-degraded` issue in sync with
+the delivery count and incidents.
+
+Reading admission itself is unchanged: two books, two chapters each, at least 200
+characters of distinct text, no access gate, no duplicate chapter bodies, plus the
+content audit. Sampling v2 only widens how many candidates are tried before a
+source is written off (ten keywords, up to four books, four chapter positions),
+and the pipeline records which stage dropped each source.
+
+Current measurements on the archive: the last recorded run made 100 deep attempts
+and produced one complete reading success. The largest failure bucket is
+`rule_error` (39 of 100), followed by `timeout` (14), `search_empty` (10),
+`network` (9) and `http_forbidden` (8). Those are engine-coverage and sampling
+questions, not proof that the sites are dead.
+
 ## Remaining work
 
 Continue the archived-source scan and keep selected sources fresh. Investigate
