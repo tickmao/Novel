@@ -149,24 +149,7 @@ class EngineSession:
         if response['ok']:
             return response.get('value')
         message = response.get('error', '')
-        kind = 'rule_error'
-        if '429' in message:
-            kind = 'rate_limit'
-        elif re.search(r'HTTP 5\d\d', message):
-            kind = 'server_error'
-        elif re.search(r'HTTP 403\b', message):
-            kind = 'http_forbidden'
-        elif re.search(r'HTTP 401\b', message):
-            kind = 'auth_required'
-        elif re.search(r'HTTP 4\d\d\b', message):
-            kind = 'http_error'
-        elif re.search(r'timeout|timed out', message, re.I):
-            kind = 'timeout'
-        elif re.search(r'ConnectException|UnknownHost|无法解析|连接|DNS', message + response.get('error_type', ''), re.I):
-            kind = 'network'
-        elif re.search(r'Unsupported|not supported|不支持|WebView|startBrowser', message, re.I):
-            kind = 'unsupported'
-        raise ProbeFailure(kind, message[:240])
+        raise ProbeFailure(classify_engine_error(message, response.get('error_type', '')), message[:240])
 
 # Reading admission is unchanged: the profile only widens how many candidates are
 # tried before a source is written off. Text length, distinctness, access-gate and
@@ -179,6 +162,36 @@ PROFILE = {
     'min_content_chars': 200,
     'min_distinct_chars': 20,
 }
+
+# Engine messages carry the real cause of a failed stage. Only recognised
+# transport and rule conditions are named; everything else stays a generic rule
+# error so it is investigated instead of being retried as a network fault.
+TRANSIENT_KINDS = ('network', 'timeout', 'server_error', 'rate_limit', 'tls_error')
+
+
+def classify_engine_error(message, error_type=''):
+    text = f'{message} {error_type}'
+    if '未配置 searchUrl' in message or 'no searchUrl' in message:
+        return 'no_search_rule'
+    if '429' in message:
+        return 'rate_limit'
+    if re.search(r'certificate_|PKIX|SSL|handshake|fatal alert|RST_STREAM', text, re.I):
+        return 'tls_error'
+    if re.search(r'header parser received no bytes|ConnectException|UnknownHost|无法解析|连接|DNS', text, re.I):
+        return 'network'
+    if re.search(r'HTTP 5\d\d', message):
+        return 'server_error'
+    if re.search(r'HTTP 403\b', message):
+        return 'http_forbidden'
+    if re.search(r'HTTP 401\b', message):
+        return 'auth_required'
+    if re.search(r'HTTP 4\d\d\b', message):
+        return 'http_error'
+    if re.search(r'timeout|timed out', message, re.I):
+        return 'timeout'
+    if re.search(r'Unsupported|not supported|不支持|WebView|startBrowser', message, re.I):
+        return 'unsupported'
+    return 'rule_error'
 
 
 class RuntimeReadingValidator:
@@ -207,6 +220,10 @@ class RuntimeReadingValidator:
                 raise ProbeFailure('disabled', 'Only enabled novel sources are eligible')
             if source.get('webView') or re.search(r'startBrowserAwait|startBrowser\(', json.dumps(source)):
                 raise ProbeFailure('unsupported', 'Interactive browser rules need a separate runtime')
+            if not str(source.get('searchUrl') or '').strip():
+                # Explore-only sources cannot be searched, so a JVM start would only
+                # burn budget. Legado itself can still use them through discovery.
+                raise ProbeFailure('no_search_rule', 'Source has no searchUrl rule')
             async with self.limit, self.sites[urlsplit(identity).hostname or identity]:
                 async with asyncio.timeout(240):
                     async with self.session_factory(source_payload(source)) as engine:
@@ -214,8 +231,8 @@ class RuntimeReadingValidator:
         except EngineFailure as exc:
             result.update(status='unverified', kind=exc.kind, error=str(exc))
         except ProbeFailure as exc:
-            status = 'transient' if exc.kind in ('network', 'timeout', 'server_error', 'rate_limit') else 'unverified'
-            if exc.kind == 'unsupported':
+            status = 'transient' if exc.kind in TRANSIENT_KINDS else 'unverified'
+            if exc.kind in ('unsupported', 'no_search_rule'):
                 status = 'unsupported'
             if exc.kind == 'content_audit_incomplete':
                 status = 'review'
