@@ -131,6 +131,16 @@ class ExtendedDeliveryTests(unittest.TestCase):
         self.assertEqual(report['extended_count'], 2)
         self.assertTrue(report['needs_replenishment'])
 
+    def test_package_stops_at_the_target_not_the_ceiling(self):
+        self.inventory.extended_target = 3
+        self.inventory.extended_max = 10
+        seed(self.inventory, 2)
+        for index in range(4):
+            self.ingest(f'https://tail{index}.example')
+        _, _, report = self.inventory.select()
+        self.assertEqual(report['extended_count'], 3)
+        self.assertEqual(report['extended_only_count'], 1)
+
     def test_blocked_source_leaves_both_published_files(self):
         refs = seed(self.inventory, 3)
         self.inventory.publish()

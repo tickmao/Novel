@@ -273,7 +273,7 @@ class SourceInventory:
         seen_rules = {rule_fingerprint(item) for item in result}
         domains = Counter(self.site(item) for item in result)
         for item in candidates:
-            if len(result) >= self.extended_max:
+            if len(result) >= min(self.extended_target, self.extended_max):
                 break
             payload = item['_source']
             url, fingerprint = payload['bookSourceUrl'], rule_fingerprint(payload)
