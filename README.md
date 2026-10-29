@@ -11,7 +11,7 @@
 | iOS | [爱阅书香](https://apps.apple.com/app/id1137819437) | 待更新 |
 
 <!-- publication-status -->
-当前发布：严格验证 **141** 条 / 扩展 **1000** 条（未验证 750 条，验证占比 14%）；状态：`degraded`；更新时间：2026-10-28T22:43:13.372118+00:00。
+当前发布：严格验证 **140** 条 / 扩展 **1000** 条（未验证 772 条，验证占比 14%）；状态：`degraded`；更新时间：2026-10-29T18:03:29.576341+00:00。
 <!-- /publication-status -->
 
 ## 书源导入
@@ -20,14 +20,14 @@
 
 打开 App -> 我的 -> 书源管理 -> 右上角菜单 -> 网络导入 -> 粘贴链接
 
-**严格验证书源 (141 个)**
+**严格验证书源 (140 个)**
 ```
 https://cdn.jsdelivr.net/gh/tickmao/Novel@master/sources/legado/full.json
 ```
 
 每一条都通过固定版本 Legado 引擎的完整阅读验证（搜索、书籍、目录、两本书各两章正文）和内容审核，且证据在有效期内。
 
-**扩展书源 (1000 个，其中未验证 750 个)**
+**扩展书源 (1000 个，其中未验证 772 个)**
 ```
 https://cdn.jsdelivr.net/gh/tickmao/Novel@master/sources/legado/full-extended.json
 ```
