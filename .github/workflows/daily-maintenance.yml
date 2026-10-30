@@ -95,12 +95,15 @@ jobs:
         id: maintenance
         env:
           NOVEL_ENGINE_IMAGE: ${{ steps.runtime.outputs.imageid }}
-          MODE: ${{ inputs.mode || env.MAINTENANCE_MODE }}
+          MODE: ${{ inputs.mode }}
           DRY_RUN: ${{ inputs.dry_run }}
           REQUESTED_BATCH: ${{ inputs.batch_size }}
           REQUESTED_MINUTES: ${{ inputs.max_minutes }}
           PUBLISH: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || inputs.publish) }}
         run: |
+          # MAINTENANCE_MODE comes from the job env, which every step inherits;
+          # an explicit dispatch input wins when the user picked one.
+          MODE="${MODE:-$MAINTENANCE_MODE}"
           MINUTES="${REQUESTED_MINUTES:-60}"
           FLAGS=()
           if [ "$DRY_RUN" = true ]; then

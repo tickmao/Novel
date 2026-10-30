@@ -8,7 +8,7 @@ ENGINE_COMMIT = '3cb7acb2a2892e71184c1dd12c8e8d7b5a60fbb7'
 # profile (books, chapters, characters), the probe protocol, or the engine commit.
 # Reclassifying errors, moving code or rewording messages must not invalidate the
 # stored evidence of thousands of sources.
-VALIDATOR_VERSION = 'legado-reading-v4:' + ENGINE_COMMIT[:12]
+VALIDATOR_VERSION = 'legado-reading-v5:' + ENGINE_COMMIT[:12]
 PROBE_PROTOCOL = 1
 ENVIRONMENT_FAILURES = {'engine_unavailable', 'engine_timeout', 'engine_protocol', 'engine_crash'}
 
