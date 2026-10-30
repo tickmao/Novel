@@ -51,3 +51,14 @@ yiove_new.json
 sources/legado/temp/
 sources/legado/pool/candidate_report.json
 temp/
+
+# 发布备份每日轮转且可由发布快照重建，单文件约 7 MB。纳入 git 会让每次发布都往历史里灌一份。
+# 提交清单已在 daily-maintenance.yml 中显式列出文件，因此这里不会造成 CI 漏提交。
+sources/legado/main/backups/
+
+# pi workspace-history 快照排除：只为压缩撤销历史体积，以下文件仍由 git 跟踪。
+# 勿在此追加会被 CI git add 的目录/文件名（pool/raw、main/backups 等），否则 CI 会静默漏提交。
+/fonts/LXGWWenKai.ttf
+/sources/legado/pool/raw.json
+/sources/legado/pool/invalid.json
+/sources/xsreader/full.xbs

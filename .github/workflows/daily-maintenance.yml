@@ -25,8 +25,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
   issues: write
 
 concurrency:
@@ -37,7 +35,11 @@ jobs:
   maintain:
     if: github.ref_type == 'branch' && (github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
-    timeout-minutes: 100
+    timeout-minutes: 150
+    # github.event.schedule exists only for schedule events, so every step derives
+    # the mode from this one value instead of repeating the rule in shell.
+    env:
+      MAINTENANCE_MODE: ${{ github.event.schedule == '0 0,6,12 * * *' && 'catchup' || 'daily' }}
     outputs:
       published: ${{ steps.maintenance.outputs.published }}
     steps:
@@ -70,28 +72,35 @@ jobs:
       - name: Initialize the raw store
         if: inputs.dry_run != true
         run: python scripts/source_inventory.py migrate
-      - name: Verify runtime compatibility
+      - name: Verify the engine fixtures
         env:
           NOVEL_ENGINE_IMAGE: ${{ steps.runtime.outputs.imageid }}
+        run: python -B scripts/probe_runtime.py fixtures
+      - name: Sample live sources
+        continue-on-error: true
+        env:
+          NOVEL_ENGINE_IMAGE: ${{ steps.runtime.outputs.imageid }}
+        run: python -B scripts/probe_runtime.py sample --count 60 --max-minutes 15
+      - name: Record runtime compatibility
+        env:
+          NOVEL_ENGINE_IMAGE: ${{ steps.runtime.outputs.imageid }}
+          REQUIRE_READY: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
         run: |
-          python -B scripts/probe_runtime.py fixtures
-          python -B scripts/probe_runtime.py sample --count 60 --max-minutes 15
-          python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE"
+          FLAGS=()
+          if [ "$REQUIRE_READY" = 'true' ]; then FLAGS+=(--require-ready); fi
+          python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE" "${FLAGS[@]}"
       - name: Plan this run
-        run: python -B scripts/maintenance_plan.py --explain >> "$GITHUB_STEP_SUMMARY"
+        run: python -B scripts/maintenance_plan.py --explain --mode "$MAINTENANCE_MODE" >> "$GITHUB_STEP_SUMMARY"
       - name: Maintain inventory
         id: maintenance
         env:
           NOVEL_ENGINE_IMAGE: ${{ steps.runtime.outputs.imageid }}
-          REQUESTED_MODE: ${{ inputs.mode }}
-          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          MODE: ${{ inputs.mode || env.MAINTENANCE_MODE }}
           DRY_RUN: ${{ inputs.dry_run }}
           REQUESTED_BATCH: ${{ inputs.batch_size }}
           REQUESTED_MINUTES: ${{ inputs.max_minutes }}
           PUBLISH: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || inputs.publish) }}
         run: |
-          MODE="${REQUESTED_MODE:-daily}"
-          if [ "$EVENT_SCHEDULE" = '0 0,6,12 * * *' ]; then MODE=catchup; fi
           MINUTES="${REQUESTED_MINUTES:-60}"
           FLAGS=()
           if [ "$DRY_RUN" = true ]; then
@@ -107,10 +116,8 @@ jobs:
             "${BATCH_FLAGS[@]}" "${FLAGS[@]}"
       - name: Verify the publication
         id: verify
-        env:
-          PUBLISHED: ${{ steps.maintenance.outputs.published }}
-        run: |
-          python -B scripts/check_publication.py --allow-bootstrap
+        if: steps.maintenance.outputs.published == 'true'
+        run: python -B scripts/check_publication.py --allow-bootstrap
       - name: Persist completed work
         if: ${{ always() && inputs.dry_run != true }}
         env:
@@ -129,12 +136,29 @@ jobs:
             if [ -f "$file" ]; then git add "$file"; fi
           done
           if [ "$PUBLISHED" = true ] && [ "$VERIFIED" = true ]; then
-            git add sources/legado/main/ sources/legado/full.json sources/legado/full-extended.json \
-              sources/legado/manifest.json sources/legado/pool/candidates.json README.md STATS.md docs/
+            for file in \
+              sources/legado/main/full.json \
+              sources/legado/main/full-extended.json \
+              sources/legado/main/publication.json \
+              sources/legado/main/metadata.json \
+              sources/legado/manifest.json \
+              sources/legado/full.json \
+              sources/legado/full-extended.json \
+              sources/legado/pool/candidates.json \
+              README.md STATS.md docs/; do
+              if [ -e "$file" ]; then git add "$file"; fi
+            done
           fi
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'chore: maintain source inventory and publication'
-          git push origin "HEAD:$TARGET_BRANCH"
+          for delay in 5 15 30; do
+            if git push origin "HEAD:$TARGET_BRANCH"; then exit 0; fi
+            git pull --rebase --autostash origin "$TARGET_BRANCH" || git rebase --abort || true
+            sleep "$delay"
+          done
+          echo '::error::Could not push the maintenance commit after four attempts'
+          git status --short
+          exit 1
       - name: Preserve recovery data
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -149,25 +173,8 @@ jobs:
             reports/maintenance/
       - name: Add run summary
         if: ${{ always() }}
-        run: |
-          python scripts/check_publication.py --summary --allow-bootstrap >> "$GITHUB_STEP_SUMMARY"
-          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json
-          from pathlib import Path
-          path = Path('sources/legado/main/maintenance_report.json')
-          if path.exists():
-              report = json.loads(path.read_text())
-              progress = report.get('raw_progress', {})
-              print('\n## Raw inventory validation\n')
-              for key in ('raw_sources', 'eligible_revisions', 'attempted_revisions', 'pending_revisions'):
-                  print(f'- {key}: {progress.get(key, "unknown")}')
-              print(f'- healthy_sources: {report.get("inventory", {}).get("healthy_count", 0)}')
-              print(f'- collection: {report.get("collection_decision", {}).get("reason", "unknown")}')
-              tiers = report.get('inventory', {})
-              print(f'- verified: {tiers.get("verified_count", 0)}')
-              print(f'- extended: {tiers.get("extended_count", 0)} (unverified {tiers.get("unverified_count", 0)})')
-              print(f'- conversion: {report.get("deep", {}).get("valid", 0)}/{report.get("deep_checked", 0)}')
-          PY
+        continue-on-error: true
+        run: python -B scripts/check_publication.py --summary --allow-bootstrap >> "$GITHUB_STEP_SUMMARY"
       - name: Sync the health issue
         if: ${{ always() && inputs.dry_run != true }}
         continue-on-error: true
@@ -177,23 +184,3 @@ jobs:
           python -B scripts/ops_alert.py --repo "${{ github.repository }}" \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-  deploy:
-    needs: maintain
-    if: needs.maintain.outputs.published == 'true'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: master
-      - uses: actions/configure-pages@v4
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs
-      - uses: actions/deploy-pages@v4
-        id: deployment

@@ -5,8 +5,6 @@ on:
     branches: [master]
     paths:
       - 'docs/**'
-      - 'sources/**'
-      - 'rules/**'
 
   workflow_dispatch:
 
