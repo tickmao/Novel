@@ -17,10 +17,10 @@ from test_maintenance_v2 import source
 
 README_TEMPLATE = (
     '# Novel\n\n'
-    '| Android / iOS | [阅读 (Legado)](https://gedoor.github.io/) | 0 |\n\n'
-    '## 书源导入\n\n'
-    '**严格验证书源 (0 个)**\n```\nfull.json\n```\n\n'
-    '**扩展书源 (0 个，其中未验证 0 个)**\n```\nfull-extended.json\n```\n'
+    '| 平台 | 书源数量 |\n'
+    '|------|---------|\n'
+    '| Android / iOS · [阅读 (Legado)](https://gedoor.github.io/) | 0 |\n\n'
+    '## 导入\n'
 )
 INDEX_TEMPLATE = (
     '<html><body><main>\n'
@@ -84,9 +84,8 @@ class TieredPublicationTests(unittest.TestCase):
         manifest = read_json(base / 'main/publication.json')
         readme = (self.root / 'README.md').read_text()
         index = (self.root / 'docs/index.html').read_text()
-        self.assertIn(f'严格验证书源 ({manifest["counts"]["verified"]} 个)', readme)
-        self.assertIn(f'扩展书源 ({manifest["counts"]["extended"]} 个，其中未验证 '
-                      f'{manifest["counts"]["unverified"]} 个)', readme)
+        self.assertIn(f'| {manifest["counts"]["extended"]} |', readme)
+        self.assertIn('[阅读 (Legado)]', readme)
         self.assertIn(f'{manifest["counts"]["extended"]} 个纯小说书源', index)
         self.assertIn('扩展交付书源', (self.root / 'STATS.md').read_text())
 

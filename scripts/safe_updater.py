@@ -55,23 +55,15 @@ def stats_files(root: Path, manifest: dict) -> dict:
     legacy = counts.get('legacy', 0)
     unverified = counts.get('unverified', 0)
     share = counts.get('verified_share', 1.0)
-    legacy_note = f'（另含 {legacy} 条旧版本兼容保留）' if legacy else ''
     files = {}
     readme = root / 'README.md'
     if readme.exists():
         value = readme.read_text()
-        value = re.sub(r'(\| Android / iOS \| \[阅读 \(Legado\)\].*?\| )\d+( \|)', rf'\g<1>{extended}\g<2>', value)
-        value = re.sub(r'\*\*严格验证书源 \(\d+ 个\)(?:（另含 \d+ 条旧版本兼容保留）)?\*\*',
-                       f'**严格验证书源 ({verified} 个){legacy_note}**', value)
-        value = re.sub(r'\*\*扩展书源 \(\d+ 个，其中未验证 \d+ 个\)\*\*',
-                       f'**扩展书源 ({extended} 个，其中未验证 {unverified} 个)**', value)
-        note = (f'<!-- publication-status -->\n当前发布：严格验证 **{verified}** 条 / 扩展 **{extended}** 条'
-                f'（未验证 {unverified} 条，验证占比 {share:.0%}）；状态：`{manifest["status"]}`；'
-                f'更新时间：{manifest["published_at"]}。\n<!-- /publication-status -->')
-        if '<!-- publication-status -->' in value:
-            value = re.sub(r'<!-- publication-status -->.*?<!-- /publication-status -->', note, value, flags=re.S)
-        else:
-            value = value.replace('## 书源导入', note + '\n\n## 书源导入')
+        # The README answers one question: which link do I paste? Only the count
+        # that a reader sees stays in sync; release state, evidence share and the
+        # update timestamp belong to STATS.md and the publication manifest.
+        value = re.sub(r'(\|[^|\n]*\[阅读 \(Legado\)\][^|\n]*\|) \d+( \|)',
+                       rf'\g<1> {extended}\g<2>', value)
         files[readme] = value.encode()
     index = root / 'docs' / 'index.html'
     if index.exists():

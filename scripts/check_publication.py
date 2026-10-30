@@ -50,12 +50,19 @@ def check(root, allow_bootstrap=False, current_health=False):
             raise ValueError('Publication health counts differ')
     readme = (root / 'README.md').read_text()
     index = (root / 'docs/index.html').read_text()
-    if (f'严格验证书源 ({counts["verified"]} 个)' not in readme
-            or f'{counts["extended"]} 个纯小说书源' not in index):
+    if f'{counts["extended"]} 个纯小说书源' not in index:
         raise ValueError('Visible publication counts differ')
-    if manifest.get('schema_version') == 4 and f'扩展书源 ({counts["extended"]} 个' not in readme:
-        raise ValueError('Visible extended counts differ')
+    if not _delivery_row(readme, counts['extended']):
+        raise ValueError('Visible delivery count differs')
     return manifest
+
+
+def _delivery_row(readme, expected):
+    """The README table is the one place a reader sees the delivered count."""
+    for line in readme.splitlines():
+        if '[阅读 (Legado)]' in line and f'| {expected} |' in line:
+            return True
+    return False
 
 
 def _require_health(root, refs):

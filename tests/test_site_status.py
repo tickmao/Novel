@@ -53,13 +53,18 @@ class SiteOutputTests(unittest.TestCase):
 
         self.assertNotIn('.status-bar', style)
 
-    def test_the_readme_and_stats_keep_the_release_details(self):
+    def test_the_readme_stays_a_usage_page(self):
         readme = (self.root / 'README.md').read_text()
+
+        for internal in ('publication-status', 'degraded', '验证占比', '更新时间'):
+            with self.subTest(internal=internal):
+                self.assertNotIn(internal, readme)
+
+    def test_stats_keeps_the_release_details(self):
         stats = (self.root / 'STATS.md').read_text()
 
-        self.assertIn('<!-- publication-status -->', readme)
-        self.assertIn('严格验证', readme)
         self.assertIn('严格验证书源：', stats)
+        self.assertIn('更新时间：', stats)
 
 
 if __name__ == '__main__':
