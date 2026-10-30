@@ -6,12 +6,12 @@
 
 | 平台 | App | 书源数量 |
 |------|-----|---------|
-| Android / iOS | [阅读 (Legado)](https://gedoor.github.io/) | 1003 |
+| Android / iOS | [阅读 (Legado)](https://gedoor.github.io/) | 1000 |
 | iOS | [香色闺阁](https://apps.apple.com/app/id1521205149) | 1274 |
 | iOS | [爱阅书香](https://apps.apple.com/app/id1137819437) | 待更新 |
 
 <!-- publication-status -->
-当前发布：严格验证 **142** 条 / 扩展 **1003** 条（未验证 792 条，验证占比 14%）；状态：`degraded`；更新时间：2026-10-30T12:51:21.968028+00:00。
+当前发布：严格验证 **144** 条 / 扩展 **1000** 条（未验证 790 条，验证占比 14%）；状态：`degraded`；更新时间：2026-10-30T14:46:37.713505+00:00。
 <!-- /publication-status -->
 
 ## 书源导入
@@ -20,14 +20,14 @@
 
 打开 App -> 我的 -> 书源管理 -> 右上角菜单 -> 网络导入 -> 粘贴链接
 
-**严格验证书源 (142 个)（另含 3 条旧版本兼容保留）**
+**严格验证书源 (144 个)（另含 3 条旧版本兼容保留）**
 ```
 https://cdn.jsdelivr.net/gh/tickmao/Novel@master/sources/legado/full.json
 ```
 
 每一条都通过固定版本 Legado 引擎的完整阅读验证（搜索、书籍、目录、两本书各两章正文）和内容审核，且证据在有效期内。
 
-**扩展书源 (1003 个，其中未验证 792 个)**
+**扩展书源 (1000 个，其中未验证 790 个)**
 ```
 https://cdn.jsdelivr.net/gh/tickmao/Novel@master/sources/legado/full-extended.json
 ```
