@@ -336,6 +336,36 @@ main {
     display: none;
 }
 
+/* Publication status bar */
+.status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.7rem 3rem;
+    border-top: 1px solid var(--border);
+    background: var(--cream-light);
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    color: var(--brown-light);
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--orange);
+    flex: 0 0 auto;
+}
+
+.status-bar[data-state="healthy"] .status-dot {
+    background: var(--green-dark);
+}
+
+.status-text {
+    text-align: center;
+}
+
 /* Footer */
 footer {
     padding: 2rem 3rem;
@@ -458,6 +488,14 @@ footer {
         gap: 1rem;
         text-align: center;
         padding: 1.5rem;
+    }
+
+    .status-bar {
+        padding: 0.7rem 1.5rem;
+    }
+
+    .status-text {
+        line-height: 1.5;
     }
 
     .container::before {

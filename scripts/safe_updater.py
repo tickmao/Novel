@@ -10,7 +10,8 @@ from pathlib import Path
 
 from source_health import eligibility
 from source_policy import SourcePolicy, source_url_problem
-from source_store import atomic_bundle, json_bytes, read_json, rule_fingerprint, source_payload, utcnow
+from source_store import (atomic_bundle, json_bytes, parse_time, read_json, rule_fingerprint,
+                          source_payload, utcnow)
 from publication_gate import compatibility_evidence
 from runtime_config import VALIDATOR_VERSION, runtime_fingerprint
 from maintenance_lock import writer_lock
@@ -46,6 +47,29 @@ def legado_dir(path=None):
     return root / 'sources' / 'legado'
 
 
+STATUS_LABELS = {'healthy': '正常', 'degraded': '已降级'}
+
+
+def _status_block(manifest, verified, extended, unverified):
+    """Render the site status bar inside its own marker block.
+
+    The block used to be appended before `</main>`, so it landed inside the last
+    card with no styling of its own and printed a raw ISO timestamp.
+    """
+    status = manifest.get('status', 'degraded')
+    published = parse_time(manifest.get('published_at'))
+    stamp = published.strftime('%Y-%m-%d %H:%M UTC') if published else '未知'
+    return (
+        '<!-- publication-status -->\n'
+        f'        <div id="publication-status" class="status-bar" data-state="{status}">\n'
+        '            <span class="status-dot"></span>\n'
+        f'            <span class="status-text">严格验证 {verified} 条 · 扩展 {extended} 条'
+        f'（未验证 {unverified} 条） · {STATUS_LABELS.get(status, status)} · {stamp}</span>\n'
+        '        </div>\n'
+        '        <!-- /publication-status -->'
+    )
+
+
 def stats_files(root: Path, manifest: dict) -> dict:
     count = manifest['count']
     counts = manifest.get('counts', {})
@@ -78,12 +102,13 @@ def stats_files(root: Path, manifest: dict) -> dict:
         value = re.sub(r'<span class="stat-value">\d+ 个书源</span>', f'<span class="stat-value">{extended} 个书源</span>', value)
         value = re.sub(r'<span class="source-count">\d+ 个纯小说书源</span>', f'<span class="source-count">{extended} 个纯小说书源</span>', value)
         value = re.sub(r'聚合 \d+\+? 纯小说书源', f'聚合 {extended} 纯小说书源', value)
-        note = (f'<p id="publication-status">严格验证 {verified} 条 · 扩展 {extended} 条'
-                f'（未验证 {unverified} 条）· {manifest["status"]} · {manifest["published_at"]}</p>')
-        if 'id="publication-status"' in value:
-            value = re.sub(r'<p id="publication-status">.*?</p>', note, value)
+        note = _status_block(manifest, verified, extended, unverified)
+        if '<!-- publication-status -->' in value:
+            value = re.sub(r'<!-- publication-status -->.*?<!-- /publication-status -->', note, value, flags=re.S)
+        elif 'id="publication-status"' in value:
+            value = re.sub(r'<p id="publication-status">.*?</p>', note, value, flags=re.S)
         else:
-            value = value.replace('</main>', note + '\n</main>')
+            value = value.replace('</main>', '</main>\n\n' + note, 1)
         files[index] = value.encode()
     files[root / 'STATS.md'] = (
         '# 书源统计报告\n\n'
