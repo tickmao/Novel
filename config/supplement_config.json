@@ -15,7 +15,7 @@
   "inventory": {
     "export_target": 1000,
     "extended_target": 1000,
-    "verified_target": 950,
+    "verified_share_target": 0.3,
     "extended_min": 200,
     "extended_max": 1200,
     "max_per_domain_extended": 3,

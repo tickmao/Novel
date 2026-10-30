@@ -8,8 +8,8 @@ import re
 from pathlib import Path
 
 from source_health import eligibility
-from source_policy import SourcePolicy
-from source_store import atomic_bundle, digest, json_bytes, read_json, rule_fingerprint, source_payload, utcnow
+from source_policy import SourcePolicy, source_url_problem
+from source_store import atomic_bundle, json_bytes, read_json, rule_fingerprint, source_payload, utcnow
 from publication_gate import compatibility_evidence
 from runtime_config import VALIDATOR_VERSION, runtime_fingerprint
 from maintenance_lock import writer_lock
@@ -151,14 +151,17 @@ class SafeUpdater:
         return True, 'OK'
 
     def safe_update(self, new_sources, skip_validation=False, *, extended_sources=None, report=None,
-                    extra_files=None, allow_empty=False, publish_extended=True, blocked_urls=frozenset()):
+                    extra_files=None, allow_empty=False, publish_extended=True, blocked_urls=frozenset(),
+                    rejected_urls=frozenset()):
         with writer_lock(self.base_dir):
             return self._safe_update(new_sources, skip_validation, extended_sources=extended_sources,
                                      report=report, extra_files=extra_files, allow_empty=allow_empty,
-                                     publish_extended=publish_extended, blocked_urls=blocked_urls)
+                                     publish_extended=publish_extended, blocked_urls=blocked_urls,
+                                     rejected_urls=rejected_urls)
 
     def _safe_update(self, new_sources, skip_validation=False, *, extended_sources=None, report=None,
-                     extra_files=None, allow_empty=False, publish_extended=True, blocked_urls=frozenset()):
+                     extra_files=None, allow_empty=False, publish_extended=True, blocked_urls=frozenset(),
+                     rejected_urls=frozenset()):
         if skip_validation:
             raise SafeUpdateError('Production validation cannot be bypassed')
         if not new_sources and not allow_empty and not extended_sources:
@@ -173,22 +176,51 @@ class SafeUpdater:
         evidence = compatibility_evidence(self.base_dir.parent.parent)
         if not evidence['fixtures']:
             raise SafeUpdateError('Publication gate: engine_compatibility')
-        # The strict file only holds evidence-backed sources. When this release verified
-        # nothing, the previous file is kept except for entries the current content
-        # policy now blocks; those entries are recorded as legacy, never as verified.
         valid, reason = self.validate_sources(new_sources)
         if not valid:
             raise SafeUpdateError(reason)
+        # The strict file only holds evidence-backed sources. A previous entry stays
+        # unless the current content policy blocks it or a check under the current
+        # evidence identity already rejected it. An older identity is not a rejection:
+        # an engine upgrade on its own must never shrink the release.
+        entries = json.loads(self.main_file.read_bytes()) if self.main_file.exists() else []
+        kept = [item for item in entries
+                if self.policy.audit_source(item)['decision'] == 'pass'
+                and source_url_problem(item) is None
+                and str(item.get('bookSourceUrl', '')).split('#', 1)[0] not in blocked_urls
+                and str(item.get('bookSourceUrl', '')).split('#', 1)[0] not in rejected_urls]
         legacy_tier = []
         if new_sources:
-            prefix, prefix_bytes, prefix_hash = self._payload(new_sources)
+            new_payload, _, _ = self._payload(new_sources)
+            fresh_urls = {str(item.get('bookSourceUrl', '')) for item in new_payload}
+            fresh_rules = {rule_fingerprint(item) for item in new_payload}
+            room = max(0, self.REQUIRED_EXPORT_COUNT - len(new_payload))
+            carried = [item for item in kept
+                       if str(item.get('bookSourceUrl', '')) not in fresh_urls
+                       and rule_fingerprint(item) not in fresh_rules][:room]
+            known_urls = fresh_urls | {str(item.get('bookSourceUrl', '')) for item in carried}
+            known_rules = fresh_rules | {rule_fingerprint(item) for item in carried}
+            # A full release drops the stale remainder by the export target, which is a
+            # reason of its own; anything else must name a current rejection.
+            capped = len(new_payload) + len(carried) >= self.REQUIRED_EXPORT_COUNT
+            unjustified = [item for item in entries
+                           if not capped
+                           and str(item.get('bookSourceUrl', '')) not in known_urls
+                           and rule_fingerprint(item) not in known_rules
+                           and self.policy.audit_source(item)['decision'] == 'pass'
+                           and source_url_problem(item) is None
+                           and str(item.get('bookSourceUrl', '')).split('#', 1)[0] not in rejected_urls
+                           and str(item.get('bookSourceUrl', '')).split('#', 1)[0] not in blocked_urls]
+            if unjustified:
+                raise SafeUpdateError('Release would shrink without a current rejection')
+            prefix = new_payload + carried
+            prefix_bytes = (json.dumps(prefix, ensure_ascii=False, indent=2) + '\n').encode()
+            prefix_hash = hashlib.sha256(prefix_bytes).hexdigest()
             verified_tier = [{'source_id': item.get('_source_id'), 'revision': item.get('_revision')}
                              for item in new_sources]
+            legacy_tier = [{'url': item['bookSourceUrl'], 'tier': 'legacy'} for item in carried]
             evidence_count = len(new_sources)
         else:
-            entries = json.loads(self.main_file.read_bytes()) if self.main_file.exists() else []
-            kept = [item for item in entries if self.policy.audit_source(item)['decision'] == 'pass'
-                    and str(item.get('bookSourceUrl', '')).split('#', 1)[0] not in blocked_urls]
             if not kept and not allow_empty:
                 raise SafeUpdateError('Publication gate: no verified sources')
             prefix = kept
@@ -198,15 +230,15 @@ class SafeUpdater:
             legacy_tier = [{'url': item['bookSourceUrl'], 'tier': 'legacy'} for item in kept]
             evidence_count = 0
         extended_payload, extended_only, extended_bytes = None, [], None
+        tail_tiers = []
         if publish_extended:
-            if new_sources:
-                tail = list((extended_sources or [])[len(new_sources):])
-            else:
-                prefix_urls = {str(item.get('bookSourceUrl', '')).split('#', 1)[0] for item in prefix}
-                prefix_rules = {rule_fingerprint(item) for item in prefix}
-                tail = [item for item in (extended_sources or [])
-                        if str(item.get('bookSourceUrl', '')).split('#', 1)[0] not in prefix_urls
-                        and rule_fingerprint(item) not in prefix_rules]
+            # A carried entry already sits in the prefix, so the tail is whatever the
+            # prefix does not cover; taking a positional slice would repeat it.
+            prefix_urls = {str(item.get('bookSourceUrl', '')).split('#', 1)[0] for item in prefix}
+            prefix_rules = {rule_fingerprint(item) for item in prefix}
+            tail = [item for item in (extended_sources or [])
+                    if str(item.get('bookSourceUrl', '')).split('#', 1)[0] not in prefix_urls
+                    and rule_fingerprint(item) not in prefix_rules]
             room = max(0, self.EXTENDED_MAX - len(prefix))
             tail = tail[:room]
             valid, reason = self.validate_extended(tail, prefix)
@@ -222,25 +254,27 @@ class SafeUpdater:
             else:
                 extended_payload = (json.dumps(entries, ensure_ascii=False, indent=2) + '\n').encode()
                 extended_bytes = hashlib.sha256(extended_payload).hexdigest()
-                extended_only = [{'source_id': item.get('_source_id'), 'revision': item.get('_revision'),
-                                  'tier': item.get('_tier', 'unverified')} for item in tail]
+                tail_tiers = [{'source_id': item.get('_source_id'), 'revision': item.get('_revision'),
+                               'tier': item.get('_tier', 'unverified')} for item in tail]
 
         previous_counts = previous.get('counts', {})
         previous_tiers = previous.get('tiers', {})
         delivered = len(prefix)
         if extended_payload is not None:
-            extended_count = delivered + len(extended_only)
-            unverified = sum(item['tier'] in ('unverified', 'never_checked') for item in extended_only)
+            # `delivered` already counts the carried entries, so only the appended tail
+            # adds to the package size; counting the legacy tier again would inflate it.
+            extended_count = delivered + len(tail_tiers)
+            unverified = sum(item['tier'] in ('unverified', 'never_checked') for item in tail_tiers)
+            extended_only = legacy_tier + tail_tiers
         else:
             # A skipped refresh keeps the extended package that is already published.
             extended_count = int(previous_counts.get('extended', delivered))
             unverified = int(previous_counts.get('unverified', 0))
             extended_only = previous_tiers.get('extended_only', [])
-        extended_only = legacy_tier + extended_only
         manifest = {
             'schema_version': 4, 'release_id': prefix_hash[:16],
             'published_at': utcnow(), 'count': delivered, 'sha256': prefix_hash,
-            'status': 'healthy' if counts['healthy_count'] >= 950 else 'degraded',
+            'status': report.get('status', 'degraded'),
             'healthy_count': counts['healthy_count'], 'validator_version': VALIDATOR_VERSION,
             'runtime_fingerprint': runtime_fingerprint(),
             'reserve_count': counts['reserve_count'], 'grace_count': int(report.get('grace_count', 0)),

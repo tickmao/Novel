@@ -76,7 +76,7 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         collect.assert_not_awaited()
         self.assertFalse(report['inventory']['needs_replenishment'])
 
-    async def test_pending_raw_inventory_prevents_collection_and_resumes(self):
+    async def test_harvesting_runs_alongside_the_raw_backlog(self):
         for index in range(3):
             self.runner.inventory.store.ingest(source(f'https://old{index}.example'), {'provider': 'legacy'})
         self.runner.inventory.store.save()
@@ -91,16 +91,17 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         with patch('daily_maintenance.DailyMaintenance.collect_sources', new=AsyncMock()) as collect, \
                 patch('daily_maintenance.ReadingValidator.probe', side_effect=probe):
             first = await self.runner.maintain(mode='catchup', batch_size=1)
-            collect.assert_not_awaited()
+            collect.assert_awaited()
             restarted = DailyMaintenance(self.root)
             second = await restarted.maintain(mode='catchup', batch_size=1)
-            collect.assert_not_awaited()
+            collect.assert_awaited()
             third = await restarted.maintain(mode='catchup', batch_size=1)
-            collect.assert_awaited_once()
+            self.assertEqual(collect.await_count, 3)
         self.assertEqual(len(set(seen)), 3)
         self.assertEqual(first['raw_progress']['pending_revisions'], 2)
         self.assertEqual(second['raw_progress']['pending_revisions'], 1)
         self.assertEqual(third['raw_progress']['pending_revisions'], 0)
+        self.assertTrue(first['collection_decision']['allowed'])
         self.assertEqual(first['collection_decision']['reason'], 'raw_inventory_pending')
         self.assertEqual(third['collection_decision']['reason'], 'qualified_inventory_shortage')
         self.assertNotIn('deep_results', restarted.inventory.store.state['runs'][-1])

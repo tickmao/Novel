@@ -13,7 +13,7 @@ import tldextract
 
 from safe_updater import SafeUpdater, legado_dir
 from source_health import apply_result, eligibility, VALIDATOR_VERSION
-from source_policy import SourcePolicy
+from source_policy import SourcePolicy, source_url_problem
 from source_store import SourceStore, json_bytes, parse_time, read_json, rule_fingerprint, utcnow
 from source_store import atomic_bundle, digest, source_id, source_payload
 from publication_gate import publication_gate
@@ -31,6 +31,7 @@ UNVERIFIED_KINDS = frozenset({
     'http_error', 'http_forbidden', 'auth_required', 'network', 'timeout', 'server_error',
     'rate_limit', 'tls_error', 'redirect_limit', 'challenge',
     'engine_timeout', 'engine_protocol', 'engine_crash', 'engine_unavailable',
+    'no_search_rule',
 })
 EXCLUDED_KINDS = frozenset({'disabled', 'invalid_url', 'content_locked', 'content_audit'})
 
@@ -54,7 +55,9 @@ class SourceInventory:
         self.extended_target = int(cfg.get('extended_target', self.export_target))
         self.extended_min = int(cfg.get('extended_min', 200))
         self.extended_max = int(cfg.get('extended_max', 1200))
-        self.verified_target = int(cfg.get('verified_target', 950))
+        self.verified_share_target = float(cfg.get('verified_share_target', 0.3))
+        # One truth: the absolute floor follows from the share and the package size.
+        self.verified_target = round(self.extended_target * self.verified_share_target)
         self.max_per_domain_extended = int(cfg.get('max_per_domain_extended',
                                                    self.config.get('supplement', {}).get('max_per_domain_extended', 3)))
         self.stale_verified_days = int(cfg.get('stale_verified_days', 30))
@@ -83,11 +86,12 @@ class SourceInventory:
 
     @staticmethod
     def scope_reason(source):
+        """Cheap structural rejection, before any network work."""
         if source.get('enabled') is False:
             return 'disabled'
         if str(source.get('bookSourceType', 0)) != '0':
             return 'non_novel'
-        return None
+        return source_url_problem(source)
 
     def audit_all(self):
         from reading_validator import ReadingValidator
@@ -204,6 +208,10 @@ class SourceInventory:
                 seen_rules.add(fingerprint)
         extended = self.extended_versions(export, now)
         extended_only = extended[len(export):]
+        share = len(export) / len(extended) if extended else 0.0
+        # The searchable share is the real ceiling for verified delivery: an
+        # explore-only source can be shipped but never verified.
+        searchable = sum(1 for item in extended if str(item.get('searchUrl') or '').strip())
         report = {
             'timestamp': utcnow(), 'export_count': len(export), 'reserve_count': len(reserve),
             'grace_count': grace, 'ready_versions': len(ready), 'unique_sites': len(domains),
@@ -211,11 +219,15 @@ class SourceInventory:
             'verified_count': len(export), 'extended_count': len(extended),
             'extended_only_count': len(extended_only),
             'unverified_count': sum(item['_tier'] in ('unverified', 'never_checked') for item in extended_only),
-            'verified_share': round(len(export) / len(extended), 4) if extended else 0.0,
+            'verified_share': round(share, 4),
+            'verified_share_target': self.verified_share_target,
+            'searchable_count': searchable,
+            'searchable_share': round(searchable / len(extended), 4) if extended else 0.0,
             'tiers': dict(Counter(item.get('_tier', 'verified') for item in extended)),
             'needs_replenishment': (len(extended) < self.extended_target
                                     or len(reserve) < self.reserve_target),
-            'status': 'healthy' if len(export) - grace >= self.verified_target else 'degraded',
+            'status': ('healthy' if share >= self.verified_share_target
+                       and len(extended) >= self.extended_target else 'degraded'),
         }
         return export, reserve, report
 
@@ -262,11 +274,16 @@ class SourceInventory:
             candidates.append({
                 '_source_id': record['source_id'], '_revision': record['latest_revision'],
                 '_tier': tier, '_rank': enriched['selectionScore'],
+                # Only a search rule can ever produce reading evidence. Explore-only
+                # sources stay deliverable, but they must not crowd out the ones that
+                # can raise the verified share.
+                '_searchable': bool(str(source.get('searchUrl') or '').strip()),
                 '_failures': int(health.get('consecutive_failures') or 0),
                 '_checked': health.get('last_check_at') or '',
                 '_source': payload,
             })
-        candidates.sort(key=lambda item: (TIER_ORDER[item['_tier']], item['_failures'], -item['_rank'],
+        candidates.sort(key=lambda item: (TIER_ORDER[item['_tier']], not item['_searchable'],
+                                          item['_failures'], -item['_rank'],
                                           item['_checked'], item['_source_id']), reverse=False)
         result = list(export)
         seen_urls = {item['bookSourceUrl'].split('#', 1)[0] for item in result}
@@ -334,13 +351,17 @@ class SourceInventory:
                 'pending_revisions': eligible - checked, 'outcomes': dict(outcomes)}
 
     def collection_decision(self, progress, inventory):
+        """Harvesting is independent of the validation backlog.
+
+        Waiting for the raw backlog to reach zero starved collection for weeks:
+        every evidence reset restarted the backlog and shut the feeds down again.
+        The run budget already caps collection at a share of the schedule, so the
+        backlog only changes the reported reason.
+        """
         if not inventory['needs_replenishment']:
-            reason = 'inventory_sufficient'
-        elif progress['pending_revisions']:
-            reason = 'raw_inventory_pending'
-        else:
-            reason = 'qualified_inventory_shortage'
-        return {'allowed': reason == 'qualified_inventory_shortage', 'reason': reason}
+            return {'allowed': False, 'reason': 'inventory_sufficient'}
+        reason = 'raw_inventory_pending' if progress['pending_revisions'] else 'qualified_inventory_shortage'
+        return {'allowed': True, 'reason': reason}
 
     def queue(self, limit=300, now=None):
         now = now or datetime.now(timezone.utc)
@@ -442,17 +463,47 @@ class SourceInventory:
             self.metadata_file: json_bytes(metadata),
         }
         blocked_urls = set()
-        if not export:
-            for record in self.store.records():
-                latest = record['versions'][record['latest_revision']]
-                audit = latest.get('audit', {})
-                if (audit.get('decision') in ('block', 'review')
-                        and audit.get('policy_version') == self.policy.auditor.version):
-                    blocked_urls.add(str(latest['source'].get('bookSourceUrl', '')).split('#', 1)[0])
+        for record in self.store.records():
+            latest = record['versions'][record['latest_revision']]
+            audit = latest.get('audit', {})
+            if (audit.get('decision') in ('block', 'review')
+                    and audit.get('policy_version') == self.policy.auditor.version):
+                blocked_urls.add(str(latest['source'].get('bookSourceUrl', '')).split('#', 1)[0])
         self.updater.safe_update(export, extended_sources=extended, report=report, extra_files=extras,
                                  allow_empty=allow_empty, publish_extended=publish_extended,
-                                 blocked_urls=blocked_urls)
+                                 blocked_urls=blocked_urls,
+                                 rejected_urls=self.currently_refused(export))
         return report
+
+    def currently_refused(self, export):
+        """Published entries that a check under the current evidence identity rejects.
+
+        An entry whose evidence merely predates the current identity is not refused:
+        it stays published and is re-checked first, so an engine upgrade cannot empty
+        the public list on its own.
+        """
+        export_urls = {str(item.get('bookSourceUrl', '')) for item in export}
+        previous = read_json(self.base_dir / 'main' / 'publication.json', {})
+        refs = (previous.get('tiers') or {}).get('verified') or previous.get('sources') or []
+        refused = set()
+        for ref in refs:
+            key, revision = ref.get('source_id'), ref.get('revision')
+            if not key or not revision:
+                continue
+            try:
+                version = self.store.get(key)['versions'][revision]
+            except (KeyError, TypeError):
+                continue
+            url = str(version['source'].get('bookSourceUrl', ''))
+            if url in export_urls:
+                continue
+            health = version.get('validation', {})
+            if (health.get('validator_version') == VALIDATOR_VERSION
+                    and health.get('runtime_fingerprint') == runtime_fingerprint()
+                    and health.get('last_check_at')
+                    and health.get('status') != 'valid'):
+                refused.add(url.split('#', 1)[0])
+        return refused
 
     def inventory_status(self):
         export, reserve, report = self.select()

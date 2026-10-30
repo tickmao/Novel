@@ -10,7 +10,7 @@ from source_store import read_json
 
 DEFAULTS = {
     'extended_target': 1000,
-    'verified_target': 950,
+    'verified_share_target': 0.3,
     'reserve_target': 500,
     'reserve_min': 300,
     'catchup_batch': 1500,
@@ -22,12 +22,16 @@ def plan(*, verified_count=0, extended_count=0, reserve_count=0, pending_revisio
          config=None, forced_mode=None):
     """Return one deterministic run decision.
 
-    ``collect`` is only allowed once the raw backlog is exhausted, because every
-    pending revision already costs less than a new network download.
+    ``collect`` follows the shortage alone. It used to wait for the raw backlog to
+    reach zero, which shut harvesting down for as long as the backlog took to drain
+    and restarted that wait after every evidence reset. The run budget already caps
+    collection at a share of the schedule, so harvesting runs alongside validation.
     """
     cfg = {**DEFAULTS, **(config or {})}
     extended_target = int(cfg['extended_target'])
-    verified_target = int(cfg['verified_target'])
+    verified_share_target = float(cfg['verified_share_target'])
+    # One truth: the absolute floor follows from the share and the package size.
+    verified_target = round(extended_target * verified_share_target)
     reserve_target = int(cfg['reserve_target'])
     reserve_min = int(cfg['reserve_min'])
     extended_gap = max(0, extended_target - int(extended_count))
@@ -36,7 +40,7 @@ def plan(*, verified_count=0, extended_count=0, reserve_count=0, pending_revisio
     shortage = extended_gap > 0 or reserve_gap > 0 or verified_gap > 0
     mode = forced_mode or ('catchup' if shortage else 'daily')
     batch_size = int(cfg['catchup_batch'] if mode == 'catchup' else cfg['daily_batch'])
-    collect = bool(shortage and int(pending_revisions) == 0)
+    collect = bool(shortage)
     if not shortage:
         reason = 'inventory_sufficient'
     elif int(pending_revisions):
@@ -46,6 +50,7 @@ def plan(*, verified_count=0, extended_count=0, reserve_count=0, pending_revisio
     return {
         'mode': mode, 'batch_size': batch_size, 'collect': collect, 'reason': reason,
         'extended_gap': extended_gap, 'verified_gap': verified_gap, 'reserve_gap': reserve_gap,
+        'verified_target': verified_target, 'verified_share_target': verified_share_target,
         'pending_revisions': int(pending_revisions),
         'publish_extended': True,
         'publish_full': int(verified_count) >= verified_target and int(reserve_count) >= reserve_min,
@@ -57,8 +62,11 @@ def explain(decision, counts):
         '## Maintenance plan', '',
         f"- mode: `{decision['mode']}` (batch {decision['batch_size']})",
         f"- collect: `{decision['collect']}` ({decision['reason']})",
-        f"- verified: {counts.get('verified_count', 0)} / target",
-        f"- extended: {counts.get('extended_count', 0)} (gap {decision['extended_gap']})",
+        f"- verified: {counts.get('verified_count', 0)} / {decision['verified_target']}"
+        f" ({counts.get('verified_share', 0):.0%} of {decision['verified_share_target']:.0%})",
+        f"- extended: {counts.get('extended_count', 0)} (gap {decision['extended_gap']})"
+        f", searchable {counts.get('searchable_count', 0)}"
+        f" ({counts.get('searchable_share', 0):.0%} = verified ceiling)",
         f"- reserves: {counts.get('reserve_count', 0)} (gap {decision['reserve_gap']})",
         f"- pending revisions: {decision['pending_revisions']}",
         f"- publish full: `{decision['publish_full']}`, extended: `{decision['publish_extended']}`",

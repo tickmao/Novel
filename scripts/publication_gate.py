@@ -34,9 +34,10 @@ def compatibility_evidence(root):
 def publication_gate(root, inventory, previous=None, *, extended=False):
     config = read_json(root / 'config/supplement_config.json', {}).get('publication', {})
     evidence = compatibility_evidence(root)
+    # A release that already exists is a historical fact: raising the evidence
+    # identity must not force the project back through the first-release floor.
     launched = bool(previous and previous.get('schema_version') in (3, 4)
-                    and previous.get('validator_version') == VALIDATOR_VERSION
-                    and previous.get('runtime_fingerprint') == runtime_fingerprint())
+                    and previous.get('count', 0) > 0)
     missing = []
     if extended:
         # The extended package labels unverified sources instead of claiming they

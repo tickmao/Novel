@@ -35,6 +35,20 @@ CHINESE_DIGITS = str.maketrans({
 })
 
 
+def source_url_problem(source) -> Optional[str]:
+    """Reject a URL Legado cannot load, before any network or storage work.
+
+    Shared source packs carry labels, emoji and bare hostnames in
+    ``bookSourceUrl``; those entries are delivered as if they were sources. The
+    reading probe only finds out after a JVM start, and a legacy carry-over in the
+    publisher would otherwise keep them in the public file forever.
+    """
+    url = str(source.get("bookSourceUrl") or "").strip()
+    if not url or not urlparse(url).hostname:
+        return "invalid_url"
+    return None
+
+
 def _load_json(path: Path, default: Dict) -> Dict:
     if not path.exists():
         return deepcopy(default)

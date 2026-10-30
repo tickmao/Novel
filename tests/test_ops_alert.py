@@ -44,7 +44,7 @@ class AlertTests(unittest.TestCase):
         runner = Runner()
         result = sync_alert(summary(), repo='tickmao/Novel', runner=runner)
         self.assertEqual(result['action'], 'created')
-        self.assertIn('verified **137** / 950', runner.calls[-1][1])
+        self.assertIn('verified **137** (14%) / target 30%', runner.calls[-1][1])
 
     def test_healthy_delivery_closes_the_issue(self):
         runner = Runner(open_issues=[{'number': 7}])
@@ -62,10 +62,14 @@ class AlertTests(unittest.TestCase):
         self.assertTrue(abnormal(summary(verified=960, incidents=['engine_incident'])))
         self.assertFalse(abnormal(summary(verified=960)))
 
-    def test_body_reports_both_targets(self):
-        text = body_of(summary(), verified_target=950, extended_target=1000)
-        self.assertIn('verified **137** / 950', text)
+    def test_body_reports_the_share_and_both_targets(self):
+        text = body_of(summary(), verified_share_target=0.3, extended_target=1000)
+        self.assertIn('verified **137** (14%) / target 30%', text)
         self.assertIn('extended **1000** / 1000', text)
+
+    def test_share_target_replaces_the_unreachable_count(self):
+        self.assertTrue(abnormal(summary(verified=137)))
+        self.assertFalse(abnormal(summary(verified=300)))
 
 
 if __name__ == '__main__':
