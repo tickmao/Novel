@@ -3,6 +3,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,6 +11,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 
 from check_publication import check
 from publication_fixture import enable_test_publication
+from safe_updater import within_site_limit
 from source_inventory import SourceInventory
 from source_store import read_json, utcnow
 from test_inventory_v2 import seed
@@ -139,6 +141,46 @@ class ShrinkGuardTests(unittest.TestCase):
 
         self.assertNotIn('使用说明', urls)
         self.assertEqual(manifest['count'], 4)
+
+    def test_the_extended_package_respects_the_site_budget(self):
+        refs = self.publish_five()
+        self.age_the_evidence(refs[1:])
+        restarted = SourceInventory(self.root)
+        restarted.publish()
+        extended = read_json(restarted.base_dir / 'full-extended.json')
+
+        sites = Counter(restarted.site(item) for item in extended)
+        self.assertLessEqual(max(sites.values()),
+                             restarted.config['inventory'].get('max_per_domain_extended', 3))
+
+
+class SiteLimitTests(unittest.TestCase):
+    @staticmethod
+    def item(url):
+        return {'bookSourceUrl': url}
+
+    @staticmethod
+    def site_of(source):
+        return source['bookSourceUrl'].split('/')[2]
+
+    def test_carried_entries_count_against_the_site_budget(self):
+        prefix = [self.item('https://a.example/1'), self.item('https://a.example/2')]
+        tail = [self.item('https://a.example/3'), self.item('https://b.example/1')]
+
+        kept = within_site_limit(prefix, tail, self.site_of, 3)
+
+        self.assertEqual([item['bookSourceUrl'] for item in kept],
+                         ['https://a.example/3', 'https://b.example/1'])
+
+    def test_a_full_site_is_skipped(self):
+        prefix = [self.item(f'https://a.example/{index}') for index in range(3)]
+
+        self.assertEqual(within_site_limit(prefix, [self.item('https://a.example/9')], self.site_of, 3), [])
+
+    def test_without_a_site_function_the_tail_is_untouched(self):
+        tail = [self.item('https://a.example/9')]
+
+        self.assertEqual(within_site_limit([], tail, None, 3), tail)
 
 
 if __name__ == '__main__':

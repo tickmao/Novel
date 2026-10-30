@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
 from source_health import eligibility
@@ -17,6 +18,25 @@ from maintenance_lock import writer_lock
 
 class SafeUpdateError(RuntimeError):
     pass
+
+
+def within_site_limit(prefix, tail, site_of, limit):
+    """Keep the appended tail inside the per-site budget of the whole package.
+
+    The tail is selected before the carried entries join the prefix, so without
+    this the merged package can hold one extra source per site.
+    """
+    if site_of is None or limit <= 0:
+        return tail
+    counts = Counter(site_of(item) for item in prefix)
+    kept = []
+    for item in tail:
+        site = site_of(item)
+        if counts[site] >= limit:
+            continue
+        counts[site] += 1
+        kept.append(item)
+    return kept
 
 
 def legado_dir(path=None):
@@ -104,6 +124,7 @@ class SafeUpdater:
         self.EXTENDED_MIN = int(settings.get('publication', {}).get('extended_min',
                                                                    self.config.get('extended_min', 200)))
         self.EXTENDED_MAX = int(self.config.get('extended_max', 1200))
+        self.EXTENDED_PER_SITE = int(self.config.get('max_per_domain_extended', 3))
 
     def validate_sources(self, sources):
         if len(sources) > self.REQUIRED_EXPORT_COUNT:
@@ -152,16 +173,16 @@ class SafeUpdater:
 
     def safe_update(self, new_sources, skip_validation=False, *, extended_sources=None, report=None,
                     extra_files=None, allow_empty=False, publish_extended=True, blocked_urls=frozenset(),
-                    rejected_urls=frozenset()):
+                    rejected_urls=frozenset(), site_of=None):
         with writer_lock(self.base_dir):
             return self._safe_update(new_sources, skip_validation, extended_sources=extended_sources,
                                      report=report, extra_files=extra_files, allow_empty=allow_empty,
                                      publish_extended=publish_extended, blocked_urls=blocked_urls,
-                                     rejected_urls=rejected_urls)
+                                     rejected_urls=rejected_urls, site_of=site_of)
 
     def _safe_update(self, new_sources, skip_validation=False, *, extended_sources=None, report=None,
                      extra_files=None, allow_empty=False, publish_extended=True, blocked_urls=frozenset(),
-                     rejected_urls=frozenset()):
+                     rejected_urls=frozenset(), site_of=None):
         if skip_validation:
             raise SafeUpdateError('Production validation cannot be bypassed')
         if not new_sources and not allow_empty and not extended_sources:
@@ -240,6 +261,7 @@ class SafeUpdater:
                     if str(item.get('bookSourceUrl', '')).split('#', 1)[0] not in prefix_urls
                     and rule_fingerprint(item) not in prefix_rules]
             room = max(0, self.EXTENDED_MAX - len(prefix))
+            tail = within_site_limit(prefix, tail, site_of, self.EXTENDED_PER_SITE)
             tail = tail[:room]
             valid, reason = self.validate_extended(tail, prefix)
             if not valid:

@@ -472,7 +472,8 @@ class SourceInventory:
         self.updater.safe_update(export, extended_sources=extended, report=report, extra_files=extras,
                                  allow_empty=allow_empty, publish_extended=publish_extended,
                                  blocked_urls=blocked_urls,
-                                 rejected_urls=self.currently_refused(export))
+                                 rejected_urls=self.currently_refused(export),
+                                 site_of=self.site)
         return report
 
     def currently_refused(self, export):
