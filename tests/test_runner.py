@@ -322,6 +322,33 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         key, revision = refs[1]
         self.assertEqual(loaded.get(key)['versions'][revision]['validation']['status'], 'valid')
 
+    async def test_validation_stops_before_the_harvesting_window(self):
+        """Validation used to be given the whole run and starved collection."""
+        self.runner.inventory.store.ingest(source(), {'provider': 'legacy'})
+        self.runner.inventory.store.save()
+
+        with patch('daily_maintenance.time') as fake_time, \
+                patch('daily_maintenance.DailyMaintenance.validate', new_callable=AsyncMock) as validate, \
+                patch('daily_maintenance.DailyMaintenance.collect_sources', new_callable=AsyncMock):
+            fake_time.monotonic.return_value = 1000.0
+            await self.runner.maintain(mode='catchup', max_minutes=10, batch_size=1)
+
+        windows = {call.kwargs['deadline'] for call in validate.await_args_list}
+        self.assertEqual(windows, {1000.0 + 600 - 90})
+
+    async def test_a_disabled_collection_keeps_the_whole_window_for_validation(self):
+        self.runner.inventory.store.ingest(source(), {'provider': 'legacy'})
+        self.runner.inventory.store.save()
+
+        with patch('daily_maintenance.time') as fake_time, \
+                patch('daily_maintenance.DailyMaintenance.validate', new_callable=AsyncMock) as validate, \
+                patch('daily_maintenance.DailyMaintenance.collect_sources', new_callable=AsyncMock) as collect:
+            fake_time.monotonic.return_value = 1000.0
+            await self.runner.maintain(mode='catchup', max_minutes=10, batch_size=1, collect=False)
+
+        collect.assert_not_awaited()
+        self.assertEqual({call.kwargs['deadline'] for call in validate.await_args_list}, {1600.0})
+
 
 if __name__ == '__main__':
     unittest.main()

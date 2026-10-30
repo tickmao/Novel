@@ -72,6 +72,18 @@ def explain(decision, counts):
         f"- publish full: `{decision['publish_full']}`, extended: `{decision['publish_extended']}`",
     ]
     return '\n'.join(lines)
+def collection_budget(max_minutes, *, collect=True):
+    """Seconds reserved for harvesting before validation starts.
+
+    Validation fills whatever window it is given, so without a reservation the
+    collection decision was 'allowed' and then overridden by
+    'run_budget_exhausted' on every run: harvesting never actually started.
+    """
+    if not collect:
+        return 0.0
+    return min(600.0, float(max_minutes) * 60 * 0.15)
+
+
 
 
 def main():

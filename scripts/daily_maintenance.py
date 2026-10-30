@@ -6,7 +6,6 @@ import argparse
 import asyncio
 import json
 import os
-import sys
 import time
 from collections import Counter
 from copy import deepcopy
@@ -15,14 +14,14 @@ from pathlib import Path
 
 from reading_validator import HTTPClient, ProbeFailure
 from runtime_validator import RuntimeReadingValidator as ReadingValidator
-from runtime_config import ENVIRONMENT_FAILURES, VALIDATOR_VERSION, runtime_fingerprint
+from runtime_config import ENVIRONMENT_FAILURES
 from maintenance_lock import writer_lock
 from safe_updater import SafeUpdateError
 from source_collector import collect_into
 from source_inventory import SourceInventory
 from source_store import atomic_bundle, digest, json_bytes, parse_time, read_json, utcnow
 from maintenance_acceptance import acceptance_status
-from maintenance_plan import explain, plan
+from maintenance_plan import collection_budget, explain, plan
 from yckceo_harvester import YckceoHarvester
 from submissions import collect_submissions
 
@@ -172,6 +171,10 @@ class DailyMaintenance:
             report = {'schema_version': 4, 'started_at': utcnow(), 'mode': mode, 'dry_run': dry_run,
                       'published': False, 'providers': {}}
             deadline = time.monotonic() + max_minutes * 60
+            # Reserve the harvesting window up front; validation will otherwise
+            # consume the whole budget and collection never starts.
+            collection_share = collection_budget(max_minutes, collect=collect)
+            validation_deadline = deadline - collection_share
             report['static_audit'] = inventory.audit_all()
             if not dry_run:
                 store.save()
@@ -196,10 +199,10 @@ class DailyMaintenance:
                 limit = int(inventory.config.get('inventory', {}).get('validation_concurrency', 6))
                 validator = ReadingValidator(inventory.policy, concurrency=max(1, min(concurrency, limit)))
                 async with asyncio.TaskGroup() as checks:
-                    checks.create_task(self.validate(validator, refs, mode='deep', deadline=deadline,
+                    checks.create_task(self.validate(validator, refs, mode='deep', deadline=validation_deadline,
                                                      save=not dry_run, report=report))
                     if mode == 'daily':
-                        checks.create_task(self.validate(validator, light_refs, mode='light', deadline=deadline,
+                        checks.create_task(self.validate(validator, light_refs, mode='light', deadline=validation_deadline,
                                                          save=not dry_run, report=report))
                 previous = read_json(inventory.base_dir / 'main/publication.json', {})
                 if (mode == 'daily' and previous.get('schema_version') in (3, 4)
@@ -207,7 +210,7 @@ class DailyMaintenance:
                     day = datetime.now(timezone.utc).date().isoformat()
                     selected = sorted(previous.get('sources', []), key=lambda item: digest([day, item['source_id']]))[:50]
                     spot_refs = [(item['source_id'], item['revision']) for item in selected]
-                    await self.validate(validator, spot_refs, mode='spot', deadline=deadline,
+                    await self.validate(validator, spot_refs, mode='spot', deadline=validation_deadline,
                                         save=not dry_run, report=report)
 
             if mode != 'backfill':
@@ -223,7 +226,7 @@ class DailyMaintenance:
             report['collection_decision'] = decision
             if decision['allowed']:
                 collection_deadline = (deadline if mode == 'backfill' else
-                                       min(deadline, time.monotonic() + min(600, max_minutes * 60 * 0.15)))
+                                       min(deadline, time.monotonic() + max(collection_share, 0.0)))
                 async with HTTPClient(concurrency, timeout, max_bytes=32 * 1024 * 1024) as client:
                     await self.collect_sources(client, mode=mode, deadline=collection_deadline, save=not dry_run,
                                                fetch_cap=fetch_cap, backfill_rounds=backfill_rounds, report=report)

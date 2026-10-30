@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 
+from maintenance_plan import collection_budget
 from source_inventory import SourceInventory
 
 
@@ -32,6 +33,15 @@ class CollectionDecouplingTests(unittest.TestCase):
     def test_a_full_inventory_skips_collection_even_with_a_backlog(self):
         self.assertFalse(decide(False, 500)['allowed'])
 
+
+class CollectionBudgetTests(unittest.TestCase):
+    def test_the_window_is_a_share_capped_at_ten_minutes(self):
+        self.assertEqual(collection_budget(10), 90.0)
+        self.assertEqual(collection_budget(60), 540.0)
+        self.assertEqual(collection_budget(600), 600.0)
+
+    def test_a_disabled_collection_reserves_nothing(self):
+        self.assertEqual(collection_budget(60, collect=False), 0.0)
 
 if __name__ == '__main__':
     unittest.main()
