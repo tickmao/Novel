@@ -10,21 +10,28 @@ from ops_alert import abnormal, body_of, sync_alert
 
 
 class Result:
-    def __init__(self, stdout=''):
+    def __init__(self, stdout='', returncode=0, stderr=''):
         self.stdout = stdout
-        self.returncode = 0
+        self.stderr = stderr
+        self.returncode = returncode
 
 
 class Runner:
-    def __init__(self, open_issues=None):
+    def __init__(self, open_issues=None, create_returncode=0, label_returncode=0):
         self.calls = []
         self.open_issues = open_issues or []
+        self.create_returncode = create_returncode
+        self.label_returncode = label_returncode
 
     def __call__(self, argv, **kwargs):
         self.calls.append((argv, kwargs.get('input')))
         if argv[:3] == ['gh', 'issue', 'list']:
             return Result(json.dumps(self.open_issues))
+        if argv[:3] == ['gh', 'label', 'create']:
+            return Result('', returncode=self.label_returncode)
         if argv[:3] == ['gh', 'issue', 'create']:
+            if self.create_returncode:
+                return Result('', returncode=self.create_returncode, stderr='label not found')
             return Result('https://github.com/tickmao/Novel/issues/7')
         return Result('')
 
@@ -45,6 +52,13 @@ class AlertTests(unittest.TestCase):
         result = sync_alert(summary(), repo='tickmao/Novel', runner=runner)
         self.assertEqual(result['action'], 'created')
         self.assertIn('verified **137** (14%) / target 30%', runner.calls[-1][1])
+        self.assertEqual(runner.calls[-2][0][:3], ['gh', 'label', 'create'])
+
+    def test_a_failed_issue_create_is_reported(self):
+        runner = Runner(create_returncode=1)
+
+        with self.assertRaises(SystemExit):
+            sync_alert(summary(), repo='tickmao/Novel', runner=runner)
 
     def test_healthy_delivery_closes_the_issue(self):
         runner = Runner(open_issues=[{'number': 7}])

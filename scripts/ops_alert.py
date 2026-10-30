@@ -88,8 +88,14 @@ def sync_alert(summary, *, repo, run_url=None, extended_target=1000, verified_sh
     if number is not None:
         gh(['issue', 'comment', str(number), '--repo', repo, '--body-file', '-'], stdin=body, runner=runner)
         return {'action': 'commented', 'number': number}
+    # A missing label makes `gh issue create` fail, and the failure is invisible
+    # because the step tolerates errors. Ensure the label first; --force is idempotent.
+    gh(['label', 'create', LABEL, '--repo', repo, '--color', 'ededed', '--force',
+        '--description', 'Automated maintenance delivery is below target'], runner=runner)
     created = gh(['issue', 'create', '--repo', repo, '--title', TITLE, '--label', LABEL, '--body-file', '-'],
                  stdin=body, runner=runner)
+    if created.returncode:
+        raise SystemExit(f'gh issue create failed: {(created.stderr or "").strip()}')
     return {'action': 'created', 'stdout': (created.stdout or '').strip()}
 
 
