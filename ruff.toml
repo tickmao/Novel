@@ -1,0 +1,7 @@
+# ruff 仅作为正确性检查（pi LSP 与本地手动运行）。
+# 只保留 E9（语法）与 F（pyflakes）规则：现有代码风格刻意使用 typing.List 等，避免规则噪音。
+line-length = 120
+extend-exclude = ["sources", "reports", "docs", "rules", "themes", "runtime", "config", ".venv"]
+
+[lint]
+select = ["E9", "F"]
