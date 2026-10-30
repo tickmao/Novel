@@ -67,5 +67,18 @@ class SiteOutputTests(unittest.TestCase):
         self.assertIn('更新时间：', stats)
 
 
+class ReadmeAssetsTests(unittest.TestCase):
+    """Guards content the owner asked to keep, not content the publisher owns."""
+
+    def setUp(self):
+        self.readme = (ROOT / 'README.md').read_text()
+
+    def test_the_star_history_chart_stays(self):
+        self.assertIn('star-history', self.readme)
+
+    def test_the_font_demo_stays(self):
+        self.assertIn('wenkai-1.png', self.readme)
+
+
 if __name__ == '__main__':
     unittest.main()

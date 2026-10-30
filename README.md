@@ -60,6 +60,8 @@ https://github.com/shidahuilang/shuyuan/raw/shuyuan/aiyueshuxiang.ibs
 https://cdn.jsdelivr.net/gh/tickmao/Novel@master/fonts/LXGWWenKai.ttf
 ```
 
+![霞鹜文楷字形演示](https://raw.githubusercontent.com/lxgw/LxgwWenKai/main/documentation/wenkai-1.png)
+
 **主题**
 
 - 阅读：`themes/legado/tickmao.json`
@@ -72,6 +74,10 @@ https://cdn.jsdelivr.net/gh/tickmao/Novel@master/fonts/LXGWWenKai.ttf
 - 仅供学习交流使用，请勿用于商业用途
 - 如有侵权，请 [提交 Issue](https://github.com/tickmao/Novel/issues) 联系删除
 - 请支持正版阅读
+
+## Star History
+
+[![Star History Chart](https://star-history.dera.page/svg?repos=tickmao/Novel&type=Date)](https://star-history.dera.page/#tickmao/Novel&Date)
 
 ## Author
 
