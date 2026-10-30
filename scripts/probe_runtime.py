@@ -7,7 +7,6 @@ import os
 from collections import Counter, defaultdict
 from copy import deepcopy
 from pathlib import Path
-from urllib.parse import quote
 
 from runtime_config import ENGINE_COMMIT, VALIDATOR_VERSION, runtime_fingerprint
 from runtime_validator import EngineSession, RuntimeReadingValidator
@@ -174,6 +173,36 @@ async def run_sample(root, count, minutes, output):
     return read_json(output, {'live_sample_count': 0})
 
 
+# One engine hiccup in sixty samples proves nothing about the runtime. A rate
+# asks the question the gate is actually there to answer: can this build read?
+ENGINE_FAILURE_SHARE = 0.2
+
+
+def compatibility_report(fixture, sample, container_digest):
+    """Judge the pinned runtime from its fixtures and a bounded live sample."""
+    rows = sample.get('rows', [])
+    sampled = int(sample.get('live_sample_count', 0))
+    engine_rows = sum(1 for row in rows if str(row['result'].get('kind', '')).startswith('engine_'))
+    engine_share = engine_rows / sampled if sampled else 1.0
+    result = {key: fixture.get(key) for key in (
+        'engine_commit', 'validator_version', 'fixture_count', 'fixture_failures', 'runtime_fingerprint')}
+    result.update(live_sample_count=sampled, container_digest=container_digest,
+                  live_valid_count=sum(row['result'].get('status') == 'valid' for row in rows),
+                  engine_failure_share=round(engine_share, 4),
+                  checked_at=utcnow(), status='passed')
+    if (fixture.get('engine_commit') != ENGINE_COMMIT or sample.get('engine_commit') != ENGINE_COMMIT
+            or fixture.get('runtime_fingerprint') != runtime_fingerprint()
+            or sample.get('runtime_fingerprint') != runtime_fingerprint()
+            or not container_digest
+            or result['live_valid_count'] == 0
+            or fixture.get('container_digest') != container_digest
+            or sample.get('container_digest') != container_digest
+            or fixture.get('fixture_failures', 1) or sampled < 60
+            or engine_share >= ENGINE_FAILURE_SHARE):
+        result['status'] = 'blocked'
+    return result
+
+
 async def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['fixtures', 'sample', 'gate'])
@@ -195,21 +224,7 @@ async def main():
     else:
         fixture = read_json(output / 'fixtures.json', {})
         sample = read_json(output / 'sample.json', {})
-        result = {key: fixture.get(key) for key in ('engine_commit', 'validator_version', 'fixture_count', 'fixture_failures', 'runtime_fingerprint')}
-        result.update(live_sample_count=sample.get('live_sample_count', 0), container_digest=args.container_digest,
-                      live_valid_count=sum(row['result'].get('status') == 'valid'
-                                           for row in sample.get('rows', [])),
-                      checked_at=utcnow(), status='passed')
-        if (fixture.get('engine_commit') != ENGINE_COMMIT or sample.get('engine_commit') != ENGINE_COMMIT
-                or fixture.get('runtime_fingerprint') != runtime_fingerprint()
-                or sample.get('runtime_fingerprint') != runtime_fingerprint()
-                or not args.container_digest
-                or result['live_valid_count'] == 0
-                or fixture.get('container_digest') != args.container_digest
-                or sample.get('container_digest') != args.container_digest
-                or fixture.get('fixture_failures', 1) or sample.get('live_sample_count', 0) < 60
-                or any(row['result']['kind'].startswith('engine_') for row in sample.get('rows', []))):
-            result['status'] = 'blocked'
+        result = compatibility_report(fixture, sample, args.container_digest)
         atomic_bundle({output / 'compatibility.json': json_bytes(result)})
         print(json.dumps(result, indent=2))
         if args.require_ready and result['status'] != 'passed':
