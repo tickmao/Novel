@@ -219,10 +219,15 @@ class DailyMaintenance:
             decision = inventory.collection_decision(progress, inventory.select()[2])
             if not collect:
                 decision = {'allowed': False, 'reason': 'collection_disabled'}
-            elif report.get('engine_incident') or report.get('network_incident'):
+            elif report.get('engine_incident'):
                 decision = {'allowed': False, 'reason': 'validation_incident'}
             elif time.monotonic() >= deadline:
                 decision = {'allowed': False, 'reason': 'run_budget_exhausted'}
+            elif report.get('network_incident'):
+                # Reading probes go to the source sites themselves. The feed
+                # catalogues are different hosts, so a partial egress failure must
+                # not stop harvesting; the collection budget already bounds it.
+                decision = {**decision, 'warning': 'validation_network_incident'}
             report['collection_decision'] = decision
             if decision['allowed']:
                 collection_deadline = (deadline if mode == 'backfill' else

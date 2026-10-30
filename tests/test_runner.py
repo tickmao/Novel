@@ -117,6 +117,21 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         collect.assert_not_awaited()
         self.assertEqual(report['raw_progress']['pending_revisions'], 1)
 
+    async def test_a_network_incident_warns_but_still_harvests(self):
+        """Reading probes hit the sources; the feed catalogues are other hosts."""
+        for index in range(20):
+            self.runner.inventory.store.ingest(source(f'https://n{index}.example'), {'provider': 'legacy'})
+        self.runner.inventory.store.save()
+        result = {**ready_result(self.runner.inventory.policy), 'status': 'transient', 'kind': 'network'}
+        with patch('daily_maintenance.DailyMaintenance.collect_sources', new_callable=AsyncMock) as collect, \
+                patch('daily_maintenance.ReadingValidator.probe', new=AsyncMock(return_value=result)):
+            report = await self.runner.maintain(mode='catchup', batch_size=20)
+
+        self.assertTrue(report['network_incident'])
+        collect.assert_awaited()
+        self.assertTrue(report['collection_decision']['allowed'])
+        self.assertEqual(report['collection_decision']['warning'], 'validation_network_incident')
+
     async def test_provider_failure_does_not_stop_validation_or_other_providers(self):
         self.runner.inventory.store.ingest(source(), {'provider': 'legacy'})
         self.runner.inventory.store.save()
