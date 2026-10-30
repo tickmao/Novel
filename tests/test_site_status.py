@@ -1,4 +1,3 @@
-import re
 import shutil
 import sys
 import tempfile
@@ -10,13 +9,12 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 
 from publication_fixture import enable_test_publication
 from source_inventory import SourceInventory
+from source_store import read_json
 from test_inventory_v2 import seed
 from test_publication_tiers import README_TEMPLATE
 
-STAMP = re.compile(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC')
 
-
-class SiteStatusTests(unittest.TestCase):
+class SiteOutputTests(unittest.TestCase):
     """Run the publisher against the real page so its structure is covered."""
 
     def setUp(self):
@@ -31,41 +29,37 @@ class SiteStatusTests(unittest.TestCase):
         self.inventory.store.save()
         self.inventory.publish()
         self.index = (self.root / 'docs' / 'index.html').read_text()
+        self.manifest = read_json(self.root / 'sources/legado/main/publication.json')
 
     def tearDown(self):
         self.temp.cleanup()
 
-    def test_the_status_lives_in_its_marker_block(self):
-        self.assertEqual(self.index.count('<!-- publication-status -->'), 1)
-        self.assertEqual(self.index.count('<!-- /publication-status -->'), 1)
-        self.assertEqual(self.index.count('id="publication-status"'), 1)
-        self.assertIn('class="status-bar"', self.index)
+    def test_the_page_carries_no_release_status_block(self):
+        for marker in ('publication-status', 'status-bar', 'status-dot', 'status-text'):
+            with self.subTest(marker=marker):
+                self.assertNotIn(marker, self.index)
 
-    def test_the_status_sits_between_the_page_and_the_footer(self):
-        block = self.index.index('<!-- publication-status -->')
+    def test_the_page_still_reports_the_delivered_count(self):
+        extended = self.manifest['counts']['extended']
 
-        self.assertGreater(block, self.index.rindex('</main>'))
-        self.assertLess(block, self.index.index('<footer>'))
+        self.assertIn(f'{extended} 个纯小说书源', self.index)
+        self.assertIn(f'{extended} 个书源', self.index)
 
-    def test_the_old_stray_paragraph_is_gone(self):
-        self.assertNotIn('<p id="publication-status">', self.index)
+    def test_nothing_is_inserted_between_the_page_and_the_footer(self):
+        self.assertRegex(self.index, r'</main>\s*<footer>')
 
-    def test_the_status_is_readable(self):
-        self.assertRegex(self.index, STAMP)
-        self.assertIn('已降级', self.index)
-        self.assertNotRegex(self.index, r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}')
+    def test_the_style_sheet_keeps_no_dead_status_rules(self):
+        style = (self.root / 'docs' / 'style.css').read_text()
 
-    def test_the_status_state_drives_the_indicator(self):
-        self.assertIn('data-state="degraded"', self.index)
-        self.assertIn('.status-bar[data-state="healthy"]', (self.root / 'docs/style.css').read_text())
+        self.assertNotIn('.status-bar', style)
 
-    def test_a_second_publish_does_not_duplicate_the_block(self):
-        self.inventory.publish()
+    def test_the_readme_and_stats_keep_the_release_details(self):
+        readme = (self.root / 'README.md').read_text()
+        stats = (self.root / 'STATS.md').read_text()
 
-        again = (self.root / 'docs' / 'index.html').read_text()
-
-        self.assertEqual(again.count('id="publication-status"'), 1)
-        self.assertEqual(again.count('<!-- publication-status -->'), 1)
+        self.assertIn('<!-- publication-status -->', readme)
+        self.assertIn('严格验证', readme)
+        self.assertIn('严格验证书源：', stats)
 
 
 if __name__ == '__main__':
