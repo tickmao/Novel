@@ -196,6 +196,9 @@ class DailyMaintenance:
                           if (item['_source_id'], item['_revision']) not in scheduled]
 
             async def check_inventory():
+                # Every probe starts its own JVM worker, so this number is also the
+                # number of live engines: keep it under what the runner can hold
+                # rather than matching the CLI default.
                 limit = int(inventory.config.get('inventory', {}).get('validation_concurrency', 6))
                 validator = ReadingValidator(inventory.policy, concurrency=max(1, min(concurrency, limit)))
                 async with asyncio.TaskGroup() as checks:
