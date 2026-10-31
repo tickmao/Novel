@@ -77,7 +77,7 @@ https://cdn.jsdelivr.net/gh/tickmao/Novel@master/fonts/LXGWWenKai.ttf
 
 ## Star History
 
-[![Star History Chart](https://star-history.dera.page/svg?repos=tickmao/Novel&type=Date)](https://star-history.dera.page/#tickmao/Novel&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=tickmao/Novel&type=Date)](https://star-history.com/#tickmao/Novel&Date)
 
 ## Author
 
