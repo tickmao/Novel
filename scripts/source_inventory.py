@@ -375,6 +375,10 @@ class SourceInventory:
         published.update({item['_source_id']: item['_revision'] for item in export})
         standby = {item['source_id']: item['revision'] for item in shadow.get('reserve', [])}
         standby.update({item['_source_id']: item['_revision'] for item in reserve})
+        # A third success on a site that already fills its quota cannot be
+        # published, so those sources wait until nothing better is left. Sites
+        # without evidence yet are the only place a new success adds a slot.
+        covered = Counter(self.site(item) for item in export)
         pending = []
         for record in self.store.records():
             key = record['source_id']
@@ -409,13 +413,16 @@ class SourceInventory:
                     continue
                 last_check = parse_time(health.get('last_check_at')) if category == 2 else last_deep
                 priority = (2 if checked else 0 if last_deep else 1) if category == 2 else 0
-                pending.append((category, priority, last_check or datetime.min.replace(tzinfo=timezone.utc),
+                saturated = 1 if category == 2 and covered.get(
+                    self.site(version['source']), 0) >= self.max_per_domain else 0
+                pending.append((category, saturated, priority,
+                                last_check or datetime.min.replace(tzinfo=timezone.utc),
                                 -self.policy.enrich_source(version['source'])['selectionScore'], key, revision))
         pending.sort()
         cfg = self.config.get('inventory', {})
         quotas = {0: int(cfg.get('published_deep_batch', 250)), 1: int(cfg.get('reserve_deep_batch', 125)), 2: limit}
         selected = []
-        for category, _, _, _, key, revision in pending:
+        for category, _, _, _, _, key, revision in pending:
             if quotas[category] > 0:
                 selected.append((key, revision))
                 quotas[category] -= 1
