@@ -8905,86 +8905,6 @@
   },
   {
     "bookInfoRule": {
-      "author": "class.booktable@tag.td.3@text",
-      "coverUrl": "class.booktable@tag.td.0@src",
-      "intro": "class.jianjie@text",
-      "kind": "class.booktable@tag.td.1@text#小说类别：",
-      "name": "tag.h1@text"
-    },
-    "bookSourceComment": "",
-    "bookSourceGroup": "0206",
-    "bookSourceName": "芙蓉小说",
-    "bookSourceType": 0,
-    "bookSourceUrl": "http://www.frtxt.com/",
-    "bookUrlPattern": "",
-    "contentRule": {
-      "content": "class.chapter@textNodes"
-    },
-    "customOrder": 4450,
-    "enabled": true,
-    "enabledCookieJar": false,
-    "enabledExplore": false,
-    "exploreRule": {
-      "bookList": "class.list@tag.tbody",
-      "bookUrl": "class.name@tag.a@href",
-      "coverUrl": "class.cover@tag.img@src",
-      "intro": "class.intro@text",
-      "name": "class.name@tag.a@text"
-    },
-    "exploreUrl": "日人气排行榜::http://www.frtxt.com/top/0_0_{{page}}.html\n周人气排行榜::http://www.frtxt.com/top/1_0_{{page}}.html\n月人气排行榜::http://www.frtxt.com/top/2_0_{{page}}.html\n总人气排行榜::http://www.frtxt.com/top/3_0_{{page}}.html\n日推荐排行榜::http://www.frtxt.com/top/4_0_{{page}}.html\n周推荐排行榜::http://www.frtxt.com/top/5_0_{{page}}.html\n月推荐排行榜::http://www.frtxt.com/top/6_0_{{page}}.html\n总推荐排行榜::http://www.frtxt.com/top/7_0_{{page}}.html\n日收藏排行榜::http://www.frtxt.com/top/8_0_{{page}}.html\n周收藏排行榜::http://www.frtxt.com/top/9_0_{{page}}.html\n月收藏排行榜::http://www.frtxt.com/top/10_0_{{page}}.html\n总收藏排行榜::http://www.frtxt.com/top/11_0_{{page}}.html\n字数排行榜::http://www.frtxt.com/top/12_0_{{page}}.html\n最新上传::http://www.frtxt.com/top/13_0_{{page}}.html\n玄幻::http://www.frtxt.com/xuanhuan/{{page}}.html\n言情::http://www.frtxt.com/yanqing/{{page}}.html\n武侠修真::http://www.frtxt.com/wuxia/{{page}}.html\n科幻::http://www.frtxt.com/kehuan/{{page}}.html\n网游竞技::http://www.frtxt.com/wangyou/{{page}}.html\n恐怖悬拟::http://www.frtxt.com/kongbu/{{page}}.html\n穿越::http://www.frtxt.com/chuanyue/{{page}}.html\n历史军事::http://www.frtxt.com/lishi/{{page}}.html\n现代文学::http://www.frtxt.com/wenxue/{{page}}.html\n激情::http://www.frtxt.com/jiqing/{{page}}.html\n同人::http://www.frtxt.com/tongren/{{page}}.html\n名著::http://www.frtxt.com/mingzhu/{{page}}.html\n其他::http://www.frtxt.com/qita/{{page}}.html\n经管教育::http://www.frtxt.com/jiaoyu/{{page}}.html",
-    "header": "",
-    "key": "http://www.frtxt.com/",
-    "lastUpdateTime": 1626718617527,
-    "loginJs": "",
-    "loginUrl": "",
-    "respondTime": 74806,
-    "ruleBookInfo": {
-      "author": "class.booktable@tag.td.3@text",
-      "coverUrl": "class.booktable@tag.td.0@src",
-      "intro": "class.jianjie@text",
-      "kind": "class.booktable@tag.td.1@text#小说类别：",
-      "name": "tag.h1@text"
-    },
-    "ruleContent": {
-      "content": "class.chapter@textNodes"
-    },
-    "ruleExplore": {
-      "bookList": "class.list@tag.tbody",
-      "bookUrl": "class.name@tag.a@href",
-      "coverUrl": "class.cover@tag.img@src",
-      "intro": "class.intro@text",
-      "name": "class.name@tag.a@text"
-    },
-    "ruleSearch": {
-      "bookList": "class.list@tag.table",
-      "bookUrl": "class.name@tag.a@href",
-      "coverUrl": "class.cover@tag.img@src",
-      "intro": "class.intro@text",
-      "name": "class.name@tag.a@text"
-    },
-    "ruleToc": {
-      "chapterList": "class.list@tag.li",
-      "chapterName": "tag.a@text",
-      "chapterUrl": "tag.a@href"
-    },
-    "searchRule": {
-      "bookList": "class.list@tag.table",
-      "bookUrl": "class.name@tag.a@href",
-      "coverUrl": "class.cover@tag.img@src",
-      "intro": "class.intro@text",
-      "name": "class.name@tag.a@text"
-    },
-    "searchUrl": "http://www.frtxt.com/search.php?keyword={{key}}&submit=%CB%D1+%CB%F7,{\n\"charset\":\"gbk\"\n}",
-    "tag": "芙蓉小说",
-    "tocRule": {
-      "chapterList": "class.list@tag.li",
-      "chapterName": "tag.a@text",
-      "chapterUrl": "tag.a@href"
-    },
-    "weight": 0
-  },
-  {
-    "bookInfoRule": {
       "author": "[property=\"og:novel:author\"]@content",
       "coverUrl": "[property=\"og:image\"]@content",
       "intro": "[property=\"og:description\"]@content",
@@ -9226,6 +9146,86 @@
       "chapterList": ".clearfix li a",
       "chapterName": "text",
       "chapterUrl": "href"
+    },
+    "weight": 0
+  },
+  {
+    "bookInfoRule": {
+      "author": "class.booktable@tag.td.3@text",
+      "coverUrl": "class.booktable@tag.td.0@src",
+      "intro": "class.jianjie@text",
+      "kind": "class.booktable@tag.td.1@text#小说类别：",
+      "name": "tag.h1@text"
+    },
+    "bookSourceComment": "",
+    "bookSourceGroup": "0206",
+    "bookSourceName": "芙蓉小说",
+    "bookSourceType": 0,
+    "bookSourceUrl": "http://www.frtxt.com/",
+    "bookUrlPattern": "",
+    "contentRule": {
+      "content": "class.chapter@textNodes"
+    },
+    "customOrder": 4450,
+    "enabled": true,
+    "enabledCookieJar": false,
+    "enabledExplore": false,
+    "exploreRule": {
+      "bookList": "class.list@tag.tbody",
+      "bookUrl": "class.name@tag.a@href",
+      "coverUrl": "class.cover@tag.img@src",
+      "intro": "class.intro@text",
+      "name": "class.name@tag.a@text"
+    },
+    "exploreUrl": "日人气排行榜::http://www.frtxt.com/top/0_0_{{page}}.html\n周人气排行榜::http://www.frtxt.com/top/1_0_{{page}}.html\n月人气排行榜::http://www.frtxt.com/top/2_0_{{page}}.html\n总人气排行榜::http://www.frtxt.com/top/3_0_{{page}}.html\n日推荐排行榜::http://www.frtxt.com/top/4_0_{{page}}.html\n周推荐排行榜::http://www.frtxt.com/top/5_0_{{page}}.html\n月推荐排行榜::http://www.frtxt.com/top/6_0_{{page}}.html\n总推荐排行榜::http://www.frtxt.com/top/7_0_{{page}}.html\n日收藏排行榜::http://www.frtxt.com/top/8_0_{{page}}.html\n周收藏排行榜::http://www.frtxt.com/top/9_0_{{page}}.html\n月收藏排行榜::http://www.frtxt.com/top/10_0_{{page}}.html\n总收藏排行榜::http://www.frtxt.com/top/11_0_{{page}}.html\n字数排行榜::http://www.frtxt.com/top/12_0_{{page}}.html\n最新上传::http://www.frtxt.com/top/13_0_{{page}}.html\n玄幻::http://www.frtxt.com/xuanhuan/{{page}}.html\n言情::http://www.frtxt.com/yanqing/{{page}}.html\n武侠修真::http://www.frtxt.com/wuxia/{{page}}.html\n科幻::http://www.frtxt.com/kehuan/{{page}}.html\n网游竞技::http://www.frtxt.com/wangyou/{{page}}.html\n恐怖悬拟::http://www.frtxt.com/kongbu/{{page}}.html\n穿越::http://www.frtxt.com/chuanyue/{{page}}.html\n历史军事::http://www.frtxt.com/lishi/{{page}}.html\n现代文学::http://www.frtxt.com/wenxue/{{page}}.html\n激情::http://www.frtxt.com/jiqing/{{page}}.html\n同人::http://www.frtxt.com/tongren/{{page}}.html\n名著::http://www.frtxt.com/mingzhu/{{page}}.html\n其他::http://www.frtxt.com/qita/{{page}}.html\n经管教育::http://www.frtxt.com/jiaoyu/{{page}}.html",
+    "header": "",
+    "key": "http://www.frtxt.com/",
+    "lastUpdateTime": 1626718617527,
+    "loginJs": "",
+    "loginUrl": "",
+    "respondTime": 74806,
+    "ruleBookInfo": {
+      "author": "class.booktable@tag.td.3@text",
+      "coverUrl": "class.booktable@tag.td.0@src",
+      "intro": "class.jianjie@text",
+      "kind": "class.booktable@tag.td.1@text#小说类别：",
+      "name": "tag.h1@text"
+    },
+    "ruleContent": {
+      "content": "class.chapter@textNodes"
+    },
+    "ruleExplore": {
+      "bookList": "class.list@tag.tbody",
+      "bookUrl": "class.name@tag.a@href",
+      "coverUrl": "class.cover@tag.img@src",
+      "intro": "class.intro@text",
+      "name": "class.name@tag.a@text"
+    },
+    "ruleSearch": {
+      "bookList": "class.list@tag.table",
+      "bookUrl": "class.name@tag.a@href",
+      "coverUrl": "class.cover@tag.img@src",
+      "intro": "class.intro@text",
+      "name": "class.name@tag.a@text"
+    },
+    "ruleToc": {
+      "chapterList": "class.list@tag.li",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href"
+    },
+    "searchRule": {
+      "bookList": "class.list@tag.table",
+      "bookUrl": "class.name@tag.a@href",
+      "coverUrl": "class.cover@tag.img@src",
+      "intro": "class.intro@text",
+      "name": "class.name@tag.a@text"
+    },
+    "searchUrl": "http://www.frtxt.com/search.php?keyword={{key}}&submit=%CB%D1+%CB%F7,{\n\"charset\":\"gbk\"\n}",
+    "tag": "芙蓉小说",
+    "tocRule": {
+      "chapterList": "class.list@tag.li",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href"
     },
     "weight": 0
   },
