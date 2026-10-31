@@ -3,8 +3,23 @@
 from datetime import datetime, timedelta, timezone
 from copy import deepcopy
 
-from source_store import parse_time, utcnow
+from source_store import parse_time
 from runtime_config import ENVIRONMENT_FAILURES, VALIDATOR_VERSION, runtime_fingerprint
+
+# A structural failure says the rule does not fit the site: retrying it weekly
+# spends the run budget re-reading a corpse. Transport and access failures are a
+# property of the moment, so those keep their retries.
+STRUCTURAL_FAILURES = frozenset({
+    'rule_error', 'search_empty', 'toc_empty', 'book_empty', 'content_empty',
+    'unsupported', 'no_search_rule',
+})
+QUARANTINE_AFTER = 3
+
+
+def structural_failures(version):
+    """Count structural failures already recorded for this revision."""
+    attempts = version.get('attempts') or []
+    return sum(attempt.get('kind') in STRUCTURAL_FAILURES for attempt in attempts)
 
 
 def apply_result(version, result):

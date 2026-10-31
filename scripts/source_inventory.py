@@ -12,7 +12,8 @@ from urllib.parse import urlsplit
 import tldextract
 
 from safe_updater import SafeUpdater, legado_dir
-from source_health import apply_result, eligibility, VALIDATOR_VERSION
+from source_health import (QUARANTINE_AFTER, VALIDATOR_VERSION, apply_result, eligibility,
+                           structural_failures)
 from source_policy import SourcePolicy, source_url_problem
 from source_store import SourceStore, json_bytes, parse_time, read_json, rule_fingerprint, utcnow
 from source_store import atomic_bundle, digest, source_id, source_payload
@@ -22,9 +23,10 @@ from runtime_config import runtime_fingerprint
 
 SUFFIXES = tldextract.TLDExtract(suffix_list_urls=(), cache_dir=None, include_psl_private_domains=True)
 
-# The extended package keeps verified sources first and fills the rest with
-# sources that have never been shown to be dead. Nothing here proves readability.
-TIERS = ('verified', 'grace', 'stale_verified', 'unverified', 'never_checked')
+# The extended package keeps verified sources first and fills the rest with the
+# best remaining guess. An untried source outranks one the engine already failed:
+# the failed one carries evidence against it, the untried one does not.
+TIERS = ('verified', 'grace', 'stale_verified', 'never_checked', 'unverified')
 TIER_ORDER = {tier: index for index, tier in enumerate(TIERS)}
 UNVERIFIED_KINDS = frozenset({
     'unsupported', 'rule_error', 'search_empty', 'toc_empty', 'book_empty', 'content_empty',
@@ -403,6 +405,8 @@ class SourceInventory:
                     continue
                 last_deep = parse_time(health.get('last_deep_success_at'))
                 category = 0 if published.get(key) == revision else 1 if standby.get(key) == revision else 2
+                if category == 2 and structural_failures(version) >= QUARANTINE_AFTER:
+                    continue
                 last_check = parse_time(health.get('last_check_at')) if category == 2 else last_deep
                 priority = (2 if checked else 0 if last_deep else 1) if category == 2 else 0
                 pending.append((category, priority, last_check or datetime.min.replace(tzinfo=timezone.utc),

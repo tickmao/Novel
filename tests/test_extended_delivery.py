@@ -11,7 +11,6 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 
 from publication_fixture import enable_test_publication
 from runtime_config import VALIDATOR_VERSION
-from source_health import apply_result
 from source_inventory import SourceInventory
 from source_store import read_json, utcnow
 from test_inventory_v2 import ready_result, seed
@@ -64,8 +63,9 @@ class ExtendedDeliveryTests(unittest.TestCase):
         extended = self.inventory.extended_versions(export)
         self.assertEqual([item['_source_id'] for item in extended[:len(export)]],
                          [item['_source_id'] for item in export])
+        # An untried source ships before one the engine already failed.
         self.assertEqual([item['_tier'] for item in extended[len(export):]],
-                         ['grace', 'unverified', 'never_checked'])
+                         ['grace', 'never_checked', 'unverified'])
 
     def test_stale_success_lands_in_its_own_tier(self):
         seed(self.inventory, 1, datetime.now(timezone.utc) - timedelta(days=20))
