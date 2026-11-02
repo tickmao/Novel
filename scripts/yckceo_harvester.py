@@ -48,11 +48,15 @@ def parse_listing_page(value: str):
 
 class YckceoHarvester:
     def __init__(self, policy=None, *, base_url='https://www.yckceo.com', list_path='/yuedu/shuyuan/index.html',
-                 json_path_template='/yuedu/shuyuan/json/id/{id}.json', request_delay=1.0, **_):
+                 json_path_template='/yuedu/shuyuan/json/id/{id}.json', request_delay=1.0,
+                 max_seen_ids=20000, **_):
         self.policy = policy
         self.base_url = base_url.rstrip('/')
         self.list_path, self.json_path_template = list_path, json_path_template
         self.request_delay = max(1.0, request_delay)
+        # The catalogue grows forever otherwise, and a catalogue nobody reads is
+        # pure storage. Capping it is reported, never silent.
+        self.max_ids = int(max_seen_ids or 0)
 
     def listing_url(self, page=1):
         url = urljoin(self.base_url, self.list_path)
@@ -91,6 +95,9 @@ class YckceoHarvester:
                 break
             now = utcnow()
             for listing in listings:
+                if listing.source_id not in catalog and self.max_ids and len(catalog) >= self.max_ids:
+                    report['catalog_capped'] = True
+                    continue
                 entry = catalog.setdefault(listing.source_id, {'attempts': 0})
                 signature = digest([listing.title, listing.updated_label])
                 if entry.get('signature') != signature:

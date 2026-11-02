@@ -106,9 +106,15 @@ def _check_extended(base, root, manifest, sources, counts, current_health):
 
 
 def _targets(root):
-    """Delivery targets live in config; fall back to the documented defaults."""
+    """The verified target is the share of the package, never a separate number.
+
+    It was a hard-coded 950 while the package is one thousand sources, so the
+    summary reported a bar nobody could reach and the alert never cleared.
+    """
     inventory = read_json(root / 'config/supplement_config.json', {}).get('inventory', {})
-    return int(inventory.get('verified_target', 950)), int(inventory.get('extended_target', 1000))
+    extended = int(inventory.get('extended_target', 1000))
+    share = float(inventory.get('verified_share_target', 0.3))
+    return round(extended * share), extended
 
 
 def _ranked(values, limit):
@@ -155,6 +161,17 @@ def summary_text(result, report=None, *, verified_target=950, extended_target=10
         f"- reserves: {inventory.get('reserve_count', 'unknown')}"
         f", healthy: {inventory.get('healthy_count', 'unknown')}",
     ]
+
+    parked = int(progress.get('parked_revisions') or 0)
+    lines += ['', '## Probe funnel', '',
+              f"- parked revisions (no probe until their date): {parked}",
+              f"- skipped probes on isolated hosts: {int(report.get('skipped_isolated') or 0)}",
+              f"- new sources proven valid: {int(report.get('first_hit_valid') or 0)}"
+              f", re-checks proven valid: {int(report.get('recheck_valid') or 0)}",
+              f"- transport share: {float(report.get('transport_share') or 0.0):.0%}"
+              f", engine share: {float(report.get('engine_share') or 0.0):.0%}",
+              f"- verified change: {int(report.get('verified_delta') or 0):+d}",
+              ]
 
     incidents = [name for name in ('engine_incident', 'network_incident') if report.get(name)]
     lines += ['', '## Incidents', '', f"- {', '.join(incidents) if incidents else 'none'}"]

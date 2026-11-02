@@ -105,6 +105,9 @@ class SourceStore:
         self.shards: dict[str, dict] = {}
         self.dirty: set[str] = set()
         self.state = read_json(self.root / 'state.json', {'schema_version': 2, 'providers': {}, 'runs': []})
+        # Revisions that entered the store during this process. The maintenance run
+        # audits only these after collection instead of re-reading every revision.
+        self.pending_audit: set[tuple[str, str]] = set()
 
     @property
     def exists(self) -> bool:
@@ -150,6 +153,7 @@ class SourceStore:
         version['last_seen_at'] = now
         record['last_seen_at'] = now
         record['latest_revision'] = revision
+        self.pending_audit.add((key, revision))
         self.touch(key)
         return key, revision
 

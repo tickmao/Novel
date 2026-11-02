@@ -5,9 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from source_store import read_json
+from source_store import parse_time, read_json
 
 LABEL = 'maintenance-degraded'
 TITLE = 'Maintenance degraded: delivery below target'
@@ -25,6 +26,7 @@ def summarize(root):
     kinds = report.get('deep_kinds') or {}
     top_kinds = sorted(kinds.items(), key=lambda item: item[1], reverse=True)[:5]
     incidents = [name for name in ('engine_incident', 'network_incident') if report.get(name)]
+    progress = recent_progress(read_json(root / 'sources/legado/pool/raw/state.json', {}))
     return {
         'verified': verified, 'extended': extended, 'unverified': unverified,
         'verified_share': round(verified / extended, 4) if extended else 0.0,
@@ -34,28 +36,77 @@ def summarize(root):
         'status': manifest.get('status', 'unknown'),
         'published_at': manifest.get('published_at'),
         'checked_at': report.get('finished_at'),
+        'verified_delta': int(report.get('verified_delta') or 0),
+        'transport_share': float(report.get('transport_share') or 0.0),
+        'spinning': is_spinning(progress),
+        'week': progress,
     }
 
 
-def abnormal(summary, *, extended_target=1000, verified_share_target=0.3):
-    """Judge delivery by the share of evidence-backed sources, not by a count.
+def recent_progress(state, days=7):
+    """Probe and delivery totals for the runs of the last week."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = []
+    for run in state.get('runs', []):
+        stamp = parse_time(run.get('started_at')) or parse_time(run.get('finished_at'))
+        if not stamp or stamp < cutoff:
+            continue
+        rows.append({'checked': int((run.get('raw_progress') or {}).get('checked_revisions') or 0),
+                     'verified': int((run.get('inventory') or {}).get('verified_count') or 0)})
+    return rows
 
-    The absolute count was unreachable by design, so the alert was permanently on
-    and stopped carrying information.
+
+def is_spinning(rows, minimum_runs=4):
+    """Probes moved but delivery did not: the loop is running, the result is not."""
+    if len(rows) < minimum_runs:
+        return False
+    first, last = rows[0], rows[-1]
+    return last['checked'] > first['checked'] and last['verified'] <= first['verified']
+
+
+VERIFIED_SHARE_FLOOR = 0.15
+STALE_PUBLICATION_DAYS = 3
+
+
+def spinning(summary):
+    """A week of probes that changed no evidence is the failure worth reporting."""
+    return bool(summary.get('spinning'))
+
+
+def abnormal(summary, *, extended_target=1000, verified_share_target=VERIFIED_SHARE_FLOOR,
+             stale_days=STALE_PUBLICATION_DAYS):
+    """Judge delivery by health, not by the long-term share target.
+
+    The share target is a direction, so alerting on it left the issue permanently
+    open. The floor is the level at which delivery has stopped being useful, and the
+    remaining conditions are the ones a person can actually act on.
     """
     return (bool(summary['incidents']) or summary['extended'] < extended_target
-            or summary['verified_share'] < verified_share_target)
+            or summary['verified_share'] < verified_share_target
+            or spinning(summary) or stale(summary, stale_days))
 
 
-def body_of(summary, run_url=None, extended_target=1000, verified_share_target=0.3):
+def stale(summary, days=STALE_PUBLICATION_DAYS):
+    published = parse_time(summary.get('published_at'))
+    if not published:
+        return True
+    return datetime.now(timezone.utc) - published > timedelta(days=days)
+
+
+def body_of(summary, run_url=None, extended_target=1000, verified_share_target=VERIFIED_SHARE_FLOOR):
+    week = summary.get('week') or []
+    delta = (week[-1]['verified'] - week[0]['verified']) if len(week) >= 2 else 0
     lines = [
-        f"Delivery: verified **{summary['verified']}** ({summary['verified_share']:.0%}) / target"
+        f"Delivery: verified **{summary['verified']}** ({summary['verified_share']:.0%}) / floor"
         f" {verified_share_target:.0%}, extended **{summary['extended']}** / {extended_target}"
         f" (unverified {summary['unverified']}).",
         '',
         f"- verified share: {summary['verified_share']:.0%}",
+        f"- verified change this week: {delta:+d}",
         f"- last run conversion: {summary['valid']}/{summary['attempts']} = {summary['conversion']:.2%}",
+        f"- transport share of failures: {summary.get('transport_share', 0.0):.0%}",
         f"- top failure kinds: {', '.join(f'{name}={count}' for name, count in summary['top_kinds']) or 'none'}",
+        f"- spinning: {'yes (probes moved, delivery did not)' if spinning(summary) else 'no'}",
         f"- incidents: {', '.join(summary['incidents']) or 'none'}",
         f"- publication status: `{summary['status']}` ({summary['published_at'] or 'never'})",
     ]
@@ -69,7 +120,8 @@ def gh(args, *, stdin=None, runner=None):
     return runner(['gh', *args], input=stdin, capture_output=True, text=True, check=False)
 
 
-def sync_alert(summary, *, repo, run_url=None, extended_target=1000, verified_share_target=0.3, runner=None):
+def sync_alert(summary, *, repo, run_url=None, extended_target=1000,
+               verified_share_target=VERIFIED_SHARE_FLOOR, runner=None):
     """Create, update or close the single degraded-maintenance issue."""
     result = gh(['issue', 'list', '--repo', repo, '--label', LABEL, '--state', 'open', '--json', 'number'],
                 runner=runner)
@@ -105,7 +157,8 @@ def main():
     parser.add_argument('--repo', required=True)
     parser.add_argument('--run-url')
     parser.add_argument('--extended-target', type=int, default=1000)
-    parser.add_argument('--verified-share-target', type=float, default=0.3)
+    parser.add_argument('--verified-share-target', type=float, default=VERIFIED_SHARE_FLOOR,
+                        help='Share below which delivery is no longer useful')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
     summary = summarize(args.base_dir)

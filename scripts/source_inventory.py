@@ -12,8 +12,7 @@ from urllib.parse import urlsplit
 import tldextract
 
 from safe_updater import SafeUpdater, legado_dir
-from source_health import (QUARANTINE_AFTER, VALIDATOR_VERSION, apply_result, eligibility,
-                           structural_failures)
+from source_health import (VALIDATOR_VERSION, apply_result, eligibility, park, terminal)
 from source_policy import SourcePolicy, source_url_problem
 from source_store import SourceStore, json_bytes, parse_time, read_json, rule_fingerprint, utcnow
 from source_store import atomic_bundle, digest, source_id, source_payload
@@ -63,6 +62,9 @@ class SourceInventory:
         self.max_per_domain_extended = int(cfg.get('max_per_domain_extended',
                                                    self.config.get('supplement', {}).get('max_per_domain_extended', 3)))
         self.stale_verified_days = int(cfg.get('stale_verified_days', 30))
+        self.queue_ratio = cfg.get('queue_ratio') or {'published': 1, 'reserve': 1, 'new': 3}
+        self.host_isolation_hours = float(cfg.get('host_isolation_hours', 6))
+        self.terminal_recheck_days = int(cfg.get('terminal_recheck_days', 30))
         self.metadata_file = self.base_dir / 'main' / 'metadata.json'
         self.export_file = self.base_dir / 'main' / 'full.json'
         self.extended_file = self.base_dir / 'main' / 'full-extended.json'
@@ -95,23 +97,38 @@ class SourceInventory:
             return 'non_novel'
         return source_url_problem(source)
 
-    def audit_all(self):
-        from reading_validator import ReadingValidator
-        from static_rules import UnsupportedRule
-        preflight = ReadingValidator(None, self.policy)
+    def audit_all(self, dirty_only=False):
+        """Re-audit what changed. An unchanged verdict is a cached verdict.
+
+        Two full passes over every stored revision used to run on each invocation,
+        and a version whose scope already rejected it never needed the content
+        audit at all. ``dirty_only`` restricts the pass to revisions first seen or
+        re-stored since the previous audit.
+        """
         stats = Counter()
+        version_policy = self.policy.auditor.version
+        dirty = self.store.pending_audit if dirty_only else None
         for record in self.store.records():
-            for version in record['versions'].values():
-                payload = self.audit_payload(version)
+            for revision, version in record['versions'].items():
+                if dirty is not None and (record['source_id'], revision) not in dirty:
+                    continue
                 reason = self.scope_reason(version['source'])
                 scope = {'eligible': reason is None, 'reason': reason}
                 if version.get('scope') != scope:
                     version['scope'] = scope
                     self.store.touch(record['source_id'])
-                if reason:
-                    stats[reason] += 1
-                result = self.policy.audit_source(payload)
                 previous = version.get('audit', {})
+                if reason:
+                    # Scope already decides this revision: the content audit cannot
+                    # change the outcome, so a fresh verdict is the only work left.
+                    stats[reason] += 1
+                    if previous.get('policy_version') != version_policy:
+                        version['audit'] = self.policy.audit_source(self.audit_payload(version))
+                        self.store.touch(record['source_id'])
+                    stats[version['audit'].get('decision', 'scoped')] += 1
+                    continue
+                payload = self.audit_payload(version)
+                result = self.policy.audit_source(payload)
                 resolved = self.policy.auditor.resolve_review(previous, payload)
                 if resolved != previous:
                     version['audit'] = resolved
@@ -122,15 +139,6 @@ class SourceInventory:
                     version['audit'] = result
                     self.store.touch(record['source_id'])
                 stats[result['decision']] += 1
-                if result['decision'] == 'pass' and not reason:
-                    try:
-                        preflight.supports(version['source'])
-                    except (UnsupportedRule, TypeError, ValueError) as exc:
-                        capabilities = {'static': False, 'reason': str(exc)}
-                        if version.get('capabilities') != capabilities:
-                            version['capabilities'] = capabilities
-                            self.store.touch(record['source_id'])
-                        stats['unsupported'] += 1
         return dict(stats)
 
     def site(self, source):
@@ -324,8 +332,9 @@ class SourceInventory:
                 and check.get('runtime_fingerprint') == runtime_fingerprint()
                 and bool(check.get('checked_at')))
 
-    def revalidation_progress(self):
-        sources = eligible_sources = eligible = checked = attempted = 0
+    def revalidation_progress(self, now=None):
+        now = now or datetime.now(timezone.utc)
+        sources = eligible_sources = eligible = checked = attempted = parked = 0
         outcomes = Counter()
         for record in self.store.records():
             sources += 1
@@ -343,6 +352,11 @@ class SourceInventory:
                         and audit.get('policy_version') == self.policy.auditor.version):
                     continue
                 count += 1
+                if terminal(version, now):
+                    # Parked revisions are not pending work; reporting them as backlog
+                    # would hide how much of it this run can never finish.
+                    parked += 1
+                    continue
                 if self.deep_checked(version):
                     checked += 1
                     outcomes[version['validation']['deep_check']['status']] += 1
@@ -350,7 +364,8 @@ class SourceInventory:
             eligible_sources += bool(count)
         return {'raw_sources': sources, 'eligible_sources': eligible_sources, 'attempted_revisions': attempted,
                 'eligible_revisions': eligible, 'checked_revisions': checked,
-                'pending_revisions': eligible - checked, 'outcomes': dict(outcomes)}
+                'parked_revisions': parked,
+                'pending_revisions': eligible - checked - parked, 'outcomes': dict(outcomes)}
 
     def collection_decision(self, progress, inventory):
         """Harvesting is independent of the validation backlog.
@@ -379,6 +394,7 @@ class SourceInventory:
         # published, so those sources wait until nothing better is left. Sites
         # without evidence yet are the only place a new success adds a slot.
         covered = Counter(self.site(item) for item in export)
+        isolated = self.isolated_hosts(now)
         pending = []
         for record in self.store.records():
             key = record['source_id']
@@ -409,29 +425,83 @@ class SourceInventory:
                     continue
                 last_deep = parse_time(health.get('last_deep_success_at'))
                 category = 0 if published.get(key) == revision else 1 if standby.get(key) == revision else 2
-                if category == 2 and structural_failures(version) >= QUARANTINE_AFTER:
-                    continue
+                if category == 2:
+                    # A revision whose attempts already prove this engine cannot read
+                    # it is parked with a date, not deleted: it returns on its own.
+                    if terminal(version, now) or park(version, now, self.terminal_recheck_days):
+                        continue
+                if isolated:
+                    if self.site(version['source']) in isolated:
+                        continue
                 last_check = parse_time(health.get('last_check_at')) if category == 2 else last_deep
                 priority = (2 if checked else 0 if last_deep else 1) if category == 2 else 0
                 saturated = 1 if category == 2 and covered.get(
                     self.site(version['source']), 0) >= self.max_per_domain else 0
-                pending.append((category, saturated, priority,
+                # A source carried by several independent curated collections is a
+                # better bet than one nobody kept, so curation outranks the rule
+                # score when this run has to choose where to spend a probe.
+                curated = sum(1 for item in version.get('provenance') or []
+                              if item.get('provider') == 'shuyuans')
+                pending.append((category, saturated, priority, -curated,
                                 last_check or datetime.min.replace(tzinfo=timezone.utc),
                                 -self.policy.enrich_source(version['source'])['selectionScore'], key, revision))
         pending.sort()
+        return self._allocate(pending, limit)
+
+    def _allocate(self, pending, limit):
+        """Share the run between re-checks and new candidates by ratio, not by queue order.
+
+        Filling one bucket to its quota first meant a short run spent its whole
+        window on published re-checks and never reached a candidate that could
+        raise the verified count. ``limit`` still bounds the new candidates; the
+        published and reserve quotas stay on top of it, as before.
+        """
         cfg = self.config.get('inventory', {})
-        quotas = {0: int(cfg.get('published_deep_batch', 250)), 1: int(cfg.get('reserve_deep_batch', 125)), 2: limit}
+        quotas = {0: int(cfg.get('published_deep_batch', 250)),
+                  1: int(cfg.get('reserve_deep_batch', 125)),
+                  2: limit}
+        weights = {0: float(self.queue_ratio.get('published', 1)),
+                   1: float(self.queue_ratio.get('reserve', 1)),
+                   2: float(self.queue_ratio.get('new', 3))}
+        buckets = {category: [item for item in pending if item[0] == category] for category in (0, 1, 2)}
+        taken = {0: 0, 1: 0, 2: 0}
         selected = []
-        for category, _, _, _, _, key, revision in pending:
-            if quotas[category] > 0:
-                selected.append((key, revision))
-                quotas[category] -= 1
+        capacity = quotas[0] + quotas[1] + quotas[2]
+        while len(selected) < capacity:
+            open_categories = [category for category in (0, 1, 2)
+                               if weights[category] > 0 and taken[category] < len(buckets[category])
+                               and taken[category] < quotas[category]]
+            if not open_categories:
+                break
+            category = min(open_categories, key=lambda value: (taken[value] / weights[value], value))
+            key, revision = buckets[category][taken[category]][-2:]
+            selected.append((key, revision))
+            taken[category] += 1
         return selected
+
+    def isolated_hosts(self, now=None):
+        """Sites that refused this run's probes are skipped, not accused again."""
+        now = now or datetime.now(timezone.utc)
+        hosts = self.store.state.get('hosts') or {}
+        return {site for site, item in hosts.items()
+                if (parse_time(item.get('isolated_until')) or now) > now}
+
+    def isolate_hosts(self, sites, kinds, now=None, hours=None):
+        """Quarantine a failing site for a while so one dead host cannot stop a run."""
+        now = now or datetime.now(timezone.utc)
+        hours = self.host_isolation_hours if hours is None else hours
+        hosts = {site: item for site, item in (self.store.state.get('hosts') or {}).items()
+                 if (parse_time(item.get('isolated_until')) or now) > now}
+        until = (now + timedelta(hours=hours)).isoformat()
+        for site in sites:
+            hosts[site] = {'isolated_until': until, 'last_kinds': sorted(set(kinds))}
+        self.store.state['hosts'] = hosts
+        return sorted(hosts)
 
     def record_result(self, key, revision, result):
         record = self.store.get(key)
         result = {**result, 'source_id': key, 'revision': revision}
-        apply_result(record['versions'][revision], result)
+        apply_result(record['versions'][revision], result, self.terminal_recheck_days)
         self.store.touch(key)
 
     def publication_gate(self, report=None, *, extended=False):

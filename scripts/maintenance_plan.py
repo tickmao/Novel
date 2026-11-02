@@ -33,11 +33,12 @@ def plan(*, verified_count=0, extended_count=0, reserve_count=0, pending_revisio
     # One truth: the absolute floor follows from the share and the package size.
     verified_target = round(extended_target * verified_share_target)
     reserve_target = int(cfg['reserve_target'])
-    reserve_min = int(cfg['reserve_min'])
     extended_gap = max(0, extended_target - int(extended_count))
     reserve_gap = max(0, reserve_target - int(reserve_count))
     verified_gap = max(0, verified_target - int(verified_count))
-    shortage = extended_gap > 0 or reserve_gap > 0 or verified_gap > 0
+    # The reserve bucket can only hold what evidence already produced, so a reserve
+    # gap is structurally permanent and cannot decide whether to harvest.
+    shortage = extended_gap > 0 or verified_gap > 0
     mode = forced_mode or ('catchup' if shortage else 'daily')
     batch_size = int(cfg['catchup_batch'] if mode == 'catchup' else cfg['daily_batch'])
     collect = bool(shortage)
@@ -53,7 +54,6 @@ def plan(*, verified_count=0, extended_count=0, reserve_count=0, pending_revisio
         'verified_target': verified_target, 'verified_share_target': verified_share_target,
         'pending_revisions': int(pending_revisions),
         'publish_extended': True,
-        'publish_full': int(verified_count) >= verified_target and int(reserve_count) >= reserve_min,
     }
 
 
@@ -67,11 +67,14 @@ def explain(decision, counts):
         f"- extended: {counts.get('extended_count', 0)} (gap {decision['extended_gap']})"
         f", searchable {counts.get('searchable_count', 0)}"
         f" ({counts.get('searchable_share', 0):.0%} = verified ceiling)",
-        f"- reserves: {counts.get('reserve_count', 0)} (gap {decision['reserve_gap']})",
+        f"- reserves: {counts.get('reserve_count', 0)} (gap {decision['reserve_gap']},"
+        f" report only: the bucket cannot exceed ready minus exported)",
         f"- pending revisions: {decision['pending_revisions']}",
-        f"- publish full: `{decision['publish_full']}`, extended: `{decision['publish_extended']}`",
+        f"- publish extended: `{decision['publish_extended']}`",
     ]
     return '\n'.join(lines)
+
+
 def collection_budget(max_minutes, *, collect=True):
     """Seconds reserved for harvesting before validation starts.
 

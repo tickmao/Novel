@@ -56,8 +56,13 @@ temp/
 # 提交清单已在 daily-maintenance.yml 中显式列出文件，因此这里不会造成 CI 漏提交。
 sources/legado/main/backups/
 
+# 原始池约 0.3 GB 且每轮都在增长，留在 master 历史里会让每次 run 往 pack 里灌一份。
+# 它现在存放在 state/raw-store 分支（单次快照、每轮 force-push），由 daily-maintenance.yml
+# 的「Restore the raw store」与「Persist completed work」两步搬运。
+# 本地工作区照旧保留这些文件，因此本地运行不受影响。
+sources/legado/pool/raw/
 # pi workspace-history 快照排除：只为压缩撤销历史体积，以下文件仍由 git 跟踪。
-# 勿在此追加会被 CI git add 的目录/文件名（pool/raw、main/backups 等），否则 CI 会静默漏提交。
+# 勿在此追加会被 CI git add 的目录/文件名，否则 CI 会静默漏提交（pool/raw 已改由 state 分支承载，见上）。
 /fonts/LXGWWenKai.ttf
 /sources/legado/pool/raw.json
 /sources/legado/pool/invalid.json

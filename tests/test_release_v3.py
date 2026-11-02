@@ -143,21 +143,38 @@ class ReleaseGateTests(unittest.TestCase):
         self.assertEqual(self.inventory.select()[2]['healthy_count'], 0)
 
 
+def daily_run(now, day, checked, verified):
+    return {'mode': 'daily', 'schema_version': 4, 'finished_at': (now - timedelta(days=day)).isoformat(),
+            'release_active': True, 'published': True, 'deep_checked': 300,
+            'inventory': {'verified_count': verified},
+            'raw_progress': {'checked_revisions': checked},
+            'spot_checked': 50, 'spot': {'valid': 50}}
+
+
 class AcceptanceTests(unittest.TestCase):
     def test_seven_days_require_real_spot_checks(self):
         now = datetime.now(timezone.utc)
-        runs = [{'mode': 'daily', 'schema_version': 3, 'finished_at': (now - timedelta(days=day)).isoformat(),
-                 'release_active': True, 'inventory': {'healthy_count': 1000},
-                 'spot_checked': 50, 'spot': {'valid': 50}} for day in range(6, -1, -1)]
+        runs = [daily_run(now, day, 4000 + (6 - day) * 100, 140 + (6 - day)) for day in range(6, -1, -1)]
         self.assertEqual(acceptance_status(runs)['status'], 'accepted')
         runs[-1]['spot_checked'] = 0
         self.assertEqual(acceptance_status(runs)['status'], 'pending')
 
+    def test_a_week_without_new_evidence_is_not_acceptance(self):
+        now = datetime.now(timezone.utc)
+        runs = [daily_run(now, day, 4000, 148) for day in range(6, -1, -1)]
+        status = acceptance_status(runs)
+        self.assertEqual(status['status'], 'pending')
+        self.assertTrue(all(day['passed'] for day in status['days']))
+
+    def test_a_run_that_did_no_work_is_not_acceptance(self):
+        now = datetime.now(timezone.utc)
+        runs = [daily_run(now, day, 4000 + (6 - day) * 100, 140 + (6 - day)) for day in range(6, -1, -1)]
+        runs[-1]['deep_checked'] = 20
+        self.assertEqual(acceptance_status(runs)['status'], 'pending')
+
     def test_missing_day_prevents_acceptance(self):
         now = datetime.now(timezone.utc)
-        runs = [{'mode': 'daily', 'schema_version': 3, 'finished_at': (now - timedelta(days=day)).isoformat(),
-                 'release_active': True, 'inventory': {'healthy_count': 1000},
-                 'spot_checked': 50, 'spot': {'valid': 50}} for day in (8, 6, 5, 4, 3, 2, 0)]
+        runs = [daily_run(now, day, 4000, 148) for day in (8, 6, 5, 4, 3, 2, 0)]
         self.assertEqual(acceptance_status(runs)['status'], 'pending')
 
 

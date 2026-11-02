@@ -151,13 +151,15 @@ class EngineSession:
         message = response.get('error', '')
         raise ProbeFailure(classify_engine_error(message, response.get('error_type', '')), message[:240])
 
-# Reading admission is unchanged: the profile only widens how many candidates are
-# tried before a source is written off. Text length, distinctness, access-gate and
-# content-audit rules stay exactly as they were.
+# What counts as readable, measured the way a reader uses a source: one book whose
+# catalog yields two distinct, non-empty chapters. Two chapters are required because
+# one chapter cannot prove the site is not serving the same page for everything.
+# A second book upgrades the badge to ``stable``; it is evidence, not admission.
 PROFILE = {
     'keywords': 10,
     'max_books': 4,
-    'required_books': 2,
+    'required_books': 1,
+    'stable_books': 2,
     'chapters_per_book': 2,
     'min_content_chars': 200,
     'min_distinct_chars': 20,
@@ -195,8 +197,16 @@ def classify_engine_error(message, error_type=''):
 
 
 class RuntimeReadingValidator:
-    def __init__(self, policy, *, session_factory=EngineSession, concurrency=4, keywords=None):
-        self.policy, self.session_factory = policy, session_factory
+    def __init__(self, policy, *, session_factory=EngineSession, concurrency=4, keywords=None,
+                 request_timeout=None):
+        self.policy = policy
+        # One worker is one JVM, so the exchange budget belongs to the harness. It
+        # stays a constructor option instead of an identity input: a slower network
+        # must never invalidate stored evidence.
+        if request_timeout is not None and session_factory is EngineSession:
+            self.session_factory = lambda payload: EngineSession(payload, timeout=request_timeout)
+        else:
+            self.session_factory = session_factory
         self.limit = asyncio.Semaphore(concurrency)
         self.sites = defaultdict(lambda: asyncio.Semaphore(2))
         self.keywords = keywords or ['斗罗大陆', '凡人修仙传', '三国演义', '遮天', '西游记', '完美世界',
@@ -250,7 +260,7 @@ class RuntimeReadingValidator:
 
     async def _probe(self, engine, source, mode, stages):
         pages, books, seen_books, checked_books = [], [], set(), []
-        required_books = 1 if mode == 'light' else PROFILE['required_books']
+        required_books = PROFILE['required_books']
         category_value = None
 
         async def request(operation, **kwargs):
@@ -318,7 +328,9 @@ class RuntimeReadingValidator:
             return {'status': 'valid', 'kind': 'search', 'book': books[0]}
         hashes, failures = set(), []
         for book in books[:PROFILE['max_books']]:
-            if len(checked_books) >= PROFILE['required_books']:
+            # Admission needs one readable book. A second one is attempted only for
+            # the ``stable`` badge, so its failure cannot write off the source.
+            if len(checked_books) >= PROFILE['stable_books']:
                 break
             try:
                 details = await request('book', url=book['bookUrl'])
@@ -368,7 +380,9 @@ class RuntimeReadingValidator:
                 checked_books.append({'name': book['name'], 'url': book['bookUrl']})
         if len(checked_books) < PROFILE['required_books']:
             raise failures[-1] if failures else ProbeFailure('content_empty', 'No chapter could be read')
-        return {'status': 'valid', 'kind': 'reading', 'audit': self.policy.audit_source(source, pages),
+        tier = 'stable' if len(checked_books) >= PROFILE['stable_books'] else 'usable'
+        return {'status': 'valid', 'kind': 'reading', 'tier': tier,
+                'audit': self.policy.audit_source(source, pages),
                 'books': checked_books, 'sample': {'books': len(checked_books), 'chapters': len(hashes)}}
 
     def _keywords(self, source, mode):

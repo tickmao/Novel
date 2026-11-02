@@ -34,8 +34,16 @@ export NOVEL_ENGINE_IMAGE="$(docker image inspect novel-runtime:local --format '
 .venv/bin/python -B scripts/probe_runtime.py fixtures
 .venv/bin/python -B scripts/probe_runtime.py sample --count 60 --max-minutes 20
 .venv/bin/python -B scripts/probe_runtime.py gate --container-digest "$NOVEL_ENGINE_IMAGE" --require-ready
+.venv/bin/python -B scripts/probe_runtime.py bench --count 60 --max-minutes 20 --concurrency-list 4,8,12
 .venv/bin/python -B scripts/daily_maintenance.py --mode catchup --no-collect --batch-size 300 --max-minutes 20
 ```
+
+The bench command runs one fixed sample at several concurrencies and writes only
+`reports/runtime/benchmark.json`. Every probe starts its own JVM in a container
+capped at one CPU, so the measurement decides `inventory.validation_concurrency`
+(see `.github/workflows/probe-benchmark.yml`). It never writes inventory or
+evidence, and the request budget stays harness configuration: changing it must
+not raise `PROBE_PROTOCOL` or `VALIDATOR_VERSION`.
 
 The sample command writes only `reports/runtime/`. It resumes the same input
 and preserves per-revision results. It does not modify the raw inventory or
@@ -51,9 +59,13 @@ over standard input and has no repository mount, Docker socket or GitHub token.
 
 ## Admission and limitations
 
-Admission requires two distinct books and two chapters per book. Successful
-search alone cannot refresh reading evidence or clear a reading failure.
-The adapter records stage results, chapter hashes and sample counts.
+Admission requires one readable book with two distinct, non-empty chapters. That is
+the way a reader uses a source: search, open one book, read its catalog. Two
+chapters are required because a single chapter cannot prove the site is not serving
+the same page for everything. A second readable book raises the badge to `stable`
+and is evidence, not admission: its failure cannot write off a source that already
+read. Successful search alone cannot refresh reading evidence or clear a reading
+failure. The adapter records stage results, chapter hashes and sample counts.
 
 Fixtures cover CSS, legacy selectors, JSONPath, JavaScript content, dynamic
 search, a Java helper, dynamic discovery categories, adult-category rejection,
@@ -66,16 +78,21 @@ The publication gate requires passing container fixtures, 60 live sample
 attempts with at least one complete reading success, at least 950 healthy sources
 and 300 eligible reserves for the first
 version 3 release. Later releases may report shortages but cannot use unverified
-entries to fill them. Changing the adapter fingerprint invalidates old evidence.
+entries to fill them. Changing the adapter fingerprint invalidates old evidence,
+and a previous release is carried as `legacy` until the new identity re-verifies it:
+an admission change alone must never empty the published file.
 
 ## Reports
 
 - `reports/runtime/fixtures.json`: deterministic JVM fixture results.
 - `reports/runtime/sample.json`: bounded live sample results and resume identity.
 - `reports/runtime/compatibility.json`: runtime approval requirements.
+- `reports/runtime/benchmark.json`: concurrency comparison and its fixed decision rule.
 - `sources/legado/main/shadow.json`: candidate and reserve references, counts and gate status.
-- `sources/legado/main/maintenance_report.json`: latest run and seven-day acceptance status.
+- `sources/legado/main/maintenance_report.json`: latest run, probe funnel and seven-day acceptance status.
 
-Seven-day acceptance requires seven consecutive completed daily runs, at least
-950 healthy sources, and at least 95% success in each 50-source spot check.
-These observations cannot be replaced by unit-test results.
+Seven-day acceptance requires seven consecutive completed daily runs that each
+published, passed a 50-source spot check at 95%, and recorded at least 150 deep
+attempts. A week in which probes ran but checked no new revision is reported as
+pending: the loop was running, the delivery was not. These observations cannot be
+replaced by unit-test results.

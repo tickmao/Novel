@@ -19,7 +19,14 @@
     "extended_min": 200,
     "extended_max": 1200,
     "max_per_domain_extended": 3,
-    "validation_concurrency": 12,
+    "validation_concurrency": 6,
+    "queue_ratio": {
+      "published": 1,
+      "reserve": 1,
+      "new": 3
+    },
+    "host_isolation_hours": 6,
+    "terminal_recheck_days": 30,
     "catchup_batch": 1500,
     "daily_batch": 300,
     "reserve_target": 500,
@@ -36,11 +43,22 @@
     "base_url": "https://www.yckceo.com",
     "list_path": "/yuedu/shuyuan/index.html",
     "json_path_template": "/yuedu/shuyuan/json/id/{id}.json",
-    "daily_pages": 10,
+    "daily_pages": 20,
     "daily_fetch_cap": 300,
     "emergency_fetch_cap": 600,
     "request_delay": 1.0,
     "max_seen_ids": 20000
+  },
+  "shuyuans": {
+    "base_url": "https://www.yckceo.com",
+    "list_path": "/yuedu/shuyuans/index.html",
+    "json_path_template": "/yuedu/shuyuans/json/id/{id}.json",
+    "max_age_days": 365,
+    "min_sources": 5,
+    "collections_per_run": 6,
+    "refetch_days": 7,
+    "request_delay": 2.0,
+    "max_tracked": 1200
   },
   "recovery": {
     "timeout": 15,
@@ -67,7 +85,8 @@
   "validation": {
     "timeout": 10,
     "concurrency": 20,
-    "max_respond_time": 10000
+    "max_respond_time": 10000,
+    "engine_request_timeout": 30
   },
   "health_monitor": {
     "check_interval_hours": 24,

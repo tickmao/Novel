@@ -85,15 +85,30 @@ class SummaryTests(unittest.TestCase):
 
         self.assertIn('## Incidents\n\n- engine_incident', text)
 
-    def test_targets_come_from_config_and_fall_back(self):
+    def test_targets_follow_the_share_of_the_package(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            self.assertEqual(_targets(root), (950, 1000))
+            # No config: the default share of the default package.
+            self.assertEqual(_targets(root), (300, 1000))
 
             config = root / 'config' / 'supplement_config.json'
             config.parent.mkdir(parents=True)
-            config.write_text('{"inventory": {"verified_target": 900, "extended_target": 800}}')
-            self.assertEqual(_targets(root), (900, 800))
+            config.write_text('{"inventory": {"verified_share_target": 0.5, "extended_target": 800}}')
+            self.assertEqual(_targets(root), (400, 800))
+
+    def test_the_summary_reports_the_probe_funnel(self):
+        report = large_report(rows=2)
+        report.update(skipped_isolated=20, first_hit_valid=3, recheck_valid=1,
+                      transport_share=0.72, engine_share=0.11, verified_delta=4)
+        report['raw_progress']['parked_revisions'] = 500
+
+        text = summary_text(manifest(), report)
+
+        self.assertIn('## Probe funnel', text)
+        self.assertIn('parked revisions (no probe until their date): 500', text)
+        self.assertIn('skipped probes on isolated hosts: 20', text)
+        self.assertIn('transport share: 72%, engine share: 11%', text)
+        self.assertIn('verified change: +4', text)
 
 
 if __name__ == '__main__':

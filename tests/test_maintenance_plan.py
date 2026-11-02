@@ -34,14 +34,23 @@ class MaintenancePlanTests(unittest.TestCase):
         self.assertEqual(decision['batch_size'], 300)
         self.assertEqual(decision['reason'], 'inventory_sufficient')
         self.assertFalse(decision['collect'])
-        self.assertTrue(decision['publish_full'])
+        self.assertTrue(decision['publish_extended'])
+        self.assertNotIn('publish_full', decision)
 
     def test_verified_gap_alone_keeps_the_loop_running(self):
         decision = plan(verified_count=40, extended_count=1000, reserve_count=500,
                         pending_revisions=10, config=CONFIG)
         self.assertEqual(decision['mode'], 'catchup')
-        self.assertFalse(decision['publish_full'])
+        self.assertEqual(decision['verified_gap'], 260)
         self.assertTrue(decision['publish_extended'])
+
+    def test_a_reserve_gap_alone_does_not_force_catchup(self):
+        """The reserve can only hold what evidence produced, so its gap is permanent."""
+        decision = plan(verified_count=300, extended_count=1000, reserve_count=18,
+                        pending_revisions=0, config=CONFIG)
+        self.assertEqual(decision['mode'], 'daily')
+        self.assertFalse(decision['collect'])
+        self.assertEqual(decision['reserve_gap'], 482)
 
     def test_the_absolute_floor_follows_from_the_share(self):
         decision = plan(verified_count=140, extended_count=1000, reserve_count=18,

@@ -105,6 +105,18 @@ class HarvesterTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(report['skipped'], 'rate_limit')
             client.fetch.assert_awaited_once()
 
+    async def test_the_catalog_stops_growing_at_the_configured_limit(self):
+        with tempfile.TemporaryDirectory() as tmp, patch('yckceo_harvester.asyncio.sleep', new=AsyncMock()):
+            store = SourceStore(Path(tmp))
+            store.state['providers'] = {'yckceo': {'catalog': {'1': {'title': 'Seen'}}, 'scan_cursor': 1}}
+            harvester = YckceoHarvester(max_seen_ids=1)
+
+            report = await harvester.sync(store, CatalogTransport(), fetch_cap=1)
+
+            self.assertTrue(report.get('catalog_capped'))
+            self.assertEqual(list(store.state['providers']['yckceo']['catalog']), ['1'])
+            self.assertEqual(report['fetched_ids'], 1)
+
 
 if __name__ == '__main__':
     unittest.main()

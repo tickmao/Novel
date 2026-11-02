@@ -51,6 +51,7 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         with patch('daily_maintenance.collect_submissions', new=AsyncMock(return_value={})), \
                 patch('daily_maintenance.collect_into', new=AsyncMock(return_value={'files': 0, 'errors': []})), \
                 patch('daily_maintenance.YckceoHarvester.sync', side_effect=collect), \
+                patch('daily_maintenance.ShuyuansHarvester.sync', new=AsyncMock(return_value={})), \
                 patch('daily_maintenance.ReadingValidator.probe', side_effect=probe):
             report = await self.runner.maintain(mode='catchup')
         self.assertEqual(report['deep_checked'], 1)
@@ -71,7 +72,8 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         self.runner.inventory.store.save()
         with patch('daily_maintenance.collect_submissions', new=AsyncMock(return_value={})), \
                 patch('daily_maintenance.collect_into', new=AsyncMock(return_value={'files': 0, 'errors': []})), \
-                patch('daily_maintenance.YckceoHarvester.sync', new=AsyncMock(return_value={})) as collect:
+                patch('daily_maintenance.YckceoHarvester.sync', new=AsyncMock(return_value={})) as collect, \
+                patch('daily_maintenance.ShuyuansHarvester.sync', new=AsyncMock(return_value={})):
             report = await self.runner.maintain(mode='catchup')
         collect.assert_not_awaited()
         self.assertFalse(report['inventory']['needs_replenishment'])
@@ -138,6 +140,7 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         with patch('daily_maintenance.collect_submissions', new=AsyncMock(side_effect=OSError('Feed unavailable'))), \
                 patch('daily_maintenance.collect_into', new=AsyncMock(return_value={'files': 0, 'errors': []})) as external, \
                 patch('daily_maintenance.YckceoHarvester.sync', new=AsyncMock(return_value={})) as collect, \
+                patch('daily_maintenance.ShuyuansHarvester.sync', new=AsyncMock(return_value={})), \
                 patch('daily_maintenance.ReadingValidator.probe', new=AsyncMock(return_value=ready_result(self.runner.inventory.policy))):
             report = await self.runner.maintain(mode='catchup')
         self.assertEqual(report['inventory']['healthy_count'], 1)
@@ -155,7 +158,8 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
 
         with patch('daily_maintenance.collect_submissions', new=AsyncMock(return_value={})), \
                 patch('daily_maintenance.collect_into', new=AsyncMock(return_value={'files': 0, 'errors': []})), \
-                patch('daily_maintenance.YckceoHarvester.sync', side_effect=collect):
+                patch('daily_maintenance.YckceoHarvester.sync', side_effect=collect), \
+                patch('daily_maintenance.ShuyuansHarvester.sync', new=AsyncMock(return_value={})):
             report = {'providers': {}}
             await self.runner.collect_sources(None, mode='catchup', deadline=time.monotonic() + 0.1,
                                               save=True, fetch_cap=1, backfill_rounds=1, report=report)
@@ -188,6 +192,7 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         with patch('daily_maintenance.collect_submissions', new=AsyncMock(return_value={})), \
                 patch('daily_maintenance.collect_into', new=AsyncMock(return_value={'files': 0, 'errors': []})), \
                 patch('daily_maintenance.YckceoHarvester.sync', side_effect=collect), \
+                patch('daily_maintenance.ShuyuansHarvester.sync', new=AsyncMock(return_value={})), \
                 patch('daily_maintenance.ReadingValidator.probe', side_effect=probe):
             first = await self.runner.maintain(mode='catchup', publish=True)
             second = await self.runner.maintain(mode='catchup', collect=False, publish=True)
@@ -249,7 +254,8 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
 
         with patch('daily_maintenance.collect_submissions', new=AsyncMock(return_value={})), \
                 patch('daily_maintenance.collect_into', new=AsyncMock(return_value={'files': 0, 'errors': []})), \
-                patch('daily_maintenance.YckceoHarvester.sync', side_effect=collect):
+                patch('daily_maintenance.YckceoHarvester.sync', side_effect=collect), \
+                patch('daily_maintenance.ShuyuansHarvester.sync', new=AsyncMock(return_value={})):
             report = await self.runner.maintain(mode='catchup', publish=True)
         self.assertTrue(report['published'])
         self.assertEqual(read_json(inventory.base_dir / 'full.json'), [])
@@ -267,6 +273,7 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         with patch('daily_maintenance.collect_submissions', new=AsyncMock(return_value={})), \
                 patch('daily_maintenance.collect_into', new=AsyncMock(return_value={'files': 0, 'errors': []})), \
                 patch('daily_maintenance.YckceoHarvester.sync', side_effect=collect), \
+                patch('daily_maintenance.ShuyuansHarvester.sync', new=AsyncMock(return_value={})), \
                 patch('daily_maintenance.ReadingValidator.probe', new=AsyncMock(return_value=ready_result(self.runner.inventory.policy))):
             report = await self.runner.maintain(dry_run=True)
         self.assertFalse(report['published'])

@@ -15,6 +15,7 @@ from pathlib import Path
 from reading_validator import HTTPClient, ProbeFailure
 from runtime_validator import RuntimeReadingValidator as ReadingValidator
 from runtime_config import ENVIRONMENT_FAILURES
+from source_health import COOL_DOWN_HOURS, TRANSPORT_FAILURES
 from maintenance_lock import writer_lock
 from safe_updater import SafeUpdateError
 from source_collector import collect_into
@@ -23,7 +24,27 @@ from source_store import atomic_bundle, digest, json_bytes, parse_time, read_jso
 from maintenance_acceptance import acceptance_status
 from maintenance_plan import collection_budget, explain, plan
 from yckceo_harvester import YckceoHarvester
+from shuyuans_harvester import ShuyuansHarvester
 from submissions import collect_submissions
+
+
+def keep_known_evidence(version, baseline):
+    """A transport failure cannot un-read a source that already read.
+
+    The evidence stays exactly as the last successful check left it; only the
+    schedule moves, so the cool-down survives instead of being reset by every
+    noisy run. The attempt itself is already recorded on the version.
+    """
+    health = version.setdefault('validation', {})
+    resumed = deepcopy(baseline)
+    resumed['consecutive_failures'] = int(baseline.get('consecutive_failures') or 0) + 1
+    step = min(resumed['consecutive_failures'] - 1, len(COOL_DOWN_HOURS) - 1)
+    stamp = (parse_time(health.get('last_check_at')) or parse_time(baseline.get('last_check_at'))
+             or datetime.now(timezone.utc))
+    resumed['last_check_at'] = stamp.isoformat()
+    resumed['next_check_at'] = (stamp + timedelta(hours=COOL_DOWN_HOURS[step])).isoformat()
+    resumed['next_deep_check_at'] = resumed['next_check_at']
+    version['validation'] = resumed
 
 
 class DailyMaintenance:
@@ -32,17 +53,58 @@ class DailyMaintenance:
         self.base_dir = self.inventory.base_dir
         self.metadata_file = self.inventory.metadata_file
 
+    def without_isolated_hosts(self, batch, report):
+        """Skip a host that already refused this run instead of accusing it again."""
+        isolated = self.inventory.isolated_hosts()
+        if not isolated:
+            return batch
+        store = self.inventory.store
+        kept = [ref for ref in batch
+                if self.inventory.site(store.get(ref[0])['versions'][ref[1]]['source']) not in isolated]
+        skipped = len(batch) - len(kept)
+        if skipped:
+            report['skipped_isolated'] = int(report.get('skipped_isolated') or 0) + skipped
+        return kept
+
+    def funnel(self, report, current):
+        """Report where this run's probes went.
+
+        A run that publishes nothing but re-reads what it already knows looks the
+        same as a run that found nothing new. These counters separate the two.
+        """
+        prior = read_json(self.base_dir / 'main/publication.json', {})
+        published = {item['source_id'] for item in prior.get('sources', [])}
+        results = report.get('deep_results') or []
+        first = sum(1 for item in results
+                    if item.get('status') == 'valid' and item['source_id'] not in published)
+        recheck = sum(1 for item in results
+                      if item.get('status') == 'valid' and item['source_id'] in published)
+        attempts = int(report.get('deep_checked') or 0)
+        kinds = report.get('deep_kinds') or {}
+        transport = sum(count for kind, count in kinds.items() if kind in TRANSPORT_FAILURES)
+        engine = sum(count for kind, count in kinds.items() if kind in ENVIRONMENT_FAILURES)
+        verified_before = int((prior.get('counts') or {}).get('verified', prior.get('count', 0)))
+        return {
+            'first_hit_valid': first,
+            'recheck_valid': recheck,
+            'transport_share': round(transport / attempts, 4) if attempts else 0.0,
+            'engine_share': round(engine / attempts, 4) if attempts else 0.0,
+            'verified_delta': int(current.get('verified_count', 0)) - verified_before,
+            'terminal_parked': int((report.get('raw_progress') or {}).get('parked_revisions') or 0),
+        }
     async def validate(self, validator, refs, *, mode, deadline, save, report):
         inventory, store = self.inventory, self.inventory.store
         baseline, completed = {}, []
         counts, kinds, examples = Counter(), Counter(), {}
         for offset in range(0, len(refs), 20):
-            if report.get('engine_incident') or report.get('network_incident'):
+            if report.get('engine_incident'):
                 break
             if time.monotonic() >= deadline:
                 report['budget_exhausted'] = True
                 break
-            batch = refs[offset:offset + 20]
+            batch = self.without_isolated_hosts(refs[offset:offset + 20], report)
+            if not batch:
+                continue
             for key, revision in batch:
                 version = store.get(key)['versions'][revision]
                 baseline[key, revision] = (deepcopy(version.get('validation', {})), deepcopy(version.get('audit', {})))
@@ -73,20 +135,28 @@ class DailyMaintenance:
                     store.save()
                 break
             recent_sites = {inventory.site(store.get(ref[0])['versions'][ref[1]]['source']) for ref, _ in completed}
-            network_kinds = ('network', 'timeout', 'server_error', 'tls_error')
-            network_failures = sum(result['kind'] in network_kinds for _, result in completed)
+            network_failures = sum(result['kind'] in TRANSPORT_FAILURES for _, result in completed)
             # Fresh candidates carry no history, so the guard measures this run only.
             if len(completed) >= 20 and len(recent_sites) >= 5 and network_failures / len(completed) >= 0.6:
                 report['network_incident'] = True
+                # A shared transport failure is reported, not obeyed: the run keeps
+                # working on the hosts that still answer, and the failing ones are
+                # isolated instead of being re-probed by the next batch.
                 for (key, revision), result in completed:
-                    version = store.get(key)['versions'][revision]
-                    if (result['kind'] in network_kinds
-                            and result.get('audit', {}).get('decision') not in ('block', 'review')):
-                        version['validation'], version['audit'] = baseline[key, revision]
+                    if result['kind'] not in TRANSPORT_FAILURES:
+                        continue
+                    if result.get('audit', {}).get('decision') in ('block', 'review'):
+                        continue
+                    prior = baseline[key, revision][0]
+                    if prior.get('status') != 'valid':
+                        # Nothing to protect: the failure is the newest evidence we have.
+                        continue
+                    keep_known_evidence(store.get(key)['versions'][revision], prior)
                     store.touch(key)
-                if save:
-                    store.save()
-                break
+                failing = {inventory.site(store.get(ref[0])['versions'][ref[1]]['source'])
+                           for ref, result in completed if result['kind'] in TRANSPORT_FAILURES}
+                if failing:
+                    report['hosts_isolated'] = inventory.isolate_hosts(failing, TRANSPORT_FAILURES)
             if save:
                 store.save()
             print(f'{mode}: {len(completed)}/{len(refs)} {dict(counts)}', flush=True)
@@ -118,13 +188,24 @@ class DailyMaintenance:
                 result = await harvester.sync(
                     store, client, full_scan=full_scan, scan=round_index == 0,
                     daily_pages=int(cfg.get('daily_pages', 5)),
-                    fetch_cap=fetch_cap if fetch_cap is not None else (300 if mode in ('backfill', 'catchup') else 150),
+                    fetch_cap=fetch_cap if fetch_cap is not None else int(
+                        cfg.get('emergency_fetch_cap' if mode in ('backfill', 'catchup') else 'daily_fetch_cap',
+                                600 if mode in ('backfill', 'catchup') else 300)),
                     deadline=deadline, save=save,
                 )
                 batches.append(result)
                 if time.monotonic() >= deadline or not result.get('fetched_ids') or not result.get('pending_count'):
                     break
             return batches
+
+        async def shuyuans():
+            """Harvest curated collections: the only intake that adds sources in bulk."""
+            cfg = inventory.config.get('shuyuans', {})
+            harvester = ShuyuansHarvester(inventory.policy, **cfg)
+            return await harvester.sync(
+                store, client, deadline=deadline, save=save,
+                fetch_cap=fetch_cap if fetch_cap is not None else int(cfg.get('collections_per_run', 6)),
+            )
 
         async def external():
             last = parse_time(store.state.get('last_external_collection_at'))
@@ -151,6 +232,7 @@ class DailyMaintenance:
             async with asyncio.TaskGroup() as tasks:
                 tasks.create_task(run_provider('submissions', submissions))
                 tasks.create_task(run_provider('yckceo', yckceo))
+                tasks.create_task(run_provider('shuyuans', shuyuans))
                 if mode != 'backfill':
                     tasks.create_task(run_provider('external', external))
         finally:
@@ -198,9 +280,14 @@ class DailyMaintenance:
             async def check_inventory():
                 # Every probe starts its own JVM worker, so this number is also the
                 # number of live engines: keep it under what the runner can hold
-                # rather than matching the CLI default.
-                limit = int(inventory.config.get('inventory', {}).get('validation_concurrency', 6))
-                validator = ReadingValidator(inventory.policy, concurrency=max(1, min(concurrency, limit)))
+                # rather than matching the CLI default. A container capped at one
+                # CPU cannot use more than the machine has, so the CPU count is the
+                # ceiling no matter what the config asks for.
+                requested = int(inventory.config.get('inventory', {}).get('validation_concurrency', 6))
+                limit = max(2, min(requested, concurrency, os.cpu_count() or requested))
+                request_timeout = float(inventory.config.get('validation', {}).get('engine_request_timeout', 30))
+                validator = ReadingValidator(inventory.policy, concurrency=max(1, limit),
+                                             request_timeout=request_timeout)
                 async with asyncio.TaskGroup() as checks:
                     checks.create_task(self.validate(validator, refs, mode='deep', deadline=validation_deadline,
                                                      save=not dry_run, report=report))
@@ -235,15 +322,19 @@ class DailyMaintenance:
             if decision['allowed']:
                 collection_deadline = (deadline if mode == 'backfill' else
                                        min(deadline, time.monotonic() + max(collection_share, 0.0)))
-                async with HTTPClient(concurrency, timeout, max_bytes=32 * 1024 * 1024) as client:
+                # Feeds and collections are large JSON documents, so the client needs
+                # the configured collection budget rather than the probe timeout.
+                collection_timeout = float(inventory.config.get('collection', {}).get('timeout', 30))
+                async with HTTPClient(concurrency, collection_timeout, max_bytes=32 * 1024 * 1024) as client:
                     await self.collect_sources(client, mode=mode, deadline=collection_deadline, save=not dry_run,
                                                fetch_cap=fetch_cap, backfill_rounds=backfill_rounds, report=report)
             # A newly collected exclusion must apply before selecting the release.
-            # A newly collected exclusion must apply before selecting the release.
-            report['static_audit'] = inventory.audit_all()
+            # A newly collected revision must be audited; unchanged ones are cached.
+            report['static_audit'] = inventory.audit_all(dirty_only=True)
             report['raw_progress'] = inventory.revalidation_progress()
             _, _, current = inventory.select()
             report['inventory'] = current
+            report.update(self.funnel(report, current))
             report['publication_gate'] = {'verified': inventory.publication_gate(current),
                                           'extended': inventory.publication_gate(current, extended=True)}
             report['finished_at'] = utcnow()
@@ -254,23 +345,14 @@ class DailyMaintenance:
                 store.save()
                 inventory.write_shadow()
                 if publish and mode != 'backfill':
-                    # A network incident can remove a confirmed adult source, but cannot certify new availability.
+                    # A transport incident is a property of the moment: the release
+                    # follows the normal gates, and the shrink guard still owns the
+                    # question of how small a snapshot may become.
                     has_prior = (inventory.base_dir / 'main/publication.json').exists()
                     verified_gate = report['publication_gate']['verified']
                     extended_gate = report['publication_gate']['extended']
                     if report.get('engine_incident'):
                         report['publication_skipped'] = 'Runtime incident; existing snapshot retained'
-                    elif report.get('network_incident'):
-                        prior = read_json(inventory.base_dir / 'main/publication.json', {})
-                        allowed = {(item['source_id'], item['revision']) for item in prior.get('sources', [])}
-                        safe, _, _ = inventory.select(allowed=allowed)
-                        if has_prior and len(safe) < prior.get('count', 0):
-                            inventory.publish(allowed=allowed, allow_empty=True,
-                                             publish_extended=publish_extended)
-                            report['published'] = True
-                            report['safety_prune'] = True
-                        else:
-                            report['publication_skipped'] = 'Shared network failure; existing snapshot retained'
                     elif verified_gate['ready'] or extended_gate['ready'] or has_prior:
                         try:
                             inventory.publish(allow_empty=has_prior, publish_extended=publish_extended)

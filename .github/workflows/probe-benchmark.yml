@@ -1,0 +1,81 @@
+name: Probe Concurrency Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      concurrency_list:
+        description: Concurrencies to compare, comma separated
+        default: '4,8,12'
+      count:
+        description: Sample size per concurrency
+        default: '60'
+      max_minutes:
+        description: Budget per concurrency round
+        default: '20'
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the pinned runtime
+        id: runtime
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: runtime/Dockerfile
+          load: true
+          tags: novel-runtime:bench
+          cache-from: type=gha,scope=novel-runtime
+      - name: Initialize the raw store
+        run: python -B scripts/source_inventory.py migrate
+      - name: Run the concurrency benchmark
+        env:
+          NOVEL_ENGINE_IMAGE: ${{ steps.runtime.outputs.imageid }}
+          LEVELS: ${{ inputs.concurrency_list }}
+          COUNT: ${{ inputs.count }}
+          MINUTES: ${{ inputs.max_minutes }}
+        run: |
+          # This never writes inventory or evidence: only reports/runtime/benchmark.json.
+          python -B scripts/probe_runtime.py bench --count "$COUNT" --max-minutes "$MINUTES" \
+            --concurrency-list "$LEVELS"
+      - name: Report the decision
+        run: |
+          {
+            echo '## Probe concurrency benchmark'
+            echo
+            python -B - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('reports/runtime/benchmark.json').read_text())
+          print('| concurrency | attempts | valid | engine share | transport share | p95 ms | probes/min |')
+          print('|---|---|---|---|---|---|---|')
+          for row in report['rounds']:
+              print(f"| {row['concurrency']} | {row['attempts']} | {row['valid']}"
+                    f" | {row['engine_failure_share']:.0%} | {row['transport_share']:.0%}"
+                    f" | {row['p95_ms']} | {row['probes_per_minute']} |")
+          print()
+          print(f"- decision: `{report['decision']['concurrency']}`"
+                f" ({report['decision']['reason']})")
+          PY
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-benchmark-${{ github.run_id }}
+          retention-days: 30
+          path: reports/runtime/benchmark.json

@@ -1,6 +1,7 @@
 import json
 import sys
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,13 +37,18 @@ class Runner:
         return Result('')
 
 
-def summary(verified=137, extended=1000, unverified=800, incidents=()):
+def summary(verified=137, extended=1000, unverified=800, incidents=(), spinning=False,
+            published_at=None):
     return {'verified': verified, 'extended': extended, 'unverified': unverified,
             'verified_share': round(verified / extended, 4) if extended else 0.0,
             'attempts': 1500, 'valid': 150, 'conversion': 0.1,
             'top_kinds': [('rule_error', 300)], 'incidents': list(incidents),
-            'status': 'degraded', 'published_at': '2026-10-28T00:00:00+00:00',
-            'checked_at': '2026-10-28T00:00:00+00:00'}
+            'status': 'degraded',
+            'published_at': published_at or datetime.now(timezone.utc).isoformat(),
+            'checked_at': '2026-10-28T00:00:00+00:00',
+            'verified_delta': 0, 'transport_share': 0.0, 'spinning': spinning,
+            'week': [{'checked': 4000, 'verified': verified - 8},
+                     {'checked': 4462, 'verified': verified}]}
 
 
 class AlertTests(unittest.TestCase):
@@ -51,7 +57,7 @@ class AlertTests(unittest.TestCase):
         runner = Runner()
         result = sync_alert(summary(), repo='tickmao/Novel', runner=runner)
         self.assertEqual(result['action'], 'created')
-        self.assertIn('verified **137** (14%) / target 30%', runner.calls[-1][1])
+        self.assertIn('verified **137** (14%) / floor 15%', runner.calls[-1][1])
         self.assertEqual(runner.calls[-2][0][:3], ['gh', 'label', 'create'])
 
     def test_a_failed_issue_create_is_reported(self):
@@ -76,14 +82,22 @@ class AlertTests(unittest.TestCase):
         self.assertTrue(abnormal(summary(verified=960, incidents=['engine_incident'])))
         self.assertFalse(abnormal(summary(verified=960)))
 
-    def test_body_reports_the_share_and_both_targets(self):
-        text = body_of(summary(), verified_share_target=0.3, extended_target=1000)
-        self.assertIn('verified **137** (14%) / target 30%', text)
+    def test_body_reports_the_share_and_the_floor(self):
+        text = body_of(summary(), extended_target=1000)
+        self.assertIn('verified **137** (14%) / floor 15%', text)
         self.assertIn('extended **1000** / 1000', text)
+        self.assertIn('spinning: no', text)
 
-    def test_share_target_replaces_the_unreachable_count(self):
+    def test_the_floor_replaces_the_unreachable_share_target(self):
         self.assertTrue(abnormal(summary(verified=137)))
         self.assertFalse(abnormal(summary(verified=300)))
+
+    def test_spinning_opens_the_issue(self):
+        self.assertTrue(abnormal(summary(verified=300, spinning=True)))
+
+    def test_a_stale_publication_opens_the_issue(self):
+        old = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
+        self.assertTrue(abnormal(summary(verified=300, published_at=old)))
 
 
 if __name__ == '__main__':

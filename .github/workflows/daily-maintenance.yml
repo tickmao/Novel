@@ -40,6 +40,9 @@ jobs:
     # the mode from this one value instead of repeating the rule in shell.
     env:
       MAINTENANCE_MODE: ${{ github.event.schedule == '0 0,6,12 * * *' && 'catchup' || 'daily' }}
+      # The raw store is a 0.3 GB snapshot that grows every run. It lives on its own
+      # branch with a flat history so master's pack does not grow with it.
+      STATE_BRANCH: state/raw-store
     outputs:
       published: ${{ steps.maintenance.outputs.published }}
     steps:
@@ -47,6 +50,23 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Restore the raw store
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The store is deliberately not tracked on master. A first run has no state
+          # branch yet and bootstraps from the published package in `migrate`.
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if ! git ls-remote --exit-code --heads "$remote" "$STATE_BRANCH" >/dev/null 2>&1; then
+            echo "::notice::No $STATE_BRANCH branch yet; this run bootstraps the raw store."
+            exit 0
+          fi
+          git fetch --depth=1 "$remote" "refs/heads/$STATE_BRANCH"
+          # `git archive` writes the working tree without touching the index, so the
+          # restored files cannot be dragged into the master commit by a later add.
+          git archive FETCH_HEAD sources/legado/pool/raw | tar -x
+          count=$(find sources/legado/pool/raw/records -name '*.json' | wc -l)
+          echo "Restored $count shards ($(du -sh sources/legado/pool/raw | cut -f1)) from $STATE_BRANCH"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -132,7 +152,23 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           gh auth setup-git
-          for path in sources/legado/pool/raw/ reports/runtime/; do
+          # Snapshot the raw store on its own branch: one commit, force-pushed, so the
+          # store's growth never enters master's pack. A temporary index keeps the
+          # snapshot out of the master commit built below.
+          if [ -d sources/legado/pool/raw ]; then
+            snapshot_index="$(mktemp)"
+            GIT_INDEX_FILE="$snapshot_index" git read-tree --empty
+            GIT_INDEX_FILE="$snapshot_index" git add -f sources/legado/pool/raw
+            tree=$(GIT_INDEX_FILE="$snapshot_index" git write-tree)
+            rm -f "$snapshot_index"
+            commit=$(git commit-tree "$tree" -m "state: raw store $(date -u +%Y-%m-%dT%H:%M:%SZ)")
+            if git push --force origin "$commit:refs/heads/$STATE_BRANCH"; then
+              echo "Raw store snapshot pushed to $STATE_BRANCH"
+            else
+              echo '::warning::Raw store snapshot was not pushed; this run keeps it in the recovery artifact'
+            fi
+          fi
+          for path in reports/runtime/; do
             if [ -d "$path" ]; then git add "$path"; fi
           done
           for file in sources/legado/main/shadow.json sources/legado/main/maintenance_report.json; do
@@ -182,7 +218,16 @@ jobs:
       - name: Add run summary
         if: ${{ always() }}
         continue-on-error: true
-        run: python -B scripts/check_publication.py --summary --allow-bootstrap >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          python -B scripts/check_publication.py --summary --allow-bootstrap >> "$GITHUB_STEP_SUMMARY"
+          # The store now grows on its own branch, so its size is the number that
+          # decides when the snapshot needs pruning.
+          if [ -d sources/legado/pool/raw ]; then
+            shards=$(find sources/legado/pool/raw/records -name '*.json' | wc -l)
+            printf '\n## Raw store\n\n- size: %s\n- shards: %s\n- branch: `%s`\n' \
+              "$(du -sh sources/legado/pool/raw | cut -f1)" "$shards" "$STATE_BRANCH" \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Sync the health issue
         if: ${{ always() && inputs.dry_run != true }}
         continue-on-error: true
