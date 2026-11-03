@@ -74,11 +74,12 @@ They do not prove compatibility with every Legado extension. Interactive
 browser rules remain unsupported. Rules that cannot provide enough evidence
 remain unverified; they are not confirmed site failures.
 
-The publication gate requires passing container fixtures, 60 live sample
-attempts with at least one complete reading success, at least 950 healthy sources
-and 300 eligible reserves for the first
-version 3 release. Later releases may report shortages but cannot use unverified
-entries to fill them. Changing the adapter fingerprint invalidates old evidence,
+The publication gate requires passing container fixtures and 60 live sample
+attempts with at least one complete reading success. Delivery is measured against
+`inventory.usable_target` (500 sources that read), not a package size: the extended
+package may hold more entries, but unverified entries never count as usable. A
+source whose last successful reading check is older than `export_max_age_days`
+drops out of the delivery on its own. Changing the adapter fingerprint invalidates old evidence,
 and a previous release is carried as `legacy` until the new identity re-verifies it:
 an admission change alone must never empty the published file.
 

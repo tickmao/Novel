@@ -56,9 +56,10 @@ class SourceInventory:
         self.extended_target = int(cfg.get('extended_target', self.export_target))
         self.extended_min = int(cfg.get('extended_min', 200))
         self.extended_max = int(cfg.get('extended_max', 1200))
-        self.verified_share_target = float(cfg.get('verified_share_target', 0.3))
-        # One truth: the absolute floor follows from the share and the package size.
-        self.verified_target = round(self.extended_target * self.verified_share_target)
+        # The delivery goal is an absolute number of sources that read: the package
+        # may hold more entries, but only these count as usable.
+        self.usable_target = int(cfg.get('usable_target', 500))
+        self.verified_target = self.usable_target
         self.max_per_domain_extended = int(cfg.get('max_per_domain_extended',
                                                    self.config.get('supplement', {}).get('max_per_domain_extended', 3)))
         self.stale_verified_days = int(cfg.get('stale_verified_days', 30))
@@ -230,16 +231,38 @@ class SourceInventory:
             'extended_only_count': len(extended_only),
             'unverified_count': sum(item['_tier'] in ('unverified', 'never_checked') for item in extended_only),
             'verified_share': round(share, 4),
-            'verified_share_target': self.verified_share_target,
+            'usable_target': self.usable_target,
+            'freshness': self.freshness(export, now),
             'searchable_count': searchable,
             'searchable_share': round(searchable / len(extended), 4) if extended else 0.0,
             'tiers': dict(Counter(item.get('_tier', 'verified') for item in extended)),
             'needs_replenishment': (len(extended) < self.extended_target
+                                    or len(export) < self.usable_target
                                     or len(reserve) < self.reserve_target),
-            'status': ('healthy' if share >= self.verified_share_target
+            'status': ('healthy' if len(export) >= self.usable_target
                        and len(extended) >= self.extended_target else 'degraded'),
         }
         return export, reserve, report
+
+    def freshness(self, sources, now=None):
+        """How recently the delivered sources were last read.
+
+        A usable source is only usable while the evidence is current, so the age of
+        the oldest check is a delivery fact, not a statistic.
+        """
+        now = now or datetime.now(timezone.utc)
+        ages = []
+        for item in sources:
+            stamp = parse_time((item.get('_health') or {}).get('last_deep_success_at'))
+            if stamp:
+                ages.append(max(0.0, (now - stamp).total_seconds() / 86400))
+        if not ages:
+            return {'count': 0, 'oldest_days': None, 'median_days': None, 'within_max_age': 0}
+        ages.sort()
+        return {'count': len(ages),
+                'oldest_days': round(ages[-1], 2),
+                'median_days': round(ages[len(ages) // 2], 2),
+                'within_max_age': sum(1 for age in ages if age <= self.max_age_days)}
 
     def extended_versions(self, export, now=None):
         """Verified sources first, then the best available unverified candidates."""

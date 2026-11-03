@@ -50,9 +50,9 @@ def check(root, allow_bootstrap=False, current_health=False):
             raise ValueError('Publication health counts differ')
     readme = (root / 'README.md').read_text()
     index = (root / 'docs/index.html').read_text()
-    if f'{counts["extended"]} 个纯小说书源' not in index:
+    if f'{manifest["count"]} 个纯小说书源' not in index:
         raise ValueError('Visible publication counts differ')
-    if not _delivery_row(readme, counts['extended']):
+    if not _delivery_row(readme, manifest['count']):
         raise ValueError('Visible delivery count differs')
     return manifest
 
@@ -106,15 +106,13 @@ def _check_extended(base, root, manifest, sources, counts, current_health):
 
 
 def _targets(root):
-    """The verified target is the share of the package, never a separate number.
+    """Delivery is measured in sources that read, so the target is absolute.
 
-    It was a hard-coded 950 while the package is one thousand sources, so the
-    summary reported a bar nobody could reach and the alert never cleared.
+    It was a share of a package size, and before that a hard-coded 950: both let the
+    summary report a bar that no amount of work could reach.
     """
     inventory = read_json(root / 'config/supplement_config.json', {}).get('inventory', {})
-    extended = int(inventory.get('extended_target', 1000))
-    share = float(inventory.get('verified_share_target', 0.3))
-    return round(extended * share), extended
+    return int(inventory.get('usable_target', 500)), int(inventory.get('extended_target', 1000))
 
 
 def _ranked(values, limit):
@@ -125,7 +123,7 @@ def _top(values, count=5):
     return ', '.join(f'{name}={value}' for name, value in _ranked(values, count)) or 'none'
 
 
-def summary_text(result, report=None, *, verified_target=950, extended_target=1000, limit=SUMMARY_LIMIT):
+def summary_text(result, report=None, *, verified_target=500, extended_target=1000, limit=SUMMARY_LIMIT):
     """Render a step summary that stays well below the runner's 1 MiB cap."""
     report = report or {}
     counts = _counts(result)
@@ -139,7 +137,7 @@ def summary_text(result, report=None, *, verified_target=950, extended_target=10
 
     lines = [
         '## Publication', '',
-        f"- verified: {counts['verified']} / {verified_target}",
+        f"- usable: {counts['verified']} / {verified_target} (target)",
         f"- extended: {counts['extended']} / {extended_target}",
         f"- unverified: {counts['unverified']} ({share:.0%} verified)",
         f"- legacy: {counts['legacy']}",
@@ -172,6 +170,11 @@ def summary_text(result, report=None, *, verified_target=950, extended_target=10
               f", engine share: {float(report.get('engine_share') or 0.0):.0%}",
               f"- verified change: {int(report.get('verified_delta') or 0):+d}",
               ]
+    fresh = inventory.get('freshness') or {}
+    if fresh.get('count'):
+        lines.append(f"- evidence age: oldest {fresh.get('oldest_days')}d"
+                     f", median {fresh.get('median_days')}d"
+                     f", within {fresh.get('within_max_age')}/{fresh.get('count')}")
 
     incidents = [name for name in ('engine_incident', 'network_incident') if report.get(name)]
     lines += ['', '## Incidents', '', f"- {', '.join(incidents) if incidents else 'none'}"]

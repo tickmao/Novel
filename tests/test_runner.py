@@ -67,6 +67,7 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
     async def test_full_inventory_does_not_collect_more_sources(self):
         self.runner.inventory.export_target = 1
         self.runner.inventory.extended_target = 1
+        self.runner.inventory.usable_target = 1
         self.runner.inventory.reserve_target = 0
         seed(self.runner.inventory, 1)
         self.runner.inventory.store.save()

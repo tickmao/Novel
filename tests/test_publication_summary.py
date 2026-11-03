@@ -48,7 +48,7 @@ class SummaryTests(unittest.TestCase):
         self.assertLessEqual(len(text.encode()), SUMMARY_LIMIT)
         self.assertIn('## Publication', text)
         self.assertIn('## Maintenance run', text)
-        self.assertIn('verified: 140 / 950', text)
+        self.assertIn('usable: 140 / 500', text)
         self.assertIn('pending 9630', text)
         self.assertNotIn('deep_results', text)
 
@@ -65,7 +65,7 @@ class SummaryTests(unittest.TestCase):
     def test_a_missing_report_still_renders(self):
         text = summary_text(manifest(), {})
 
-        self.assertIn('verified: 140 / 950', text)
+        self.assertIn('usable: 140 / 500', text)
         self.assertIn('deep attempts: 0, valid: 0', text)
         self.assertIn('finished: unknown', text)
         self.assertIn('- none', text)
@@ -85,16 +85,15 @@ class SummaryTests(unittest.TestCase):
 
         self.assertIn('## Incidents\n\n- engine_incident', text)
 
-    def test_targets_follow_the_share_of_the_package(self):
+    def test_targets_come_from_the_configured_usable_count(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            # No config: the default share of the default package.
-            self.assertEqual(_targets(root), (300, 1000))
+            self.assertEqual(_targets(root), (500, 1000))
 
             config = root / 'config' / 'supplement_config.json'
             config.parent.mkdir(parents=True)
-            config.write_text('{"inventory": {"verified_share_target": 0.5, "extended_target": 800}}')
-            self.assertEqual(_targets(root), (400, 800))
+            config.write_text('{"inventory": {"usable_target": 600, "extended_target": 800}}')
+            self.assertEqual(_targets(root), (600, 800))
 
     def test_the_summary_reports_the_probe_funnel(self):
         report = large_report(rows=2)

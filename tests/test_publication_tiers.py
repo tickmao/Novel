@@ -79,14 +79,15 @@ class TieredPublicationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             check(self.root)
 
-    def test_visible_counts_cover_both_packages(self):
+    def test_the_visible_count_is_the_verified_package(self):
         base = self.publish()
         manifest = read_json(base / 'main/publication.json')
         readme = (self.root / 'README.md').read_text()
         index = (self.root / 'docs/index.html').read_text()
-        self.assertIn(f'| {manifest["counts"]["extended"]} |', readme)
+        # The headline is what a reader can open, not the fallback package.
+        self.assertIn(f'| {manifest["count"]} |', readme)
         self.assertIn('[阅读 (Legado)]', readme)
-        self.assertIn(f'{manifest["counts"]["extended"]} 个纯小说书源', index)
+        self.assertIn(f'{manifest["count"]} 个纯小说书源', index)
         self.assertIn('扩展交付书源', (self.root / 'STATS.md').read_text())
 
     def test_current_health_only_covers_the_verified_tier(self):

@@ -62,15 +62,17 @@ def stats_files(root: Path, manifest: dict) -> dict:
         # The README answers one question: which link do I paste? Only the count
         # that a reader sees stays in sync; release state, evidence share and the
         # update timestamp belong to STATS.md and the publication manifest.
+        # The delivered number is the size of the verified package: the sources a
+        # reader can actually open. The extended pack is a fallback, not the promise.
         value = re.sub(r'(\|[^|\n]*\[阅读 \(Legado\)\][^|\n]*\|) \d+( \|)',
-                       rf'\g<1> {extended}\g<2>', value)
+                       rf'\g<1> {count}\g<2>', value)
         files[readme] = value.encode()
     index = root / 'docs' / 'index.html'
     if index.exists():
         value = index.read_text()
-        value = re.sub(r'<span class="stat-value">\d+ 个书源</span>', f'<span class="stat-value">{extended} 个书源</span>', value)
-        value = re.sub(r'<span class="source-count">\d+ 个纯小说书源</span>', f'<span class="source-count">{extended} 个纯小说书源</span>', value)
-        value = re.sub(r'聚合 \d+\+? 纯小说书源', f'聚合 {extended} 纯小说书源', value)
+        value = re.sub(r'<span class="stat-value">\d+ 个书源</span>', f'<span class="stat-value">{count} 个书源</span>', value)
+        value = re.sub(r'<span class="source-count">\d+ 个纯小说书源</span>', f'<span class="source-count">{count} 个纯小说书源</span>', value)
+        value = re.sub(r'聚合 \d+\+? 纯小说书源', f'聚合 {count} 纯小说书源', value)
         # The page shows the delivered count only. Release state and the evidence
         # timestamp belong to README.md and STATS.md; a status line on the landing
         # page competed with the card layout and told a reader nothing.

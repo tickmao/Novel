@@ -26,6 +26,7 @@ def summarize(root):
     kinds = report.get('deep_kinds') or {}
     top_kinds = sorted(kinds.items(), key=lambda item: item[1], reverse=True)[:5]
     incidents = [name for name in ('engine_incident', 'network_incident') if report.get(name)]
+    inventory = report.get('inventory') or {}
     progress = recent_progress(read_json(root / 'sources/legado/pool/raw/state.json', {}))
     return {
         'verified': verified, 'extended': extended, 'unverified': unverified,
@@ -38,6 +39,8 @@ def summarize(root):
         'checked_at': report.get('finished_at'),
         'verified_delta': int(report.get('verified_delta') or 0),
         'transport_share': float(report.get('transport_share') or 0.0),
+        'usable_target': int(inventory.get('usable_target') or USABLE_TARGET),
+        'freshness': inventory.get('freshness') or {},
         'spinning': is_spinning(progress),
         'week': progress,
     }
@@ -64,8 +67,11 @@ def is_spinning(rows, minimum_runs=4):
     return last['checked'] > first['checked'] and last['verified'] <= first['verified']
 
 
-VERIFIED_SHARE_FLOOR = 0.15
+USABLE_TARGET = 500
 STALE_PUBLICATION_DAYS = 3
+# Evidence older than the publication window is not evidence: the source could have
+# changed the day after the check.
+MAX_EVIDENCE_AGE_DAYS = 7
 
 
 def spinning(summary):
@@ -73,17 +79,24 @@ def spinning(summary):
     return bool(summary.get('spinning'))
 
 
-def abnormal(summary, *, extended_target=1000, verified_share_target=VERIFIED_SHARE_FLOOR,
+def abnormal(summary, *, extended_target=1000, verified_target=USABLE_TARGET,
              stale_days=STALE_PUBLICATION_DAYS):
-    """Judge delivery by health, not by the long-term share target.
+    """Delivery is behind when it has too few usable sources, or stale ones.
 
-    The share target is a direction, so alerting on it left the issue permanently
-    open. The floor is the level at which delivery has stopped being useful, and the
-    remaining conditions are the ones a person can actually act on.
+    The target is absolute because "usable" is the product: 500 sources that read.
+    Everything else here is a condition a person can act on.
     """
-    return (bool(summary['incidents']) or summary['extended'] < extended_target
-            or summary['verified_share'] < verified_share_target
-            or spinning(summary) or stale(summary, stale_days))
+    return (bool(summary['incidents'])
+            or int(summary.get('verified') or 0) < int(summary.get('usable_target') or verified_target)
+            or summary['extended'] < extended_target
+            or spinning(summary) or stale(summary, stale_days)
+            or stale_evidence(summary))
+
+
+def stale_evidence(summary, max_age_days=MAX_EVIDENCE_AGE_DAYS):
+    """The oldest delivered check is older than the publication window."""
+    oldest = (summary.get('freshness') or {}).get('oldest_days')
+    return oldest is not None and oldest > max_age_days
 
 
 def stale(summary, days=STALE_PUBLICATION_DAYS):
@@ -93,15 +106,17 @@ def stale(summary, days=STALE_PUBLICATION_DAYS):
     return datetime.now(timezone.utc) - published > timedelta(days=days)
 
 
-def body_of(summary, run_url=None, extended_target=1000, verified_share_target=VERIFIED_SHARE_FLOOR):
+def body_of(summary, run_url=None, extended_target=1000, verified_target=None):
     week = summary.get('week') or []
     delta = (week[-1]['verified'] - week[0]['verified']) if len(week) >= 2 else 0
+    target = int(verified_target or summary.get('usable_target') or USABLE_TARGET)
+    fresh = summary.get('freshness') or {}
     lines = [
-        f"Delivery: verified **{summary['verified']}** ({summary['verified_share']:.0%}) / floor"
-        f" {verified_share_target:.0%}, extended **{summary['extended']}** / {extended_target}"
-        f" (unverified {summary['unverified']}).",
+        f"Delivery: usable **{summary['verified']}** / {target}"
+        f" ({summary['verified_share']:.0%} of the {summary['extended']}-entry package).",
         '',
         f"- verified share: {summary['verified_share']:.0%}",
+        f"- evidence age: oldest {fresh.get('oldest_days')}d, median {fresh.get('median_days')}d",
         f"- verified change this week: {delta:+d}",
         f"- last run conversion: {summary['valid']}/{summary['attempts']} = {summary['conversion']:.2%}",
         f"- transport share of failures: {summary.get('transport_share', 0.0):.0%}",
@@ -121,7 +136,7 @@ def gh(args, *, stdin=None, runner=None):
 
 
 def sync_alert(summary, *, repo, run_url=None, extended_target=1000,
-               verified_share_target=VERIFIED_SHARE_FLOOR, runner=None):
+               verified_target=None, runner=None):
     """Create, update or close the single degraded-maintenance issue."""
     result = gh(['issue', 'list', '--repo', repo, '--label', LABEL, '--state', 'open', '--json', 'number'],
                 runner=runner)
@@ -131,12 +146,12 @@ def sync_alert(summary, *, repo, run_url=None, extended_target=1000,
         open_issues = []
     number = open_issues[0]['number'] if open_issues else None
     if not abnormal(summary, extended_target=extended_target,
-                    verified_share_target=verified_share_target):
+                    verified_target=int(verified_target or summary.get('usable_target') or USABLE_TARGET)):
         if number is None:
             return {'action': 'none', 'reason': 'healthy'}
         gh(['issue', 'close', str(number), '--repo', repo, '--comment', 'Delivery is back on target.'], runner=runner)
         return {'action': 'closed', 'number': number}
-    body = body_of(summary, run_url, extended_target, verified_share_target)
+    body = body_of(summary, run_url, extended_target, verified_target)
     if number is not None:
         gh(['issue', 'comment', str(number), '--repo', repo, '--body-file', '-'], stdin=body, runner=runner)
         return {'action': 'commented', 'number': number}
@@ -157,20 +172,20 @@ def main():
     parser.add_argument('--repo', required=True)
     parser.add_argument('--run-url')
     parser.add_argument('--extended-target', type=int, default=1000)
-    parser.add_argument('--verified-share-target', type=float, default=VERIFIED_SHARE_FLOOR,
-                        help='Share below which delivery is no longer useful')
+    parser.add_argument('--verified-target', type=int, default=USABLE_TARGET,
+                        help='Usable sources the delivery must reach')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
     summary = summarize(args.base_dir)
     if args.dry_run:
         print(json.dumps({'summary': summary,
                           'abnormal': abnormal(summary, extended_target=args.extended_target,
-                                               verified_share_target=args.verified_share_target)},
+                                               verified_target=args.verified_target)},
                          ensure_ascii=False, indent=2))
         return
     print(json.dumps(sync_alert(summary, repo=args.repo, run_url=args.run_url,
                                 extended_target=args.extended_target,
-                                verified_share_target=args.verified_share_target), ensure_ascii=False))
+                                verified_target=args.verified_target), ensure_ascii=False))
 
 
 if __name__ == '__main__':

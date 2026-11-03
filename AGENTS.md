@@ -28,7 +28,8 @@ git status --short                                                     # 动手�
 
 - **禁止整文件读大 JSON**：`sources/legado/pool/raw/`（约 300MB，本地存在、由 state 分支承载）、`pool/raw.json`（约 100MB）、`pool/invalid.json`（约 45MB，后两者已不再随 master 提交，仅本地留存）。统计需求用 `python`/`jq` 聚合，只把结论带进上下文。
 - 改数据先备份；只有验证通过才允许合并进 `main/full.json`，`scripts/safe_updater.py` 负责数量与分层校验。
-- 数量、分层、评分以 `sources/legado/manifest.json` 与 `main/publication.json` 为准；文档里的历史数字会过期。
+- 交付目标是 **500 条可读书源**（`config.inventory.usable_target`），不是 1000 条条目：`extended` 只是包体，`verified` 才是产品。数量、分层、评分以 `sources/legado/manifest.json` 与 `main/publication.json` 为准；文档里的历史数字会过期。
+- 可用必须新鲜：`export_max_age_days=7` 是硬门槛，超过 7 天没复验的源会自动掉出交付；`freshness` 指标与 `ops_alert` 的 `stale_evidence` 负责让这件事可见。
 - 现行管线的常量在 `config/supplement_config.json` 与 `scripts/source_inventory.py`；`scripts/source_selector.py`、`scripts/integrate.py` 是上一代管线，**没有任何 workflow 引用**，不要照着它们改。
 - 原始池入口：`yckceo`（单条书源目录）与 `shuyuans`（书源合集，`scripts/shuyuans_harvester.py`，只收近一年且 ≥5 源的合集，按「日期桶 + 源数量」判重）。合集是扩源主入口。
 - 准入档位权威位置：`scripts/runtime_validator.py` 的 `PROFILE`（1 本可读书 + 2 章为可用，2 本为 `stable` 徽章）；`scripts/source_health.py` 的 `eligibility` 是唯一下游判据。

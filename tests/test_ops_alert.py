@@ -43,6 +43,7 @@ def summary(verified=137, extended=1000, unverified=800, incidents=(), spinning=
             'verified_share': round(verified / extended, 4) if extended else 0.0,
             'attempts': 1500, 'valid': 150, 'conversion': 0.1,
             'top_kinds': [('rule_error', 300)], 'incidents': list(incidents),
+            'usable_target': 500, 'freshness': {'count': 137, 'oldest_days': 2.0, 'median_days': 0.5},
             'status': 'degraded',
             'published_at': published_at or datetime.now(timezone.utc).isoformat(),
             'checked_at': '2026-10-28T00:00:00+00:00',
@@ -57,7 +58,7 @@ class AlertTests(unittest.TestCase):
         runner = Runner()
         result = sync_alert(summary(), repo='tickmao/Novel', runner=runner)
         self.assertEqual(result['action'], 'created')
-        self.assertIn('verified **137** (14%) / floor 15%', runner.calls[-1][1])
+        self.assertIn('usable **137** / 500', runner.calls[-1][1])
         self.assertEqual(runner.calls[-2][0][:3], ['gh', 'label', 'create'])
 
     def test_a_failed_issue_create_is_reported(self):
@@ -68,7 +69,7 @@ class AlertTests(unittest.TestCase):
 
     def test_healthy_delivery_closes_the_issue(self):
         runner = Runner(open_issues=[{'number': 7}])
-        result = sync_alert(summary(verified=960), repo='tickmao/Novel', runner=runner)
+        result = sync_alert(summary(verified=520), repo='tickmao/Novel', runner=runner)
         self.assertEqual(result['action'], 'closed')
         self.assertEqual(runner.calls[-1][0][:4], ['gh', 'issue', 'close', '7'])
 
@@ -79,25 +80,32 @@ class AlertTests(unittest.TestCase):
         self.assertNotIn('create', [call[0][2] for call in runner.calls])
 
     def test_incident_alone_is_abnormal(self):
-        self.assertTrue(abnormal(summary(verified=960, incidents=['engine_incident'])))
-        self.assertFalse(abnormal(summary(verified=960)))
+        self.assertTrue(abnormal(summary(verified=520, incidents=['engine_incident'])))
+        self.assertFalse(abnormal(summary(verified=520)))
 
-    def test_body_reports_the_share_and_the_floor(self):
+    def test_body_reports_the_usable_target_and_the_evidence_age(self):
         text = body_of(summary(), extended_target=1000)
-        self.assertIn('verified **137** (14%) / floor 15%', text)
-        self.assertIn('extended **1000** / 1000', text)
+        self.assertIn('usable **137** / 500', text)
+        self.assertIn('evidence age: oldest 2.0d', text)
         self.assertIn('spinning: no', text)
 
-    def test_the_floor_replaces_the_unreachable_share_target(self):
+    def test_the_target_is_an_absolute_count_of_usable_sources(self):
         self.assertTrue(abnormal(summary(verified=137)))
-        self.assertFalse(abnormal(summary(verified=300)))
+        self.assertTrue(abnormal(summary(verified=499)))
+        self.assertFalse(abnormal(summary(verified=500)))
 
     def test_spinning_opens_the_issue(self):
-        self.assertTrue(abnormal(summary(verified=300, spinning=True)))
+        self.assertTrue(abnormal(summary(verified=500, spinning=True)))
 
     def test_a_stale_publication_opens_the_issue(self):
         old = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
-        self.assertTrue(abnormal(summary(verified=300, published_at=old)))
+        self.assertTrue(abnormal(summary(verified=500, published_at=old)))
+
+    def test_stale_evidence_opens_the_issue(self):
+        stale = summary(verified=500)
+        stale['freshness'] = {'count': 500, 'oldest_days': 9.0, 'median_days': 4.0}
+
+        self.assertTrue(abnormal(stale))
 
 
 if __name__ == '__main__':

@@ -40,6 +40,15 @@ class DailyOutcomeTests(unittest.TestCase):
     def test_a_run_without_work_does_not_pass(self):
         self.assertFalse(daily_outcome(run(deep_checked=MIN_DEEP_ATTEMPTS - 1))['work'])
 
+    def test_stale_evidence_does_not_pass(self):
+        self.assertFalse(daily_outcome(run(inventory={'verified_count': 480,
+                                                      'freshness': {'oldest_days': 9.0}}))['fresh'])
+        self.assertTrue(daily_outcome(run(inventory={'verified_count': 480,
+                                                     'freshness': {'oldest_days': 3.0}}))['fresh'])
+
+    def test_a_run_without_a_freshness_metric_is_not_failed_for_it(self):
+        self.assertTrue(daily_outcome(run(inventory={'verified_count': 480}))['fresh'])
+
     def test_a_release_that_is_not_active_does_not_pass(self):
         self.assertFalse(daily_outcome(run(release_active=False))['release'])
         self.assertFalse(daily_outcome(run(schema_version=2))['release'])

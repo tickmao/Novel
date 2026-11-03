@@ -10,7 +10,7 @@ from source_store import read_json
 
 DEFAULTS = {
     'extended_target': 1000,
-    'verified_share_target': 0.3,
+    'usable_target': 500,
     'reserve_target': 500,
     'reserve_min': 300,
     'catchup_batch': 1500,
@@ -29,9 +29,8 @@ def plan(*, verified_count=0, extended_count=0, reserve_count=0, pending_revisio
     """
     cfg = {**DEFAULTS, **(config or {})}
     extended_target = int(cfg['extended_target'])
-    verified_share_target = float(cfg['verified_share_target'])
-    # One truth: the absolute floor follows from the share and the package size.
-    verified_target = round(extended_target * verified_share_target)
+    # The delivery goal is an absolute number of sources that read.
+    verified_target = int(cfg['usable_target'])
     reserve_target = int(cfg['reserve_target'])
     extended_gap = max(0, extended_target - int(extended_count))
     reserve_gap = max(0, reserve_target - int(reserve_count))
@@ -51,7 +50,7 @@ def plan(*, verified_count=0, extended_count=0, reserve_count=0, pending_revisio
     return {
         'mode': mode, 'batch_size': batch_size, 'collect': collect, 'reason': reason,
         'extended_gap': extended_gap, 'verified_gap': verified_gap, 'reserve_gap': reserve_gap,
-        'verified_target': verified_target, 'verified_share_target': verified_share_target,
+        'verified_target': verified_target,
         'pending_revisions': int(pending_revisions),
         'publish_extended': True,
     }
@@ -62,8 +61,8 @@ def explain(decision, counts):
         '## Maintenance plan', '',
         f"- mode: `{decision['mode']}` (batch {decision['batch_size']})",
         f"- collect: `{decision['collect']}` ({decision['reason']})",
-        f"- verified: {counts.get('verified_count', 0)} / {decision['verified_target']}"
-        f" ({counts.get('verified_share', 0):.0%} of {decision['verified_share_target']:.0%})",
+        f"- usable: {counts.get('verified_count', 0)} / {decision['verified_target']}"
+        f" (gap {decision['verified_gap']}, share {counts.get('verified_share', 0):.0%} of the package)",
         f"- extended: {counts.get('extended_count', 0)} (gap {decision['extended_gap']})"
         f", searchable {counts.get('searchable_count', 0)}"
         f" ({counts.get('searchable_share', 0):.0%} = verified ceiling)",

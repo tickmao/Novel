@@ -10,6 +10,7 @@ from source_store import parse_time
 MIN_SPOT_CHECKS = 50
 MIN_SPOT_VALID = 0.95
 MIN_DEEP_ATTEMPTS = 150
+MAX_EVIDENCE_AGE_DAYS = 7
 SPOT_SKIPPED = frozenset({'Runtime incident; existing snapshot retained'})
 
 
@@ -24,7 +25,18 @@ def daily_outcome(run):
         'engine': not run.get('engine_incident'),
         'spot': checked >= MIN_SPOT_CHECKS and spot.get('valid', 0) / checked >= MIN_SPOT_VALID,
         'work': int(run.get('deep_checked') or 0) >= MIN_DEEP_ATTEMPTS,
+        'fresh': evidence_is_current(run),
     }
+
+
+def evidence_is_current(run, max_age_days=MAX_EVIDENCE_AGE_DAYS):
+    """The oldest delivered check must still be inside the publication window.
+
+    A run recorded before the freshness metric existed has nothing to answer with,
+    so it is not failed for a number it could not have produced.
+    """
+    oldest = ((run.get('inventory') or {}).get('freshness') or {}).get('oldest_days')
+    return oldest is None or oldest <= max_age_days
 
 
 def acceptance_status(runs):

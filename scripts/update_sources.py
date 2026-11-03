@@ -35,7 +35,7 @@ class SourceUpdater:
             public = (base / 'full.json').read_bytes()
             if public != (base / 'main/full.json').read_bytes() or hashlib.sha256(public).hexdigest() != manifest['sha256']:
                 raise ValueError('Publication is inconsistent')
-            atomic_bundle(stats_files(self.base_dir, manifest['count'], manifest))
+            atomic_bundle(stats_files(self.base_dir, manifest))
         return True
 
 
