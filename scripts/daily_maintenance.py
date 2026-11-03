@@ -188,9 +188,13 @@ class DailyMaintenance:
                 result = await harvester.sync(
                     store, client, full_scan=full_scan, scan=round_index == 0,
                     daily_pages=int(cfg.get('daily_pages', 5)),
-                    fetch_cap=fetch_cap if fetch_cap is not None else int(
-                        cfg.get('emergency_fetch_cap' if mode in ('backfill', 'catchup') else 'daily_fetch_cap',
-                                600 if mode in ('backfill', 'catchup') else 300)),
+                    fetch_cap=fetch_cap if fetch_cap is not None else min(
+                        int(cfg.get('emergency_fetch_cap' if mode in ('backfill', 'catchup') else 'daily_fetch_cap',
+                                    600 if mode in ('backfill', 'catchup') else 300)),
+                        # Each download costs about one request delay, so a cap that
+                        # outlives the window only gets the provider cancelled with
+                        # nothing reported. Half the window is the download share.
+                        max(1, int(max(0.0, deadline - time.monotonic()) / 2))),
                     deadline=deadline, save=save,
                 )
                 batches.append(result)
