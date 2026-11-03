@@ -15,6 +15,27 @@ from source_store import SourceStore, read_json, digest, utcnow, parse_time
 from reading_validator import ProbeFailure
 
 
+
+# A repository's contents listing also carries tooling: an issue template named
+# `.github/ISSUE_TEMPLATE/03-book.json` was downloaded as a source feed and then
+# failed on every attempt.
+NON_SOURCE_PATHS = ('.github/', 'node_modules/', 'test/', 'tests/', 'utils/', 'dist/')
+NON_SOURCE_NAMES = {'package.json', 'package-lock.json', 'manifest.json', 'tsconfig.json',
+                    'composer.json', 'requirements.json', 'app.json'}
+
+
+def is_source_file(item, patterns=()):
+    """Decide whether a repository file can hold book sources."""
+    path = str(item.get('path') or item.get('name') or '')
+    name = str(item.get('name') or '')
+    if not name.endswith('.json') and not any(word.lower() in name.lower() for word in patterns):
+        return False
+    lowered = path.lower()
+    if any(fragment in lowered for fragment in NON_SOURCE_PATHS):
+        return False
+    return name.lower() not in NON_SOURCE_NAMES
+
+
 def parse_sources(value):
     if isinstance(value, dict):
         if 'bookSourceUrl' in value:
@@ -82,20 +103,31 @@ async def collect_into(store, client, config, *, deadline=None, save=True):
             limit = int(repo.get('max_files', 3))
             patterns = repo.get('file_patterns', [])
             files, queue, visited = [], [(path, 0) for path in repo.get('files', [''])], 0
-            while queue and len(files) < limit and visited < 12 and time.monotonic() < deadline:
+            while queue and visited < 12 and time.monotonic() < deadline:
                 path, depth = queue.pop(0)
                 listing = await client.fetch({'url': f'https://api.github.com/repos/{name}/contents/{quote(path, safe="/")}'})
                 entries = json.loads(listing.text)
                 entries = entries if isinstance(entries, list) else [entries]
                 visited += 1
                 for item in entries:
-                    if item.get('type') == 'file' and item.get('download_url') and (
-                            item['name'].endswith('.json') or any(word.lower() in item['name'].lower() for word in patterns)):
+                    if item.get('type') == 'file' and item.get('download_url') and is_source_file(item, patterns):
                         files.append(item)
                     elif item.get('type') == 'dir' and depth < int(repo.get('max_depth', 2)):
                         queue.append((item['path'], depth + 1))
-            for item in files[:limit]:
+            # A repository holds more files than one run should download, so each run
+            # takes the next slice. Without the cursor the same first files were read
+            # every day and everything after them was never fetched at all.
+            cursors = store.state.setdefault('repo_cursors', {})
+            start = int(cursors.get(name, 0))
+            if files and start >= len(files):
+                start = 0
+            batch = files[start:start + limit]
+            for item in batch:
                 await ingest_url(item['download_url'], 'github', name)
+            if files:
+                cursors[name] = (start + len(batch)) % len(files)
+                report['repos'] = {**report.get('repos', {}),
+                                   name: {'files': len(files), 'cursor': cursors[name]}}
         except Exception as exc:
             report['errors'].append({'provider': name, 'error': str(exc)[:150]})
     for site in config.get('source_websites', []):
