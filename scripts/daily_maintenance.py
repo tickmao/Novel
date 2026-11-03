@@ -191,10 +191,12 @@ class DailyMaintenance:
                     fetch_cap=fetch_cap if fetch_cap is not None else min(
                         int(cfg.get('emergency_fetch_cap' if mode in ('backfill', 'catchup') else 'daily_fetch_cap',
                                     600 if mode in ('backfill', 'catchup') else 300)),
-                        # Each download costs about one request delay, so a cap that
-                        # outlives the window only gets the provider cancelled with
-                        # nothing reported. Half the window is the download share.
-                        max(1, int(max(0.0, deadline - time.monotonic()) / 2))),
+                        # The catalogue shares its host with the collection harvesters
+                        # and each download costs a request delay on top of the
+                        # transfer, so a cap that outlives the window only gets the
+                        # provider cancelled with an empty report. A quarter of the
+                        # remaining window is what it can actually finish.
+                        max(1, int(max(0.0, deadline - time.monotonic() - 60) / 4))),
                     deadline=deadline, save=save,
                 )
                 batches.append(result)
