@@ -26,7 +26,7 @@ git status --short                                                     # 动手�
 
 ## 数据纪律
 
-- **禁止整文件读大 JSON**：`sources/legado/pool/raw/`（约 230MB）、`pool/raw.json`（约 100MB）、`pool/invalid.json`（约 45MB）。统计需求用 `python`/`jq` 聚合，只把结论带进上下文。
+- **禁止整文件读大 JSON**：`sources/legado/pool/raw/`（约 300MB，本地存在、由 state 分支承载）、`pool/raw.json`（约 100MB）、`pool/invalid.json`（约 45MB，后两者已不再随 master 提交，仅本地留存）。统计需求用 `python`/`jq` 聚合，只把结论带进上下文。
 - 改数据先备份；只有验证通过才允许合并进 `main/full.json`，`scripts/safe_updater.py` 负责数量与分层校验。
 - 数量、分层、评分以 `sources/legado/manifest.json` 与 `main/publication.json` 为准；文档里的历史数字会过期。
 - 现行管线的常量在 `config/supplement_config.json` 与 `scripts/source_inventory.py`；`scripts/source_selector.py`、`scripts/integrate.py` 是上一代管线，**没有任何 workflow 引用**，不要照着它们改。

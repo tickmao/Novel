@@ -61,6 +61,10 @@ sources/legado/main/backups/
 # 的「Restore the raw store」与「Persist completed work」两步搬运。
 # 本地工作区照旧保留这些文件，因此本地运行不受影响。
 sources/legado/pool/raw/
+
+# 上一代管线的整池导出（约 150 MB），现行管线只读 store；仅在 store 不存在时作为
+# 自举回退，而 store 由 state/raw-store 分支提供。本地文件保留，不再随 master 提交。
+sources/legado/raw.json
 # pi workspace-history 快照排除：只为压缩撤销历史体积，以下文件仍由 git 跟踪。
 # 勿在此追加会被 CI git add 的目录/文件名，否则 CI 会静默漏提交（pool/raw 已改由 state 分支承载，见上）。
 /fonts/LXGWWenKai.ttf
