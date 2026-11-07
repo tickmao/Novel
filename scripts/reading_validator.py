@@ -101,6 +101,9 @@ class HTTPClient:
                     async with self.session.request(method, url, headers=headers, data=body, allow_redirects=False,
                                                     timeout=aiohttp.ClientTimeout(total=self.timeout)) as response:
                         if response.status in (301, 302, 303, 307, 308):
+                            # The server owns this string, so a Location whose netloc cannot be
+                            # parsed raises ValueError here. Every caller of fetch() catches it:
+                            # that request fails and the caller's own loop decides what follows.
                             target = urljoin(url, response.headers.get('Location', ''))
                             if urlsplit(target).netloc != urlsplit(url).netloc:
                                 headers = {k: v for k, v in headers.items() if k.lower() not in ('authorization', 'cookie')}
