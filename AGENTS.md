@@ -45,6 +45,7 @@ git status --short                                                     # 动手�
 - 单步 `$GITHUB_STEP_SUMMARY` 上限 1 MiB。曾把 918 KB 的 `maintenance_report.json` 用 `indent=2` 写进摘要（约 1.24 MiB），导致 `Add run summary` 每次失败；摘要一律走 `check_publication.py --summary`，它有 64 KiB 硬上限。
 - `Persist completed work` 是 `if: always()`，红灯的 run 同样会提交，所以「chore: maintain source inventory and publication」的提交历史**不能**当作成功证据。
 - 提交清单是显式文件列表，不要改回 `git add <目录>`：目录级 `git add` 会把 `main/backups/`（7 MB/次）重新吃进历史。
+- 解析 `bookSourceUrl` 一律走 `source_store.safe_urlsplit`；**禁止裸 `urlsplit`/`urlparse`**。netloc 非 NFKC 稳定时（全角 `＃`、不配对方括号）标准库直接抛 `ValueError`，一条脏 URL 就能把整轮维护清零（2026-11-06 的 `Maintain inventory` 崩溃）。
 
 ## 代码风格
 

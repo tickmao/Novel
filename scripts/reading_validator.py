@@ -16,7 +16,7 @@ import aiohttp
 from lxml import etree
 
 from search_probe import build_search_request, is_blocked_page
-from source_store import utcnow
+from source_store import safe_urlsplit, utcnow
 from static_rules import UnsupportedRule, check_static, document, nodes, replace_text, text, visible_text
 
 VALIDATOR_VERSION = 'static-reading-v2'
@@ -31,8 +31,8 @@ class ProbeFailure(Exception):
 
 
 def public_url(url: str) -> None:
-    parsed = urlsplit(url)
-    if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password:
+    parsed = safe_urlsplit(url)
+    if parsed is None or parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password:
         raise ProbeFailure('invalid_url', 'Expected a public HTTP URL')
     host = parsed.hostname.lower().rstrip('.')
     if host == 'localhost' or host.endswith(('.localhost', '.local', '.internal')):

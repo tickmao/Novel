@@ -7,14 +7,13 @@ from collections import Counter
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlsplit
 
 import tldextract
 
 from safe_updater import SafeUpdater, legado_dir
 from source_health import (VALIDATOR_VERSION, apply_result, eligibility, park, terminal)
 from source_policy import SourcePolicy, source_url_problem
-from source_store import SourceStore, json_bytes, parse_time, read_json, rule_fingerprint, utcnow
+from source_store import SourceStore, json_bytes, parse_time, read_json, rule_fingerprint, safe_urlsplit, utcnow
 from source_store import atomic_bundle, digest, source_id, source_payload
 from publication_gate import publication_gate
 from maintenance_lock import writer_lock
@@ -143,7 +142,8 @@ class SourceInventory:
         return dict(stats)
 
     def site(self, source):
-        host = (urlsplit(source.get('bookSourceUrl', '')).hostname or '').lower()
+        split = safe_urlsplit(str(source.get('bookSourceUrl', '')))
+        host = ((split.hostname if split else '') or '').lower()
         aliases = self.config.get('domain_aliases', {})
         parsed = SUFFIXES(host)
         return aliases.get(host, parsed.top_domain_under_public_suffix or host or source_id(source))

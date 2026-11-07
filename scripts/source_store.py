@@ -9,6 +9,7 @@ import tempfile
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import SplitResult, urlsplit, urlunsplit
 
 
 def utcnow() -> str:
@@ -77,6 +78,20 @@ def source_payload(source: dict) -> dict:
     return {k: deepcopy(v) for k, v in source.items() if not k.startswith('_') and k not in INTERNAL_FIELDS}
 
 
+def safe_urlsplit(url: str) -> SplitResult | None:
+    """Parse a URL without letting a dirty netloc kill the caller.
+
+    ``urlsplit`` rejects a netloc that is not NFKC-stable: a full-width ``＃``
+    (U+FF03) or a mismatched bracket raises ``ValueError``. Shared source packs
+    carry such labels in ``bookSourceUrl``, and one of them used to abort a whole
+    maintenance run. Callers get ``None`` and pick their own fallback.
+    """
+    try:
+        return urlsplit(url)
+    except ValueError:
+        return None
+
+
 def source_id(source: dict) -> str:
     # Fragments can identify distinct rules in Legado. Preserve them here.
     url = str(source.get('bookSourceUrl', '')).strip()
@@ -84,9 +99,12 @@ def source_id(source: dict) -> str:
 
 
 def rule_fingerprint(source: dict) -> str:
-    from urllib.parse import urlsplit, urlunsplit
-    split = urlsplit(str(source.get('bookSourceUrl', '')))
-    url = urlunsplit((split.scheme.lower(), split.netloc.lower(), split.path or '/', split.query, ''))
+    split = safe_urlsplit(str(source.get('bookSourceUrl', '')))
+    if split is None:
+        # An unparseable URL still needs a stable fingerprint to dedupe on.
+        url = str(source.get('bookSourceUrl', '')).strip().lower()
+    else:
+        url = urlunsplit((split.scheme.lower(), split.netloc.lower(), split.path or '/', split.query, ''))
     rules = {k: v for k, v in source.items() if k.startswith('rule') or k in (
         'searchUrl', 'header', 'loginUrl', 'jsLib', 'bookUrlPattern', 'bookSourceType',
     )}

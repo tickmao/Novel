@@ -6,9 +6,9 @@ import html
 import json
 import re
 import unicodedata
-from urllib.parse import unquote, urlsplit
+from urllib.parse import unquote
 
-from source_store import digest, source_id, source_payload, utcnow
+from source_store import digest, safe_urlsplit, source_id, source_payload, utcnow
 
 
 def normalize(text) -> str:
@@ -67,7 +67,8 @@ class ContentAudit:
             field_urls[field] = page.get('url', '')
 
         for value in urls:
-            host = (urlsplit(value).hostname or '').lower().rstrip('.')
+            split = safe_urlsplit(value)
+            host = ((split.hostname if split else '') or '').lower().rstrip('.')
             for denied in self.config.get('block_domains', []):
                 if host == denied or host.endswith('.' + denied):
                     evidence.append({'rule': 'blocked_domain', 'field': 'hostname', 'match': host, 'decision': 'block'})

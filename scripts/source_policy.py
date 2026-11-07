@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 from clean import calculate_quality_score, normalize_group, normalize_source_name
 from content_audit import ContentAudit
+from source_store import safe_urlsplit
 
 
 CN_ONLY_RE = re.compile(r"^[\u4e00-\u9fff·]{2,16}$")
@@ -44,7 +45,8 @@ def source_url_problem(source) -> Optional[str]:
     publisher would otherwise keep them in the public file forever.
     """
     url = str(source.get("bookSourceUrl") or "").strip()
-    if not url or not urlparse(url).hostname:
+    split = safe_urlsplit(url)
+    if not url or split is None or not split.hostname:
         return "invalid_url"
     return None
 
