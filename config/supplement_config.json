@@ -55,7 +55,7 @@
     "json_path_template": "/yuedu/shuyuans/json/id/{id}.json",
     "max_age_days": 365,
     "min_sources": 5,
-    "collections_per_run": 6,
+    "collections_per_run": 10,
     "refetch_days": 7,
     "request_delay": 2.0,
     "max_tracked": 1200

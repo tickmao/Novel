@@ -33,46 +33,6 @@
         "good"
       ],
       "max_files": 2
-    },
-    {
-      "name": "shidahuilang/shuyuan",
-      "description": "书源分享仓库",
-      "priority": "medium",
-      "file_patterns": [
-        "书源",
-        "shuyuan"
-      ],
-      "max_files": 3
-    },
-    {
-      "name": "vpei/Free-Novel-Source",
-      "description": "免费小说书源",
-      "priority": "medium",
-      "file_patterns": [
-        "source",
-        "novel"
-      ],
-      "max_files": 3
-    },
-    {
-      "name": "yeyulingfeng01/yuedu.github.io",
-      "description": "阅读书源网站",
-      "priority": "low",
-      "file_patterns": [
-        "书源",
-        "yuedu"
-      ],
-      "max_files": 2
-    },
-    {
-      "name": "CNAD666/MyAction",
-      "description": "自动化书源收集",
-      "priority": "low",
-      "file_patterns": [
-        "书源",
-        "source"
-      ],
-      "max_files": 2
     }
   ],
   "source_websites": [
