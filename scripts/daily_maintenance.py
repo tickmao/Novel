@@ -288,9 +288,6 @@ class DailyMaintenance:
                 batch_size = decision['batch_size']
             candidate_limit = batch_size if initial['needs_replenishment'] else 0
             refs = inventory.queue(limit=candidate_limit) if mode != 'backfill' else []
-            scheduled = set(refs)
-            light_refs = [(item['_source_id'], item['_revision']) for item in export
-                          if (item['_source_id'], item['_revision']) not in scheduled]
 
             async def check_inventory():
                 # Every probe starts its own JVM worker, so this number is also the
@@ -304,20 +301,21 @@ class DailyMaintenance:
                 validator = ReadingValidator(inventory.policy, concurrency=max(1, limit),
                                              request_timeout=request_timeout)
                 batch = probe_batch(limit)
-                async with asyncio.TaskGroup() as checks:
-                    checks.create_task(self.validate(validator, refs, mode='deep', deadline=validation_deadline,
-                                                     save=not dry_run, report=report, batch_size=batch))
-                    if mode == 'daily':
-                        checks.create_task(self.validate(validator, light_refs, mode='light', deadline=validation_deadline,
-                                                         save=not dry_run, report=report, batch_size=batch))
+                # The spot sample is the only check that looks at what delivery already
+                # holds, and a full queue starved it: it used to run after the probes and
+                # found an empty window. It goes first, and light search probes are gone
+                # entirely -- they cannot change a verdict, and a deep re-read covers the
+                # same sources with evidence.
                 previous = read_json(inventory.base_dir / 'main/publication.json', {})
-                if (mode == 'daily' and previous.get('schema_version') in (3, 4)
-                        and not report.get('network_incident') and not report.get('engine_incident')):
+                if mode == 'daily' and previous.get('schema_version') in (3, 4):
                     day = datetime.now(timezone.utc).date().isoformat()
                     selected = sorted(previous.get('sources', []), key=lambda item: digest([day, item['source_id']]))[:50]
                     spot_refs = [(item['source_id'], item['revision']) for item in selected]
                     await self.validate(validator, spot_refs, mode='spot', deadline=validation_deadline,
                                         save=not dry_run, report=report, batch_size=batch)
+                async with asyncio.TaskGroup() as checks:
+                    checks.create_task(self.validate(validator, refs, mode='deep', deadline=validation_deadline,
+                                                     save=not dry_run, report=report, batch_size=batch))
 
             if mode != 'backfill':
                 await check_inventory()

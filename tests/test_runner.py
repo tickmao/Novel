@@ -226,21 +226,27 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
             await task
         self.assertTrue(closed.is_set())
 
-    async def test_daily_light_checks_do_not_block_deep_validation(self):
+    async def test_a_daily_run_samples_delivery_before_it_probes_the_queue(self):
         seed(self.runner.inventory, 1)
         self.runner.inventory.store.ingest(source('https://pending.example'), {'provider': 'legacy'})
         self.runner.inventory.store.save()
-        deep, light = asyncio.Event(), asyncio.Event()
+        self.runner.inventory.publish()
+        modes = []
 
         async def probe(item, mode='deep'):
-            (deep if mode == 'deep' else light).set()
-            await asyncio.wait_for((light if mode == 'deep' else deep).wait(), 1)
+            modes.append(mode)
             return {**ready_result(self.runner.inventory.policy), 'mode': mode}
 
         with patch('daily_maintenance.ReadingValidator.probe', side_effect=probe):
             report = await self.runner.maintain(mode='daily', collect=False)
-        self.assertEqual(report['deep_checked'], 1)
-        self.assertEqual(report['light_checked'], 1)
+
+        # The spot sample runs before the queue can spend the window, and a search-only
+        # probe is not scheduled at all: it cannot change a verdict.
+        self.assertEqual(modes[0], 'spot')
+        self.assertNotIn('light', modes)
+        self.assertNotIn('light_checked', report)
+        self.assertGreaterEqual(report['deep_checked'], 1)
+        self.assertGreaterEqual(report['spot_checked'], 1)
 
     async def test_collected_exclusion_applies_before_publication(self):
         inventory = self.runner.inventory

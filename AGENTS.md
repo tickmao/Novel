@@ -36,7 +36,8 @@ git status --short                                                     # 动手�
 - 证据身份只看读取语义：`scripts/runtime_config.py` 的 `SEMANTIC_FILES`（`NovelProbe.kt` + 兼容补丁）、`ENGINE_COMMIT`、`PROBE_PROTOCOL`。改 `runtime_validator.py`、`probe_runtime.py`、`Dockerfile` **不得**提升 `VALIDATOR_VERSION` 或 `PROBE_PROTOCOL`；提升会作废全库证据，需要数天重验。只有准入阈值（书数/章节数/字数）、探针协议或 JVM 基础镜像变化时才提升。
 - 判死权归完整阅读：`scripts/source_health.py` 的 `keep_reading` 让 light 探针（只读搜索）与天气类失败（transport/access/`challenge`）不能撤销已有阅读结论，它们只把源推回 deep 队列；`last_failure` 记录最近一次失败，成功即清除，交付侧看 `select()` 的 `failing_count`。真正的拒绝只来自完整阅读的结构性失败（`STRUCTURAL_FAILURES` + `VERDICT_FAILURES`）。
 - 探针并发由 `config.inventory.validation_concurrency` 决定，**不再被 `os.cpu_count()` 夹住**（探针在等网络，不在等核心）。改动前先跑 `probe-benchmark.yml`，`benchmark_decision` 以基线为准：`engine_failure_share <= baseline`、`p95 < 60s`、吞吐 ≥1.5×。
-- 只有 `daily` 模式的 run 会跑 `light` 与 `spot` 探针（`0 18` 那条 cron）；`catchup`/`backfill` 是纯 deep。所以「每轮都会复检全部已发布源」不成立，别按这个前提设计指标。
+- 只有 `daily` 模式（`0 18` 那条 cron）会跑 `spot` 抽检，且**排在 deep 之前**（否则队列会吃光窗口，抽检恒为 0）；`catchup`/`backfill` 是纯 deep。`light`（只读搜索）探针已不再调度 —— 它改不了判定，deep 复检覆盖同样的源且带证据。别按「每轮都复检全部已发布源」设计指标。
+- 采集有单轮上限：`shuyuans.max_new_sources`（2000 条/轮，靠 `SourceStore.new_records` 计数，至少放行一个合集）。合集动辄上千条，而每轮只有约 900 次探针，不设上限时 raw store 只涨不消化，且每轮都要为 state 分支快照付还原与 force-push 的代价。
 - 公开发布不会因证据身份变化而收缩：旧身份的条目按 `legacy` 层保留并优先重验，只有「当期身份明确拒绝」的条目才会被移除（`source_inventory.currently_refused` + `safe_updater` 的收缩保护）。
 
 ## CI 已知坑（历史事故，勿重犯）
