@@ -28,6 +28,15 @@ from shuyuans_harvester import ShuyuansHarvester
 from submissions import collect_submissions
 
 
+def probe_batch(concurrency):
+    """How many probes to start at once: two full waves of the engine pool.
+
+    A fixed batch of 20 left the pool running eight strong in its second wave once
+    twelve engines fit, so a third of the slots idled at the end of every batch.
+    """
+    return max(20, 2 * int(concurrency))
+
+
 def keep_known_evidence(version, baseline):
     """A transport failure cannot un-read a source that already read.
 
@@ -92,17 +101,17 @@ class DailyMaintenance:
             'verified_delta': int(current.get('verified_count', 0)) - verified_before,
             'terminal_parked': int((report.get('raw_progress') or {}).get('parked_revisions') or 0),
         }
-    async def validate(self, validator, refs, *, mode, deadline, save, report):
+    async def validate(self, validator, refs, *, mode, deadline, save, report, batch_size=20):
         inventory, store = self.inventory, self.inventory.store
         baseline, completed = {}, []
         counts, kinds, examples = Counter(), Counter(), {}
-        for offset in range(0, len(refs), 20):
+        for offset in range(0, len(refs), batch_size):
             if report.get('engine_incident'):
                 break
             if time.monotonic() >= deadline:
                 report['budget_exhausted'] = True
                 break
-            batch = self.without_isolated_hosts(refs[offset:offset + 20], report)
+            batch = self.without_isolated_hosts(refs[offset:offset + batch_size], report)
             if not batch:
                 continue
             for key, revision in batch:
@@ -294,12 +303,13 @@ class DailyMaintenance:
                 request_timeout = float(inventory.config.get('validation', {}).get('engine_request_timeout', 30))
                 validator = ReadingValidator(inventory.policy, concurrency=max(1, limit),
                                              request_timeout=request_timeout)
+                batch = probe_batch(limit)
                 async with asyncio.TaskGroup() as checks:
                     checks.create_task(self.validate(validator, refs, mode='deep', deadline=validation_deadline,
-                                                     save=not dry_run, report=report))
+                                                     save=not dry_run, report=report, batch_size=batch))
                     if mode == 'daily':
                         checks.create_task(self.validate(validator, light_refs, mode='light', deadline=validation_deadline,
-                                                         save=not dry_run, report=report))
+                                                         save=not dry_run, report=report, batch_size=batch))
                 previous = read_json(inventory.base_dir / 'main/publication.json', {})
                 if (mode == 'daily' and previous.get('schema_version') in (3, 4)
                         and not report.get('network_incident') and not report.get('engine_incident')):
@@ -307,7 +317,7 @@ class DailyMaintenance:
                     selected = sorted(previous.get('sources', []), key=lambda item: digest([day, item['source_id']]))[:50]
                     spot_refs = [(item['source_id'], item['revision']) for item in selected]
                     await self.validate(validator, spot_refs, mode='spot', deadline=validation_deadline,
-                                        save=not dry_run, report=report)
+                                        save=not dry_run, report=report, batch_size=batch)
 
             if mode != 'backfill':
                 await check_inventory()

@@ -65,5 +65,16 @@ class MaintenancePlanTests(unittest.TestCase):
         self.assertEqual(first, second)
 
 
+class ProbeBatchTests(unittest.TestCase):
+    def test_a_batch_covers_two_waves_of_the_engine_pool(self):
+        from daily_maintenance import probe_batch
+
+        # A fixed batch of 20 idled a third of a twelve-engine pool in every second
+        # wave, so the batch follows the pool instead of a constant.
+        self.assertEqual(probe_batch(12), 24)
+        self.assertEqual(probe_batch(20), 40)
+        self.assertEqual(probe_batch(4), 20)
+
+
 if __name__ == '__main__':
     unittest.main()
