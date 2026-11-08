@@ -457,7 +457,16 @@ class SourceInventory:
                     if self.site(version['source']) in isolated:
                         continue
                 last_check = parse_time(health.get('last_check_at')) if category == 2 else last_deep
-                priority = (2 if checked else 0 if last_deep else 1) if category == 2 else 0
+                # A revision nothing has read yet is the only one that can add a
+                # source. Ordering a revision with evidence first spent the budget
+                # confirming what delivery already had, so thousands of revisions were
+                # never probed at all. A revision that failed under this identity is
+                # still last, because another attempt has already been paid for.
+                if checked and not last_deep:
+                    priority = 2
+                else:
+                    priority = 1 if checked or last_deep else 0
+                priority = priority if category == 2 else 0
                 saturated = 1 if category == 2 and covered.get(
                     self.site(version['source']), 0) >= self.max_per_domain else 0
                 # A source carried by several independent curated collections is a

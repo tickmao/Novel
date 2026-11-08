@@ -14,7 +14,7 @@ DEFAULTS = {
     'reserve_target': 500,
     'reserve_min': 300,
     'catchup_batch': 1500,
-    'daily_batch': 300,
+    'daily_batch': 900,
 }
 
 

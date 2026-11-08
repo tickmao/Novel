@@ -76,7 +76,7 @@ class InventoryTests(unittest.TestCase):
         self.inventory.audit_all()
         self.assertIn(new, self.inventory.queue())
 
-    def test_prior_readable_revision_is_revalidated_before_untried_sources(self):
+    def test_an_untried_source_is_read_before_a_revision_that_already_has_evidence(self):
         item = source('https://known.example')
         known = self.inventory.store.ingest(item, {'provider': 'legacy'})
         result = ready_result(self.inventory.policy)
@@ -84,9 +84,13 @@ class InventoryTests(unittest.TestCase):
         self.inventory.record_result(*known, result)
         newer = self.inventory.store.ingest({**item, 'searchUrl': '/changed?q={{key}}'}, {'provider': 'legacy'})
         unknown = self.inventory.store.ingest(source('https://unknown.example'), {'provider': 'legacy'})
-        self.assertEqual(self.inventory.queue(limit=1), [known])
+        # The revision with evidence only confirms what delivery already had; the
+        # untried one is the only probe that can add a source.
+        self.assertEqual(self.inventory.queue(limit=1), [unknown])
+        # Evidence under an older engine still ranks above a revision this engine
+        # already rejected, so it is never starved by failed retries.
+        self.assertIn(known, self.inventory.queue(limit=3))
         self.assertIn(newer, self.inventory.queue(limit=3))
-        self.assertIn(unknown, self.inventory.queue(limit=3))
 
     def test_coverage_requires_a_deep_attempt_with_the_current_engine(self):
         ref = self.inventory.store.ingest(source(), {'provider': 'legacy'})
