@@ -160,7 +160,6 @@ class ShuyuansHarvester:
         deadline = deadline or time.monotonic() + 600
         report = {'listed': 0, 'fetched_ids': 0, 'sources': 0, 'new_versions': 0,
                   'failed': 0, 'pages': 0, 'stale_skipped': 0}
-        started = int(getattr(store, 'new_records', 0))
         scan_deadline = time.monotonic() + max(0, deadline - time.monotonic()) / 2
         page = state.get('scan_cursor', 1) if scan else 1
         last_page = state.get('last_page', 1)
@@ -220,11 +219,12 @@ class ShuyuansHarvester:
             if time.monotonic() >= deadline:
                 break
             # A collection carries hundreds of sources and the probe budget cannot read
-            # them any faster. Past the cap the store only grows, and every run pays for
-            # that when the state snapshot is restored, so new intake waits for the next
-            # run. One collection is always taken: progress beats a perfect bound.
-            added = int(getattr(store, 'new_records', 0)) - started
-            if self.max_new_sources and report['fetched_ids'] and added >= self.max_new_sources:
+            # them any faster. The cap counts new revisions rather than new records: a
+            # collection of sources already in the store adds no records but still adds
+            # queue work, and the queue is what the next run has to pay for. One
+            # collection is always taken: progress beats a perfect bound.
+            if (self.max_new_sources and report['fetched_ids']
+                    and report['new_versions'] >= self.max_new_sources):
                 report['deferred_collections'] = len(pending) - report['fetched_ids']
                 break
             await asyncio.sleep(self.request_delay)
