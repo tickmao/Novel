@@ -42,6 +42,31 @@ def large_report(rows=2000):
 
 
 class SummaryTests(unittest.TestCase):
+    def test_catalog_diagnostics_survive_download_batches_and_budget_wrappers(self):
+        diagnostic = {'catalog_error': 'HTTP 404', 'catalog_error_page': 3,
+                      'scan_cursor': 3, 'last_page': 5, 'catalog_failed_page': 3,
+                      'catalog_failure_attempts': 2, 'stalled_scans': 1}
+        batches = [diagnostic, {'sources': 5, 'scan_cursor': 3}]
+        for yckceo in (batches, {'status': 'budget_exhausted', 'completed': batches}):
+            report = {'providers': {'yckceo': yckceo, 'shuyuans': {
+                **diagnostic, 'catalog_error': '目录为空\n' * 20000,
+                'scan_cursor': 1, 'skipped_page': 3}}}
+            text = summary_text(manifest(), report)
+            self.assertEqual(text.count('- yckceo catalog:'), 1)
+            self.assertEqual(text.count('- shuyuans catalog:'), 1)
+            self.assertIn('yckceo catalog: HTTP 404 (page 3), cursor: 3/5', text)
+            self.assertIn('failed page: 3, attempts: 2', text)
+            self.assertIn('skipped page: 3, stalled scans: 1', text)
+            self.assertIn('shuyuans catalog: 目录为空', text)
+            self.assertLess(len(text.encode()), 3000)
+            self.assertLessEqual(len(summary_text(manifest(), report, limit=1000).encode()), 1000)
+
+    def test_healthy_or_missing_catalogs_do_not_raise_an_alert(self):
+        for providers in ({}, {'yckceo': [{'scan_cursor': 1, 'stalled_scans': 0}],
+                              'shuyuans': {'scan_cursor': 1, 'stalled_scans': 0}},
+                          {'yckceo': {'status': 'budget_exhausted', 'completed': None}}):
+            self.assertNotIn('catalog:', summary_text(manifest(), {'providers': providers}))
+
     def test_a_large_report_stays_within_the_step_limit(self):
         text = summary_text(manifest(), large_report())
 

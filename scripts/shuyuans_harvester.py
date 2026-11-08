@@ -149,30 +149,60 @@ class ShuyuansHarvester:
     async def sync(self, store, client, *, deadline=None, save=True, scan=True, fetch_cap=6):
         state = store.state.setdefault('providers', {}).setdefault(
             'shuyuans', {'catalog': {}, 'scan_cursor': 1})
+        report = {'listed': 0, 'fetched_ids': 0, 'sources': 0, 'new_versions': 0,
+                  'failed': 0, 'pages': 0, 'stale_skipped': 0}
+        report.update({key: state.get(key, default) for key, default in (
+            ('scan_cursor', 1), ('last_page', 0), ('catalog_failed_page', None),
+            ('catalog_failure_attempts', 0), ('stalled_scans', 0))})
         now = datetime.now(timezone.utc)
         cooldown = parse_time(state.get('cooldown_until'))
         if cooldown and cooldown > now:
-            return {'skipped': 'rate_limit', 'retry_at': cooldown.isoformat(),
+            return {**report, 'skipped': 'rate_limit', 'retry_at': cooldown.isoformat(),
                     'pending_count': state.get('pending_count', 0)}
         catalog = state['catalog']
         cutoff = now - timedelta(days=self.max_age_days)
         deadline = deadline or time.monotonic() + 600
-        report = {'listed': 0, 'fetched_ids': 0, 'sources': 0, 'new_versions': 0,
-                  'failed': 0, 'pages': 0, 'stale_skipped': 0}
         scan_deadline = time.monotonic() + max(0, deadline - time.monotonic()) / 2
         page = state.get('scan_cursor', 1) if scan else 1
-        last_page = state.get('last_page', 1)
+        last_page = state.get('last_page', 0)
+        progressed = completed = False
         while scan and time.monotonic() < scan_deadline:
+            # 过期游标回到首页，但本轮不能声称完成了无缺口的遍历。
+            if last_page > 0 and page > last_page:
+                report.update(catalog_error='Catalog cursor exceeds last page', catalog_error_page=page)
+                state.update(scan_cursor=1, scan_incomplete=True, stalled_scans=0)
+                progressed = True
+                page = 1
             try:
                 response = await client.fetch({'url': self.listing_url(page)})
-                listings, last_page = parse_listing_page(response.text, now)
-                if not listings:
-                    raise ValueError('Collection listing page has no entries')
+                listings, bound = parse_listing_page(response.text, now)
             except Exception as exc:
-                report['catalog_error'] = str(exc)[:150]
+                report.update(catalog_error=(str(exc) or type(exc).__name__)[:150], catalog_error_page=page)
                 if isinstance(exc, ProbeFailure) and exc.kind == 'rate_limit':
                     state['cooldown_until'] = (now + timedelta(seconds=max(3600, exc.retry_after))).isoformat()
+                    break
+                attempts = state.get('catalog_failure_attempts', 0) if state.get('catalog_failed_page') == page else 0
+                state.update(catalog_failed_page=page, catalog_failure_attempts=min(3, attempts + 1))
+                if state['catalog_failure_attempts'] < 3:
+                    break
+                report['skipped_page'] = page
+                state.update(catalog_failed_page=None, catalog_failure_attempts=0)
+                at_end = last_page > 0 and page >= last_page
+                page = 1 if at_end else page + 1
+                state.update(scan_cursor=page, scan_incomplete=not at_end, stalled_scans=0)
+                progressed = True
+                if at_end:
+                    break
+                await asyncio.sleep(self.request_delay)
+                continue
+            if not listings:
+                report.update(catalog_error='Collection listing page has no entries', catalog_error_page=page)
+                progressed = progressed or state.get('scan_cursor', 1) != 1
+                state.update(scan_cursor=1, scan_incomplete=False)
                 break
+            last_page = bound
+            if state.get('catalog_failed_page') == page:
+                state.update(catalog_failed_page=None, catalog_failure_attempts=0)
             for listing in listings:
                 if listing.updated_at and parse_time(listing.updated_at) < cutoff:
                     report['stale_skipped'] += 1
@@ -193,15 +223,26 @@ class ShuyuansHarvester:
                 report['listed'] += 1
             report['pages'] += 1
             state['last_page'] = last_page
+            state['scan_cursor'] = page + 1 if page < last_page else 1
+            progressed = progressed or state['scan_cursor'] != page
+            state['stalled_scans'] = 0
             if page >= last_page:
-                state['last_full_scan_at'] = utcnow()
-                state['scan_cursor'] = 1
+                if not state.get('scan_incomplete', False):
+                    state['last_full_scan_at'] = utcnow()
+                    completed = True
+                state['scan_incomplete'] = False
                 break
             page += 1
-            state['scan_cursor'] = page
             await asyncio.sleep(self.request_delay)
             if save and report['pages'] % 4 == 0:
                 store.save()
+
+        if progressed or completed:
+            state['stalled_scans'] = 0
+        elif report.get('catalog_error'):
+            state['stalled_scans'] = state.get('stalled_scans', 0) + 1
+        report.update({key: state.get(key, report[key]) for key in (
+            'scan_cursor', 'last_page', 'catalog_failed_page', 'catalog_failure_attempts', 'stalled_scans')})
 
         # Newly registered collections are due immediately, so the check reads a
         # fresh clock instead of the one captured before the scan.
@@ -214,6 +255,9 @@ class ShuyuansHarvester:
             pending.append((key, entry))
         pending.sort(key=lambda item: (item[1].get('updated_at') or '',
                                        -int(item[1].get('claimed_size') or 0)), reverse=True)
+        cooldown = parse_time(state.get('cooldown_until'))
+        if cooldown and cooldown > due:
+            pending = []
         for key, entry in pending[:max(1, int(fetch_cap))]:
             if time.monotonic() >= deadline:
                 break

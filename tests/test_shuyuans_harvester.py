@@ -111,6 +111,173 @@ class Transport:
 
 
 class HarvesterTests(unittest.IsolatedAsyncioTestCase):
+    async def test_catalog_failures_recover_across_restarts(self):
+        for failed_page, failures in ((1, 3), (3, 3), (5, 3), (3, 1), (3, 2)):
+            with self.subTest(page=failed_page, failures=failures), tempfile.TemporaryDirectory() as tmp, \
+                    patch('shuyuans_harvester.asyncio.sleep', new=AsyncMock()):
+                requested = []
+                failing = True
+
+                async def fetch(request):
+                    if '/json/' in request['url']:
+                        return Response(request['url'], json.dumps([source()]))
+                    current = int(request['url'].split('?page=')[-1]) if '?page=' in request['url'] else 1
+                    requested.append(current)
+                    if failing and current == failed_page:
+                        raise ProbeFailure('http_error', 'HTTP 404')
+                    return Response(request['url'],
+                                    '<a href="/yuedu/shuyuans/content/id/42.html">Book</a>'
+                                    '<a href="/yuedu/shuyuans/index.html?page=5">5</a>')
+
+                client = AsyncMock()
+                client.fetch.side_effect = fetch
+                harvester = ShuyuansHarvester()
+                for attempt in range(1, failures + 1):
+                    requested.clear()
+                    store = SourceStore(Path(tmp))
+                    report = await harvester.sync(store, client, fetch_cap=1)
+                    state = SourceStore(Path(tmp)).state['providers']['shuyuans']
+                    self.assertIn('HTTP 404', report['catalog_error'])
+                    self.assertEqual(report['catalog_error_page'], failed_page)
+                    self.assertNotIn('last_full_scan_at', state)
+                    if attempt < 3:
+                        self.assertEqual(state['scan_cursor'], failed_page)
+                        self.assertEqual(state['catalog_failed_page'], failed_page)
+                        self.assertEqual(state['catalog_failure_attempts'], attempt)
+                        self.assertEqual(state['stalled_scans'], attempt if failed_page == 1 else attempt - 1)
+                    else:
+                        self.assertEqual(requested, list(range(failed_page, 6)))
+                        self.assertEqual(report['skipped_page'], failed_page)
+                        self.assertEqual(state['scan_cursor'], 1)
+                        self.assertEqual(state['catalog_failure_attempts'], 0)
+                        self.assertEqual(state['stalled_scans'], 0)
+                        self.assertFalse(state['scan_incomplete'])
+                failing = False
+                requested.clear()
+                store = SourceStore(Path(tmp))
+                await harvester.sync(store, client, fetch_cap=1)
+                state = SourceStore(Path(tmp)).state['providers']['shuyuans']
+                self.assertEqual(requested, list(range(1 if failures == 3 else failed_page, 6)))
+                self.assertIsNone(state['catalog_failed_page'])
+                self.assertEqual(state['catalog_failure_attempts'], 0)
+                self.assertIn('last_full_scan_at', state)
+
+    async def test_shrunk_and_empty_catalogs_reset_without_completion(self):
+        for cursor, bound, empty in ((5, 4, False), (5, 5, True), (1, 1, True)):
+            with self.subTest(cursor=cursor, bound=bound, empty=empty), tempfile.TemporaryDirectory() as tmp, \
+                    patch('shuyuans_harvester.asyncio.sleep', new=AsyncMock()):
+                store = SourceStore(Path(tmp))
+                store.state['providers']['shuyuans'] = {
+                    'catalog': {}, 'scan_cursor': cursor, 'last_page': bound}
+                requested = []
+
+                async def fetch(request):
+                    if '/json/' in request['url']:
+                        return Response(request['url'], json.dumps([source()]))
+                    current = int(request['url'].split('?page=')[-1]) if '?page=' in request['url'] else 1
+                    requested.append(current)
+                    return Response(request['url'], '<html></html>' if empty else
+                                    '<a href="/yuedu/shuyuans/content/id/42.html">Book</a>'
+                                    '<a href="/yuedu/shuyuans/index.html?page=4">4</a>')
+
+                client = AsyncMock()
+                client.fetch.side_effect = fetch
+                harvester = ShuyuansHarvester()
+                report = await harvester.sync(store, client, fetch_cap=1)
+                state = SourceStore(Path(tmp)).state['providers']['shuyuans']
+                self.assertEqual(requested, [cursor] if empty else [1, 2, 3, 4])
+                self.assertIn('catalog_error', report)
+                self.assertEqual(state['scan_cursor'], 1)
+                self.assertNotIn('last_full_scan_at', state)
+                self.assertEqual(state.get('stalled_scans', 0), int(cursor == 1))
+                empty = False
+                requested.clear()
+                await harvester.sync(SourceStore(Path(tmp)), client, fetch_cap=1)
+                self.assertEqual(requested, [1, 2, 3, 4])
+                self.assertIn('last_full_scan_at', SourceStore(Path(tmp)).state['providers']['shuyuans'])
+
+    async def test_skip_persists_before_deadline_and_download_only_keeps_counters(self):
+        elapsed = 0
+        failing = True
+        with tempfile.TemporaryDirectory() as tmp, patch('shuyuans_harvester.time') as clock, \
+                patch('shuyuans_harvester.asyncio.sleep', new=AsyncMock()):
+            clock.monotonic.side_effect = lambda: elapsed
+            store = SourceStore(Path(tmp))
+            store.state['providers']['shuyuans'] = {
+                'catalog': {'42': {'title': 'Book'}}, 'scan_cursor': 3, 'last_page': 5,
+                'catalog_failed_page': 3, 'catalog_failure_attempts': 2, 'stalled_scans': 2,
+                'last_full_scan_at': '2000-01-01T00:00:00+00:00'}
+            store.save()
+            before = (Path(tmp) / 'state.json').read_bytes()
+            client = AsyncMock()
+
+            async def fetch(request):
+                nonlocal elapsed
+                if '/json/' in request['url']:
+                    return Response(request['url'], json.dumps([source()]))
+                elapsed = 60
+                if failing:
+                    raise TimeoutError()
+                return Response(request['url'],
+                                '<a href="/yuedu/shuyuans/content/id/42.html">Book</a>'
+                                '<a href="/yuedu/shuyuans/index.html?page=5">5</a>')
+
+            client.fetch.side_effect = fetch
+            harvester = ShuyuansHarvester()
+            for _ in range(2):
+                report = await harvester.sync(store, client, scan=False, save=False, deadline=100)
+                self.assertEqual((report['scan_cursor'], report['catalog_failure_attempts'], report['stalled_scans']),
+                                 (3, 2, 2))
+            elapsed = 100
+            report = await harvester.sync(store, client, save=False, deadline=100)
+            self.assertEqual(report['catalog_failure_attempts'], 2)
+            self.assertEqual(report['stalled_scans'], 2)
+            self.assertEqual((Path(tmp) / 'state.json').read_bytes(), before)
+            elapsed = 0
+            report = await harvester.sync(SourceStore(Path(tmp)), client, deadline=100)
+            state = SourceStore(Path(tmp)).state['providers']['shuyuans']
+            self.assertEqual(report['skipped_page'], 3)
+            self.assertEqual(report['catalog_error'], 'TimeoutError')
+            self.assertEqual(report['fetched_ids'], 1)
+            self.assertEqual((state['scan_cursor'], state['stalled_scans']), (4, 0))
+            self.assertTrue(state['scan_incomplete'])
+            self.assertEqual(state['last_full_scan_at'], '2000-01-01T00:00:00+00:00')
+            failing = False
+            await harvester.sync(SourceStore(Path(tmp)), client, deadline=200)
+            state = SourceStore(Path(tmp)).state['providers']['shuyuans']
+            self.assertEqual(state['scan_cursor'], 1)
+            self.assertFalse(state['scan_incomplete'])
+            self.assertEqual(state['last_full_scan_at'], '2000-01-01T00:00:00+00:00')
+
+    async def test_listing_rate_limit_preserves_retry_allowance(self):
+        with tempfile.TemporaryDirectory() as tmp, patch('shuyuans_harvester.asyncio.sleep', new=AsyncMock()):
+            store = SourceStore(Path(tmp))
+            store.state['providers']['shuyuans'] = {
+                'catalog': {'42': {'title': 'Book'}}, 'scan_cursor': 3, 'last_page': 5,
+                'catalog_failed_page': 3, 'catalog_failure_attempts': 2, 'stalled_scans': 1}
+            client = AsyncMock()
+            client.fetch.side_effect = ProbeFailure('rate_limit', 'HTTP 429', 7200)
+            harvester = ShuyuansHarvester()
+            report = await harvester.sync(store, client)
+            self.assertEqual((report['scan_cursor'], report['catalog_failure_attempts']), (3, 2))
+            self.assertEqual(report['stalled_scans'], 2)
+            self.assertEqual(report['fetched_ids'], 0)
+            self.assertNotIn('skipped_page', report)
+            for _ in range(2):
+                again = await harvester.sync(SourceStore(Path(tmp)), client)
+                self.assertEqual(again['skipped'], 'rate_limit')
+                self.assertEqual((again['catalog_failure_attempts'], again['stalled_scans']), (2, 2))
+            client.fetch.assert_awaited_once()
+
+    async def test_successful_single_page_scans_do_not_stall(self):
+        with tempfile.TemporaryDirectory() as tmp, patch('shuyuans_harvester.asyncio.sleep', new=AsyncMock()):
+            client = Transport(listings=[page([{'collection_id': '42'}])])
+            for _ in range(2):
+                report = await ShuyuansHarvester().sync(SourceStore(Path(tmp)), client, fetch_cap=1)
+                self.assertEqual(report['scan_cursor'], 1)
+                self.assertEqual(report['stalled_scans'], 0)
+                self.assertIn('last_full_scan_at', SourceStore(Path(tmp)).state['providers']['shuyuans'])
+
     async def test_only_collections_from_the_last_year_are_fetched(self):
         fresh = page([{'collection_id': '1', 'when': '2天前', 'size': 100}])
         old = page([{'collection_id': '2', 'when': '2023/04/18', 'size': 100}])
