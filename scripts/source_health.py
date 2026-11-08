@@ -157,6 +157,9 @@ def apply_result(version, result, recheck_days=DEFAULT_TERMINAL_RECHECK_DAYS):
             version['validation'] = {**prior, 'last_light_success_at': checked}
             return
         health.pop('error', None)
+        # A probe answered, so the recorded failure is history. Its presence is how
+        # downstream reads "this source failed its last probe", not "it once failed".
+        health.pop('last_failure', None)
         health['last_success_at'] = checked
         health['consecutive_failures'] = 0
         if result.get('mode') == 'deep':

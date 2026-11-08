@@ -38,7 +38,7 @@ class Runner:
 
 
 def summary(verified=137, extended=1000, unverified=800, incidents=(), spinning=False,
-            published_at=None):
+            published_at=None, failing=0):
     return {'verified': verified, 'extended': extended, 'unverified': unverified,
             'verified_share': round(verified / extended, 4) if extended else 0.0,
             'attempts': 1500, 'valid': 150, 'conversion': 0.1,
@@ -48,6 +48,7 @@ def summary(verified=137, extended=1000, unverified=800, incidents=(), spinning=
             'published_at': published_at or datetime.now(timezone.utc).isoformat(),
             'checked_at': '2026-10-28T00:00:00+00:00',
             'verified_delta': 0, 'transport_share': 0.0, 'spinning': spinning,
+            'failing': failing,
             'week': [{'checked': 4000, 'verified': verified - 8},
                      {'checked': 4462, 'verified': verified}]}
 
@@ -88,6 +89,12 @@ class AlertTests(unittest.TestCase):
         self.assertIn('usable **137** / 500', text)
         self.assertIn('evidence age: oldest 2.0d', text)
         self.assertIn('spinning: no', text)
+
+    def test_body_reports_sources_that_are_delivered_but_failing(self):
+        text = body_of(summary(failing=4), extended_target=1000)
+
+        self.assertIn('delivered but failing its last probe: 4', text)
+        self.assertIn('delivered but failing its last probe: 0', body_of(summary(), extended_target=1000))
 
     def test_the_target_is_an_absolute_count_of_usable_sources(self):
         self.assertTrue(abnormal(summary(verified=137)))

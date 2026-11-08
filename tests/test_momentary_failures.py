@@ -117,6 +117,17 @@ class MomentaryFailureTests(unittest.TestCase):
         self.assertEqual(version['validation']['status'], 'transient')
         self.assertIsNone(self.eligible(version))
 
+    def test_a_probe_that_answers_clears_the_recorded_failure(self):
+        version = self.read_version()
+        apply_result(version, failure('timeout', now=self.now + timedelta(hours=1)))
+        self.assertIn('last_failure', version['validation'])
+
+        apply_result(version, ready_result(self.policy, self.now + timedelta(hours=2)))
+
+        # The field is read as "failed its last probe", so a success has to clear it
+        # or the delivery report would count a healthy source forever.
+        self.assertNotIn('last_failure', version['validation'])
+
     def test_the_kept_reading_still_ages_out(self):
         version = self.read_version(now=self.now - timedelta(days=6))
         apply_result(version, failure('timeout', now=self.now - timedelta(days=1)))
@@ -147,11 +158,19 @@ class QueueAfterLightFailureTests(unittest.TestCase):
     def test_a_light_failure_puts_a_published_source_in_the_deep_queue(self):
         ref = self.publish_one()
         self.assertEqual(self.inventory.queue(limit=10), [])
+        self.assertEqual(self.inventory.select()[2]['failing_count'], 0)
 
         self.inventory.record_result(*ref, failure('timeout', mode='light'))
 
         self.assertEqual(self.inventory.queue(limit=10), [ref])
         self.assertEqual(len(self.inventory.select()[0]), 1)
+        # Delivery keeps it, and the report has to say it is currently failing: the
+        # count is the only place that state is visible.
+        self.assertEqual(self.inventory.select()[2]['failing_count'], 1)
+
+        success = ready_result(self.inventory.policy)
+        self.inventory.record_result(*ref, success)
+        self.assertEqual(self.inventory.select()[2]['failing_count'], 0)
 
 
 if __name__ == '__main__':

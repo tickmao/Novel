@@ -157,7 +157,8 @@ def summary_text(result, report=None, *, verified_target=500, extended_target=10
         f", attempted {progress.get('attempted_revisions', 'unknown')}"
         f", pending {progress.get('pending_revisions', 'unknown')}",
         f"- reserves: {inventory.get('reserve_count', 'unknown')}"
-        f", healthy: {inventory.get('healthy_count', 'unknown')}",
+        f", healthy: {inventory.get('healthy_count', 'unknown')}"
+        f", failing last probe: {inventory.get('failing_count', 0)}",
     ]
 
     parked = int(progress.get('parked_revisions') or 0)

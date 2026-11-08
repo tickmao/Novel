@@ -41,6 +41,7 @@ def summarize(root):
         'transport_share': float(report.get('transport_share') or 0.0),
         'usable_target': int(inventory.get('usable_target') or USABLE_TARGET),
         'freshness': inventory.get('freshness') or {},
+        'failing': int(inventory.get('failing_count') or 0),
         'spinning': is_spinning(progress),
         'week': progress,
     }
@@ -117,6 +118,7 @@ def body_of(summary, run_url=None, extended_target=1000, verified_target=None):
         '',
         f"- verified share: {summary['verified_share']:.0%}",
         f"- evidence age: oldest {fresh.get('oldest_days')}d, median {fresh.get('median_days')}d",
+        f"- delivered but failing its last probe: {int(summary.get('failing') or 0)}",
         f"- verified change this week: {delta:+d}",
         f"- last run conversion: {summary['valid']}/{summary['attempts']} = {summary['conversion']:.2%}",
         f"- transport share of failures: {summary.get('transport_share', 0.0):.0%}",

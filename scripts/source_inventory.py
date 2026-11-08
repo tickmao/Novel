@@ -227,6 +227,10 @@ class SourceInventory:
             'timestamp': utcnow(), 'export_count': len(export), 'reserve_count': len(reserve),
             'grace_count': grace, 'ready_versions': len(ready), 'unique_sites': len(domains),
             'healthy_count': len(export) - grace,
+            # Delivered on evidence that is still inside the age window while the
+            # newest probe failed. Reading the count is the only way to tell that
+            # apart from a delivery that is simply working.
+            'failing_count': sum(1 for item in export if (item.get('_health') or {}).get('last_failure')),
             'verified_count': len(export), 'extended_count': len(extended),
             'extended_only_count': len(extended_only),
             'unverified_count': sum(item['_tier'] in ('unverified', 'never_checked') for item in extended_only),
