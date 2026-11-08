@@ -43,17 +43,22 @@ class EvidenceTests(unittest.TestCase):
         apply_result(version, result)
         self.assertIsNone(eligibility(version, policy.auditor.version))
 
-    def test_search_success_cannot_extend_transient_grace(self):
+    def test_a_search_success_cannot_refresh_reading_evidence(self):
         policy = SourceInventory().policy
         now = datetime.now(timezone.utc)
         version = {}
         apply_result(version, ready_result(policy, now - timedelta(hours=74)))
+        stamp = version['validation']['last_deep_success_at']
         apply_result(version, {'checked_at': utcnow(), 'validator_version': VALIDATOR_VERSION,
                                'mode': 'deep', 'status': 'transient', 'kind': 'timeout'})
         result = ready_result(policy)
         result.update(mode='light', kind='search')
         apply_result(version, result)
-        self.assertIsNone(eligibility(version, policy.auditor.version, now))
+        self.assertEqual(version['validation']['last_deep_success_at'], stamp)
+        self.assertEqual(eligibility(version, policy.auditor.version, now), 'ready')
+        # Only the reading sets the age of the evidence, so delivery still ends when
+        # that reading leaves the seven-day window.
+        self.assertIsNone(eligibility(version, policy.auditor.version, now + timedelta(days=7)))
 
     def test_static_evidence_is_not_runtime_evidence(self):
         policy = SourceInventory().policy
@@ -62,7 +67,6 @@ class EvidenceTests(unittest.TestCase):
         result['validator_version'] = 'static-reading-v2'
         apply_result(version, result)
         self.assertIsNone(eligibility(version, policy.auditor.version))
-
 
 class ReleaseGateTests(unittest.TestCase):
     def setUp(self):

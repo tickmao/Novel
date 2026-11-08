@@ -87,6 +87,48 @@ def park(version, now=None, recheck_days=DEFAULT_TERMINAL_RECHECK_DAYS):
     return health['terminal']
 
 
+# Weather in front of the site: the retry ladder already handles these.
+WEATHER_FAILURES = TRANSPORT_FAILURES | ACCESS_FAILURES | {'challenge'}
+# A failure that describes what the source now is. These decide on their own, in
+# both probe modes, and downstream reads them from the stored verdict.
+VERDICT_FAILURES = frozenset({
+    'content_locked', 'content_duplicate', 'content_audit', 'content_audit_incomplete',
+    'disabled', 'invalid_url',
+})
+
+
+def momentary(result):
+    """Return whether a failure describes the moment rather than the source.
+
+    A search-only probe never completes a reading, so its failure cannot speak for
+    one. A transport or access failure is weather in front of the site. Only a
+    finding about the source itself decides on its own, whatever the mode.
+    """
+    if result.get('kind') in VERDICT_FAILURES:
+        return False
+    return result.get('mode') == 'light' or result.get('kind') in WEATHER_FAILURES
+
+
+def keep_reading(health, prior, result):
+    """Keep the stored reading when the newest failure did not outrank it.
+
+    Dropping a source that read two chapters yesterday because one probe timed out
+    throws away the only evidence that says the source works, and the seven-day
+    retry delay makes the loss last. A search probe asks for a reading instead of
+    revoking one; a reading that fails structurally still revokes it here.
+    """
+    if prior.get('status') != 'valid' or not momentary(result):
+        return False
+    for key in ('status', 'kind', 'error', 'sample', 'stages'):
+        if key in prior:
+            health[key] = deepcopy(prior[key])
+        else:
+            health.pop(key, None)
+    health['last_failure'] = {key: deepcopy(result.get(key)) for key in (
+        'checked_at', 'mode', 'status', 'kind', 'error', 'response_ms') if key in result}
+    return True
+
+
 def apply_result(version, result, recheck_days=DEFAULT_TERMINAL_RECHECK_DAYS):
     checked = result['checked_at']
     health = version.setdefault('validation', {})
@@ -139,8 +181,14 @@ def apply_result(version, result, recheck_days=DEFAULT_TERMINAL_RECHECK_DAYS):
     audit = result.get('audit', {})
     if audit.get('complete') or audit.get('decision') in ('block', 'review'):
         version['audit'] = audit
+    kept = result.get('status') != 'valid' and keep_reading(health, prior, result)
+    if kept and result.get('mode') == 'light':
+        # The search probe could not confirm the reading, so it becomes a request
+        # for one instead of an answer. A failed deep probe keeps the retry ladder.
+        health['next_check_at'] = checked
+        health['next_deep_check_at'] = checked
     version.setdefault('engine_results', {})[result['validator_version']] = deepcopy(health)
-    if result.get('status') != 'valid':
+    if result.get('status') != 'valid' and not kept:
         # Park a revision whose attempts already prove this engine cannot read it.
         # A running worker keeps its answers; only a future re-check can revive it.
         park(version, recheck_days=recheck_days)

@@ -1,5 +1,6 @@
 import sys
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,25 +97,25 @@ class AdmissionTierTests(unittest.IsolatedAsyncioTestCase):
 
 
 class TierEligibilityTests(unittest.TestCase):
+    def evidence(self, books=1, chapters=2):
+        # A fixed date would age out of the seven-day evidence window, so the
+        # fixture reads the clock instead.
+        stamp = datetime.now(timezone.utc).isoformat()
+        return {'audit': {'decision': 'pass', 'complete': True, 'policy_version': 'p',
+                          'checked_at': stamp},
+                'validation': {'validator_version': VALIDATOR_VERSION,
+                               'runtime_fingerprint': runtime_fingerprint(),
+                               'status': 'valid',
+                               'sample': {'books': books, 'chapters': chapters},
+                               'last_deep_success_at': stamp}}
+
     def test_a_usable_sample_is_eligible(self):
-        version = {'audit': {'decision': 'pass', 'complete': True, 'policy_version': 'p',
-                             'checked_at': '2026-11-01T00:00:00+00:00'},
-                   'validation': {'validator_version': VALIDATOR_VERSION,
-                                  'runtime_fingerprint': runtime_fingerprint(),
-                                  'status': 'valid',
-                                  'sample': {'books': 1, 'chapters': 2},
-                                  'last_deep_success_at': '2026-11-01T00:00:00+00:00'}}
+        version = self.evidence()
 
         self.assertEqual(eligibility(version, 'p'), 'ready')
 
     def test_one_chapter_is_not_eligible(self):
-        version = {'audit': {'decision': 'pass', 'complete': True, 'policy_version': 'p',
-                             'checked_at': '2026-11-01T00:00:00+00:00'},
-                   'validation': {'validator_version': VALIDATOR_VERSION,
-                                  'runtime_fingerprint': runtime_fingerprint(),
-                                  'status': 'valid',
-                                  'sample': {'books': 1, 'chapters': 1},
-                                  'last_deep_success_at': '2026-11-01T00:00:00+00:00'}}
+        version = self.evidence(chapters=1)
 
         self.assertIsNone(eligibility(version, 'p'))
 

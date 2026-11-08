@@ -136,20 +136,23 @@ class InventoryTests(unittest.TestCase):
         self.inventory.audit_all()
         self.assertEqual(self.inventory.select()[2]['export_count'], 0)
 
-    def test_grace_and_expiration_are_bounded(self):
+    def test_a_momentary_failure_does_not_revoke_a_reading(self):
         now = datetime.now(timezone.utc)
         refs = seed(self.inventory, 1, now)
-        record = self.inventory.store.get(refs[0][0])
-        version = record['versions'][refs[0][1]]
+        version = self.inventory.store.get(refs[0][0])['versions'][refs[0][1]]
         failure = {'status': 'transient', 'kind': 'timeout', 'mode': 'light',
                    'checked_at': (now + timedelta(hours=1)).isoformat(), 'validator_version': VALIDATOR_VERSION}
-        apply_result(version, failure)
-        self.assertEqual(eligibility(version, self.inventory.policy.auditor.version, now + timedelta(hours=2)), 'grace')
-        self.assertIsNone(eligibility(version, self.inventory.policy.auditor.version, now + timedelta(hours=73)))
-        apply_result(version, failure)
-        apply_result(version, failure)
-        self.assertIsNone(eligibility(version, self.inventory.policy.auditor.version, now + timedelta(hours=2)))
-        apply_result(version, ready_result(self.inventory.policy, now))
+        for _ in range(3):
+            apply_result(version, failure)
+        # Three timed-out searches say nothing about the chapters that were read, so
+        # the reading stays in force and the probe becomes a request for a new one.
+        self.assertEqual(version['validation']['status'], 'valid')
+        self.assertEqual(version['validation']['consecutive_failures'], 3)
+        self.assertEqual(version['validation']['next_deep_check_at'], failure['checked_at'])
+        self.assertNotIn('terminal', version['validation'])
+        self.assertEqual(eligibility(version, self.inventory.policy.auditor.version, now + timedelta(hours=2)), 'ready')
+        # The seven-day evidence gate still ends delivery, so a source that never
+        # reads again does not stay published.
         self.assertIsNone(eligibility(version, self.inventory.policy.auditor.version, now + timedelta(days=8)))
 
     def test_saved_results_survive_restart_and_unsupported_is_not_retried(self):
@@ -217,10 +220,11 @@ class InventoryTests(unittest.TestCase):
     def test_grace_limit_scales_with_a_small_publication(self):
         refs = seed(self.inventory, 40)
         for ref in refs[:5]:
-            self.inventory.record_result(*ref, {
-                'status': 'transient', 'kind': 'timeout', 'mode': 'light',
-                'checked_at': utcnow(), 'validator_version': VALIDATOR_VERSION,
-            })
+            # Stored evidence from the older policy: a source that read fine but
+            # carries a transient verdict. The grace limit has to keep capping it.
+            version = self.inventory.store.get(ref[0])['versions'][ref[1]]
+            version['validation'].update(status='transient', kind='timeout')
+            self.inventory.store.touch(ref[0])
         export, _, report = self.inventory.select()
         self.assertEqual(report['grace_count'], 1)
         self.assertLessEqual(report['grace_count'] / len(export), 0.05)

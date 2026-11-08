@@ -48,7 +48,12 @@ class ExtendedDeliveryTests(unittest.TestCase):
         seed(self.inventory, 2)
         grace = self.ingest('https://grace.example')
         self.inventory.record_result(*grace, ready_result(self.inventory.policy))
-        self.inventory.record_result(*grace, attempt('transient', 'network'))
+        # Evidence stored by the older policy could demote a source on a momentary
+        # failure. Nothing rewrites that shape until the source is probed again, so
+        # the grace tier has to keep reading it.
+        version = self.inventory.store.get(grace[0])['versions'][grace[1]]
+        version['validation'].update(status='transient', kind='network')
+        self.inventory.store.touch(grace[0])
         self.inventory.record_result(*self.ingest('https://unverified.example'),
                                      attempt('unverified', 'search_empty'))
         self.ingest('https://never.example')
