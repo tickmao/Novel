@@ -140,7 +140,11 @@ async def collect_into(store, client, config, *, deadline=None, save=True):
                 await ingest_url(site['url'], 'website', site['url'])
                 continue
             response = await client.fetch({'url': site['url']})
-            links = list(dict.fromkeys(urljoin(response.url, link) for link in re.findall(r'''href=["']([^"']+\.json(?:\?[^"']*)?)["']''', response.text)))
+            found = (urljoin(response.url, link) for link in re.findall(r'''href=["']([^"']+\.json(?:\?[^"']*)?)["']''', response.text))
+            # A source mirror links the same file twice: once directly and once
+            # through a legado://import deeplink whose src carries the .json URL.
+            # The deeplink is not fetchable, and asking for it failed the whole site.
+            links = list(dict.fromkeys(url for url in found if url.startswith(('http://', 'https://'))))
             for link in links[:int(site.get('max_links', 3))]:
                 await ingest_url(link, 'website', site['url'])
         except Exception as exc:

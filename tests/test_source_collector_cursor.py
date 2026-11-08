@@ -99,5 +99,37 @@ class RepoCursorTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(transport.downloads, ['a.json'])
 
 
+class WebsiteChannelTests(unittest.IsolatedAsyncioTestCase):
+    """A mirror page links the same file twice, once through a legado deeplink."""
+
+    class MirrorTransport:
+        def __init__(self):
+            self.downloads = []
+
+        async def fetch(self, request):
+            url = request['url']
+            if url.endswith('/'):
+                page = (
+                    '<a href="https://mirror.example/sources/a.json">a</a>'
+                    '<a href="legado://import/bookSource?src=https://mirror.example/sources/a.json">a</a>'
+                    '<a href="https://mirror.example/sources/b.json">b</a>'
+                )
+                return Response(url, page)
+            self.downloads.append(url)
+            return Response(url, json.dumps([source(f'https://{url.rsplit("/", 1)[1]}.example')]))
+
+    async def test_a_deeplink_is_not_fetched_and_the_page_is_not_failed(self):
+        config = {'source_websites': [{'url': 'https://mirror.example/', 'max_links': 4}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            transport = self.MirrorTransport()
+            report = await collect_into(SourceStore(Path(tmp)), transport, config,
+                                        deadline=None, save=True)
+
+            self.assertEqual(transport.downloads, ['https://mirror.example/sources/a.json',
+                                                   'https://mirror.example/sources/b.json'])
+            self.assertEqual(report['errors'], [])
+            self.assertEqual(report['files'], 2)
+
+
 if __name__ == '__main__':
     unittest.main()

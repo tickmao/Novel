@@ -54,33 +54,6 @@
       "link_patterns": [
         "*.json"
       ]
-    },
-    {
-      "url": "https://shuyuan.miaogongzi.net/",
-      "description": "喵公子书源网",
-      "priority": "medium",
-      "max_links": 4,
-      "link_patterns": [
-        "*.json"
-      ]
-    },
-    {
-      "url": "https://list.yiove.com/",
-      "description": "yiove书源列表站",
-      "priority": "medium",
-      "max_links": 4,
-      "link_patterns": [
-        "*.json"
-      ]
-    },
-    {
-      "url": "https://shuyuan.yiove.com/",
-      "description": "yiove书源站",
-      "priority": "medium",
-      "max_links": 4,
-      "link_patterns": [
-        "*.json"
-      ]
     }
   ],
   "large_files": [
