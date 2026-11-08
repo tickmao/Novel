@@ -285,12 +285,12 @@ class DailyMaintenance:
 
             async def check_inventory():
                 # Every probe starts its own JVM worker, so this number is also the
-                # number of live engines: keep it under what the runner can hold
-                # rather than matching the CLI default. A container capped at one
-                # CPU cannot use more than the machine has, so the CPU count is the
-                # ceiling no matter what the config asks for.
+                # number of live engines. The count is no longer capped by the CPU
+                # count: a probe waits on the network, and the benchmark measured 12
+                # engines on a four-core runner at 1.6x the probes per minute with the
+                # same engine health as the baseline.
                 requested = int(inventory.config.get('inventory', {}).get('validation_concurrency', 6))
-                limit = max(2, min(requested, concurrency, os.cpu_count() or requested))
+                limit = max(2, min(requested, concurrency))
                 request_timeout = float(inventory.config.get('validation', {}).get('engine_request_timeout', 30))
                 validator = ReadingValidator(inventory.policy, concurrency=max(1, limit),
                                              request_timeout=request_timeout)

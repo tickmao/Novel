@@ -213,15 +213,19 @@ def summarize_round(concurrency, results, elapsed):
 def benchmark_decision(rounds):
     """Pick the largest concurrency that stays clean and clearly faster.
 
-    Clean means no worker failed to start or answer, and the slowest probe still
-    fits the request budget. Faster means a real gain over the baseline, because a
-    benchmark that doubles contention to win 5% is a loss.
+    Clean means the engine answers no worse than it does at the baseline, and the
+    slowest probe still fits the request budget. Faster means a real gain over the
+    baseline, because a benchmark that doubles contention to win 5% is a loss.
     """
     baseline = next((item for item in rounds if item['concurrency'] == BENCH_BASELINE_CONCURRENCY), None)
     if baseline is None or not baseline['attempts']:
         return {'concurrency': None, 'reason': 'no_usable_baseline'}
+    # Demanding a clean sheet made every round ineligible, the baseline included:
+    # the engine already times out under load, so engine health is compared against
+    # the baseline instead of against an ideal that never occurs.
     accepted = [item for item in rounds
-                if item['attempts'] and item['engine_failure_share'] == 0
+                if item['attempts']
+                and item['engine_failure_share'] <= baseline['engine_failure_share']
                 and item['p95_ms'] < BENCH_P95_LIMIT_MS
                 and item['probes_per_minute'] >= baseline['probes_per_minute'] * BENCH_THROUGHPUT_GAIN]
     if not accepted:

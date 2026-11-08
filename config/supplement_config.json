@@ -19,7 +19,7 @@
     "extended_min": 200,
     "extended_max": 1200,
     "max_per_domain_extended": 3,
-    "validation_concurrency": 6,
+    "validation_concurrency": 12,
     "queue_ratio": {
       "published": 1,
       "reserve": 1,

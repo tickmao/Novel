@@ -30,6 +30,20 @@ class BenchmarkDecisionTests(unittest.TestCase):
 
         self.assertEqual(benchmark_decision(rounds)['concurrency'], 8)
 
+    def test_a_baseline_that_is_not_clean_does_not_disqualify_every_round(self):
+        # The measured baseline itself carried two engine timeouts, so a gate of zero
+        # rejected the 1.6x round and kept the slower baseline instead.
+        rounds = [round_of(4, engine=0.0333, rate=1.0),
+                  round_of(12, engine=0.0333, rate=1.63)]
+
+        self.assertEqual(benchmark_decision(rounds)['concurrency'], 12)
+
+    def test_a_round_with_worse_engine_health_than_the_baseline_is_not_a_candidate(self):
+        rounds = [round_of(4, engine=0.0, rate=1.0),
+                  round_of(12, engine=0.0333, rate=2.0)]
+
+        self.assertEqual(benchmark_decision(rounds)['concurrency'], BENCH_BASELINE_CONCURRENCY)
+
     def test_a_round_that_is_not_faster_is_not_a_candidate(self):
         rounds = [round_of(4, rate=2.0), round_of(8, rate=2.5), round_of(12, rate=5.0)]
 
