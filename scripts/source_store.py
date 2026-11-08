@@ -126,6 +126,9 @@ class SourceStore:
         # Revisions that entered the store during this process. The maintenance run
         # audits only these after collection instead of re-reading every revision.
         self.pending_audit: set[tuple[str, str]] = set()
+        # Records created since the last save. Collection uses it to bound how much the
+        # raw store may grow per run, and `save` is the only thing that resets it.
+        self.new_records = 0
 
     @property
     def exists(self) -> bool:
@@ -161,7 +164,10 @@ class SourceStore:
         payload = deepcopy(source)
         key, revision = source_id(payload), digest(payload)
         shard = self._load(key[:2])
-        record = shard.setdefault(key, {'source_id': key, 'first_seen_at': now, 'versions': {}})
+        record = shard.get(key)
+        if record is None:
+            record = shard[key] = {'source_id': key, 'first_seen_at': now, 'versions': {}}
+            self.new_records += 1
         version = record['versions'].setdefault(revision, {
             'source': payload, 'first_seen_at': now, 'provenance': [],
             'audit': {}, 'validation': {'status': 'pending', 'consecutive_failures': 0},
@@ -190,6 +196,7 @@ class SourceStore:
         atomic_bundle(files)
         self.manifest = manifest
         self.dirty.clear()
+        self.new_records = 0
 
     def migrate(self, inputs: list[Path]) -> dict:
         counts = {}

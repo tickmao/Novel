@@ -123,6 +123,33 @@ class HarvesterTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(report['stale_skipped'], 1)
             self.assertEqual(list(store.state['providers']['shuyuans']['catalog']), ['1'])
 
+    async def test_intake_stops_once_the_run_has_added_enough_new_sources(self):
+        listing = page([{'collection_id': '1', 'size': 100}, {'collection_id': '2', 'size': 100}])
+
+        class Collections:
+            def __init__(self):
+                self.fetched = []
+
+            async def fetch(self, request):
+                if '/json/' not in request['url']:
+                    return Response(request['url'], listing)
+                self.fetched.append(request['url'])
+                name = request['url'].rsplit('/', 1)[1].split('.')[0]
+                return Response(request['url'], json.dumps(
+                    [source(f'https://{name}-{index}.example') for index in range(6)]))
+
+        transport = Collections()
+        with tempfile.TemporaryDirectory() as tmp, patch('shuyuans_harvester.asyncio.sleep', new=AsyncMock()):
+            store = SourceStore(Path(tmp))
+            report = await ShuyuansHarvester(request_delay=1, min_sources=5, max_new_sources=3).sync(
+                store, transport, fetch_cap=5)
+
+            # One collection always lands, then intake waits for the next run: a
+            # collection carries more sources than the probe budget can read.
+            self.assertEqual(report['fetched_ids'], 1)
+            self.assertEqual(report['deferred_collections'], 1)
+            self.assertEqual(store.manifest['count'], 6)
+
     async def test_a_tiny_collection_is_skipped(self):
         transport = Transport(listings=[page([{'collection_id': '1', 'size': 3}])])
         with tempfile.TemporaryDirectory() as tmp, patch('shuyuans_harvester.asyncio.sleep', new=AsyncMock()):

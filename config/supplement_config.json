@@ -58,7 +58,8 @@
     "collections_per_run": 10,
     "refetch_days": 7,
     "request_delay": 2.0,
-    "max_tracked": 1200
+    "max_tracked": 1200,
+    "max_new_sources": 2000
   },
   "recovery": {
     "timeout": 15,

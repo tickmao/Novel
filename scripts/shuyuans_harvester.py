@@ -129,7 +129,7 @@ class ShuyuansHarvester:
                  list_path='/yuedu/shuyuans/index.html',
                  json_path_template='/yuedu/shuyuans/json/id/{id}.json',
                  request_delay=2.0, max_age_days=365, min_sources=5,
-                 refetch_days=7, max_tracked=1200, **_):
+                 refetch_days=7, max_tracked=1200, max_new_sources=2000, **_):
         self.policy = policy
         self.base_url = base_url.rstrip('/')
         self.list_path, self.json_path_template = list_path, json_path_template
@@ -138,6 +138,7 @@ class ShuyuansHarvester:
         self.min_sources = int(min_sources)
         self.refetch_days = int(refetch_days)
         self.max_tracked = int(max_tracked)
+        self.max_new_sources = int(max_new_sources)
 
     def listing_url(self, page=1):
         url = urljoin(self.base_url, self.list_path)
@@ -159,6 +160,7 @@ class ShuyuansHarvester:
         deadline = deadline or time.monotonic() + 600
         report = {'listed': 0, 'fetched_ids': 0, 'sources': 0, 'new_versions': 0,
                   'failed': 0, 'pages': 0, 'stale_skipped': 0}
+        started = int(getattr(store, 'new_records', 0))
         scan_deadline = time.monotonic() + max(0, deadline - time.monotonic()) / 2
         page = state.get('scan_cursor', 1) if scan else 1
         last_page = state.get('last_page', 1)
@@ -216,6 +218,14 @@ class ShuyuansHarvester:
                                        -int(item[1].get('claimed_size') or 0)), reverse=True)
         for key, entry in pending[:max(1, int(fetch_cap))]:
             if time.monotonic() >= deadline:
+                break
+            # A collection carries hundreds of sources and the probe budget cannot read
+            # them any faster. Past the cap the store only grows, and every run pays for
+            # that when the state snapshot is restored, so new intake waits for the next
+            # run. One collection is always taken: progress beats a perfect bound.
+            added = int(getattr(store, 'new_records', 0)) - started
+            if self.max_new_sources and report['fetched_ids'] and added >= self.max_new_sources:
+                report['deferred_collections'] = len(pending) - report['fetched_ids']
                 break
             await asyncio.sleep(self.request_delay)
             report['fetched_ids'] += 1
