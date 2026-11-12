@@ -155,7 +155,8 @@ def summary_text(result, report=None, *, verified_target=500, extended_target=10
         f"- raw inventory: sources {progress.get('raw_sources', 'unknown')}"
         f", eligible {progress.get('eligible_revisions', 'unknown')}"
         f", attempted {progress.get('attempted_revisions', 'unknown')}"
-        f", pending {progress.get('pending_revisions', 'unknown')}",
+        f", pending {progress.get('pending_revisions', 'unknown')}"
+        f", unsearchable {progress.get('unsearchable_revisions', 0)}",
         f"- reserves: {inventory.get('reserve_count', 'unknown')}"
         f", healthy: {inventory.get('healthy_count', 'unknown')}"
         f", failing last probe: {inventory.get('failing_count', 0)}",
