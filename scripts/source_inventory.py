@@ -97,6 +97,16 @@ class SourceInventory:
             return 'non_novel'
         return source_url_problem(source)
 
+    @staticmethod
+    def searchable(source):
+        """Whether a probe can ever admit this source.
+
+        The engine reads a source through ``searchUrl`` only, so an explore-only
+        source is ship-and-stop: it stays in the extended tier, but a probe slot
+        spent on it returns ``no_search_rule`` and nothing else.
+        """
+        return bool(str(source.get('searchUrl') or '').strip())
+
     def audit_all(self, dirty_only=False):
         """Re-audit what changed. An unchanged verdict is a cached verdict.
 
@@ -362,6 +372,7 @@ class SourceInventory:
     def revalidation_progress(self, now=None):
         now = now or datetime.now(timezone.utc)
         sources = eligible_sources = eligible = checked = attempted = parked = 0
+        unsearchable = 0
         outcomes = Counter()
         for record in self.store.records():
             sources += 1
@@ -378,6 +389,11 @@ class SourceInventory:
                         audit.get('decision') in ('block', 'review')
                         and audit.get('policy_version') == self.policy.auditor.version):
                     continue
+                if not self.searchable(version['source']):
+                    # No probe can admit an explore-only source, so it is not backlog.
+                    # Counting it hid that a fifth of the queue was unreachable.
+                    unsearchable += 1
+                    continue
                 count += 1
                 if terminal(version, now):
                     # Parked revisions are not pending work; reporting them as backlog
@@ -391,8 +407,9 @@ class SourceInventory:
             eligible_sources += bool(count)
         return {'raw_sources': sources, 'eligible_sources': eligible_sources, 'attempted_revisions': attempted,
                 'eligible_revisions': eligible, 'checked_revisions': checked,
-                'parked_revisions': parked,
-                'pending_revisions': eligible - checked - parked, 'outcomes': dict(outcomes)}
+                'parked_revisions': parked, 'unsearchable_revisions': unsearchable,
+                'pending_revisions': eligible - checked - parked,
+                'outcomes': dict(outcomes)}
 
     def collection_decision(self, progress, inventory):
         """Harvesting is independent of the validation backlog.
@@ -435,6 +452,10 @@ class SourceInventory:
             for revision in revisions:
                 version = record['versions'][revision]
                 if self.scope_reason(version['source']):
+                    continue
+                if not self.searchable(version['source']):
+                    # No probe can admit an explore-only source, so a slot spent on
+                    # it returns no_search_rule and nothing else.
                     continue
                 audit, health = version.get('audit', {}), version.get('validation', {})
                 next_attempt = parse_time(health.get('next_attempt_at'))
