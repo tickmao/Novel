@@ -31,7 +31,8 @@ def large_report(rows=2000):
         'deep_kinds': {'rule_error': 681, 'search_empty': 205, 'timeout': 94},
         'collection_decision': {'allowed': False, 'reason': 'raw_inventory_pending'},
         'raw_progress': {'raw_sources': 17161, 'eligible_revisions': 12650,
-                         'attempted_revisions': 3023, 'pending_revisions': 9630},
+                         'attempted_revisions': 3023, 'pending_revisions': 9630,
+                         'unsearchable_revisions': 8637},
         'inventory': {'reserve_count': 18, 'healthy_count': 138},
         'deep_examples': {f'kind_{index}': {'name': f'站点{index}', 'error': '上游返回 HTTP 401'}
                           for index in range(15)},
@@ -50,6 +51,7 @@ class SummaryTests(unittest.TestCase):
         self.assertIn('## Maintenance run', text)
         self.assertIn('usable: 140 / 500', text)
         self.assertIn('pending 9630', text)
+        self.assertIn('unsearchable 8637', text)
         self.assertNotIn('deep_results', text)
 
     def test_a_small_report_is_not_truncated(self):
