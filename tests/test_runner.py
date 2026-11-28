@@ -12,7 +12,9 @@ from unittest.mock import AsyncMock, patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 from batch_validator import BatchValidator
+from check_publication import summary_text
 from daily_maintenance import DailyMaintenance
+from reading_validator import ProbeFailure, Response
 from source_store import SourceStore, read_json, utcnow
 from source_health import VALIDATOR_VERSION
 from test_inventory_v2 import seed, ready_result
@@ -148,6 +150,53 @@ class RunnerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('error', report['providers']['submissions'])
         collect.assert_awaited_once()
         external.assert_awaited_once()
+
+    async def test_catalog_recovery_and_diagnostics_flow_through_collection(self):
+        requested = {'yckceo': [], 'shuyuans': []}
+
+        async def fetch(request):
+            url = request['url']
+            if '/json/' in url:
+                return Response(url, json.dumps([source()]))
+            provider = 'shuyuans' if '/shuyuans/' in url else 'yckceo'
+            current = int(url.split('?page=')[-1]) if '?page=' in url else 1
+            requested[provider].append(current)
+            if current == 3:
+                raise ProbeFailure('http_error', 'HTTP 404')
+            path = 'shuyuans' if provider == 'shuyuans' else 'shuyuan'
+            return Response(url, f'<a href="/yuedu/{path}/content/id/{current}.html">Book</a>'
+                            f'<a href="/yuedu/{path}/index.html?page=5">5</a>')
+
+        client = AsyncMock()
+        client.fetch.side_effect = fetch
+        with patch('daily_maintenance.collect_submissions', new=AsyncMock(return_value={})), \
+                patch('daily_maintenance.collect_into', new=AsyncMock(return_value={'files': 0, 'errors': []})), \
+                patch('yckceo_harvester.asyncio.sleep', new=AsyncMock()):
+            for run, expected in enumerate(([1, 2, 3], [3], [3, 4, 5], [1, 2, 3])):
+                self.runner = DailyMaintenance(self.root)
+                report = {'providers': {}}
+                for pages in requested.values():
+                    pages.clear()
+                await self.runner.collect_sources(client, mode='backfill' if run == 0 else 'catchup',
+                                                  deadline=time.monotonic() + 60, save=True,
+                                                  fetch_cap=1, backfill_rounds=2, report=report)
+                batches = report['providers']['yckceo']
+                self.assertIsInstance(batches, list)
+                self.assertIsInstance(report['providers']['shuyuans'], dict)
+                if run == 0:
+                    self.assertEqual(len(batches), 2)
+                    self.assertNotIn('catalog_error', batches[1])
+                    self.assertEqual(batches[1]['sources'], 1)
+                for provider, pages in requested.items():
+                    self.assertEqual(pages, expected)
+                    state = SourceStore(self.runner.inventory.store.root).state['providers'][provider]
+                    self.assertNotIn('last_full_scan_at', state)
+                    self.assertIn(f'{provider} catalog: HTTP 404', summary_text({}, report))
+                if run == 2:
+                    self.assertEqual(batches[0]['skipped_page'], 3)
+                    self.assertIn('cursor: 1/5', summary_text({}, report))
+                else:
+                    self.assertIn('cursor: 3/5', summary_text({}, report))
 
     async def test_expired_collection_budget_saves_partial_work(self):
         self.runner.inventory.store.save()

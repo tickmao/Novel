@@ -161,6 +161,29 @@ def summary_text(result, report=None, *, verified_target=500, extended_target=10
         f", failing last probe: {inventory.get('failing_count', 0)}",
     ]
 
+    providers = report.get('providers') or {}
+    for name in ('yckceo', 'shuyuans'):
+        batches = providers.get(name) or []
+        if isinstance(batches, dict) and batches.get('status') == 'budget_exhausted':
+            batches = batches.get('completed') or []
+        if isinstance(batches, dict):
+            batches = [batches]
+        affected = [batch for batch in batches if isinstance(batch, dict) and (
+            batch.get('catalog_error') or batch.get('catalog_failed_page')
+            or batch.get('skipped_page') or batch.get('stalled_scans'))]
+        if not affected:
+            continue
+        # 后续只下载批次不能掩盖发现目录时的错误。
+        diagnostic = next((batch for batch in reversed(affected) if batch.get('catalog_error')), affected[-1])
+        error = ' '.join(str(diagnostic.get('catalog_error') or 'pending retry')[:150].split())
+        lines.append(
+            f"- {name} catalog: {error} (page {diagnostic.get('catalog_error_page', 'unknown')})"
+            f", cursor: {diagnostic.get('scan_cursor', 'unknown')}/{diagnostic.get('last_page', 'unknown')}"
+            f", failed page: {diagnostic.get('catalog_failed_page') or 'none'}"
+            f", attempts: {diagnostic.get('catalog_failure_attempts', 0)}"
+            f", skipped page: {diagnostic.get('skipped_page') or 'none'}"
+            f", stalled scans: {diagnostic.get('stalled_scans', 0)}")
+
     parked = int(progress.get('parked_revisions') or 0)
     lines += ['', '## Probe funnel', '',
               f"- parked revisions (no probe until their date): {parked}",
